@@ -1,0 +1,21 @@
+{
+  "name": "jarvis",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "keys": "node scripts/gen-keys.mjs",
+    "db:local": "wrangler d1 execute jarvis-db --local --file=schema.sql",
+    "db:remote": "wrangler d1 execute jarvis-db --remote --file=schema.sql"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "http_ece": "^1.2.1",
+    "wrangler": "^4.149.0"
+  },
+  "type": "module"
+}

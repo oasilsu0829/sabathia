@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS subscriptions (
+  endpoint TEXT PRIMARY KEY,
+  p256dh   TEXT NOT NULL,
+  auth     TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS reminders (
+  id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  at    TEXT NOT NULL,           -- UTC ISO 8601
+  sent  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_due ON reminders (sent, at);
