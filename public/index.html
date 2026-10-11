@@ -20,7 +20,7 @@
   button { background:var(--acc); color:#0f172a; border:none; font-weight:600; cursor:pointer; }
   button.ghost { background:transparent; color:var(--acc); border:1px solid var(--line); }
   .row { display:flex; gap:8px; margin-top:8px; }
-  .row > * { flex:1; }
+  .row > * { flex:1; min-width:0; }
   ul { list-style:none; margin:0; padding:0; }
   li { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
   li:first-child { border-top:none; }
@@ -29,10 +29,41 @@
   li button { width:auto; background:none; color:var(--red); padding:4px 8px; }
   .status { font-size:13px; color:var(--dim); }
   .empty { color:var(--dim); font-size:14px; }
+
+  /* 모바일 전용: 리퀴드 글라스 */
+  .wpbtn, #wp { display:none; }
+  @media (max-width: 720px) {
+    :root { --glass: rgba(255,255,255,.14); --glass-hi: rgba(255,255,255,.38); --glass-line: rgba(255,255,255,.22); --fg:#fff; --dim:rgba(255,255,255,.72); }
+    html { background:#111; }
+    body { background:transparent; min-height:100dvh; }
+    #wall { position:fixed; inset:0; z-index:-1; background:var(--wall, linear-gradient(160deg,#4f46e5,#0ea5e9 55%,#22d3ee)); background-size:cover; background-position:center; }
+    #wall::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.28)); }
+    h1 { display:flex; align-items:center; font-size:28px; font-weight:700; margin:8px 4px 18px; text-shadow:0 1px 8px rgba(0,0,0,.25); }
+    h1 span { color:#fff; }
+    .wpbtn { display:block; margin-left:auto; width:auto; font-size:14px; font-weight:600; padding:8px 14px; border-radius:999px; }
+    .card, .glass { position:relative; background:var(--glass); border:1px solid var(--glass-line); border-radius:24px; padding:16px;
+      -webkit-backdrop-filter:blur(22px) saturate(180%); backdrop-filter:blur(22px) saturate(180%);
+      box-shadow:inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 rgba(255,255,255,.06), 0 10px 30px rgba(0,0,0,.18); }
+    .label { color:var(--dim); font-weight:600; }
+    input { background:rgba(255,255,255,.12); border:1px solid var(--glass-line); border-radius:14px; color:#fff; }
+    input::placeholder { color:rgba(255,255,255,.6); }
+    input[type=datetime-local] { color-scheme:dark; }
+    button { border-radius:14px; background:rgba(255,255,255,.88); color:#111; box-shadow:inset 0 1px 0 #fff, 0 4px 14px rgba(0,0,0,.15); }
+    button.ghost, .wpbtn { background:rgba(255,255,255,.16); color:#fff; border:1px solid var(--glass-line);
+      -webkit-backdrop-filter:blur(16px) saturate(180%); backdrop-filter:blur(16px) saturate(180%); box-shadow:inset 0 1px 0 var(--glass-hi); }
+    li { border-top-color:rgba(255,255,255,.14); }
+    li button { background:none; box-shadow:none; color:#fecaca; }
+    #wp { position:fixed; left:12px; right:12px; bottom:max(12px, env(safe-area-inset-bottom)); z-index:10; }
+    #wp.open { display:block; }
+    .sw { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:6px 0 12px; }
+    .sw button { aspect-ratio:1; padding:0; border-radius:16px; border:2px solid rgba(255,255,255,.5); }
+  }
+  @media (max-width: 720px) and (prefers-color-scheme: light) { #wall::after { background:linear-gradient(180deg,rgba(0,0,0,.02),rgba(0,0,0,.2)); } }
 </style>
 </head>
 <body>
-<h1><span>●</span> 자비스</h1>
+<div id="wall"></div>
+<h1><span>●</span>&nbsp;자비스<button class="wpbtn" id="btnWp">배경</button></h1>
 
 <div class="card" id="setup">
   <div class="label">알림</div>
@@ -55,6 +86,16 @@
 <div class="card">
   <div class="label">예정</div>
   <ul id="list"></ul>
+</div>
+
+<div id="wp" class="glass">
+  <div class="label">배경화면</div>
+  <div class="sw" id="sw"></div>
+  <div class="row">
+    <button class="ghost" id="btnPick">사진 선택</button>
+    <button id="btnWpClose">닫기</button>
+  </div>
+  <input type="file" id="file" accept="image/*" hidden>
 </div>
 
 <script>
@@ -127,6 +168,43 @@ $('btnAdd').onclick = async () => {
 // 기본값: 10분 뒤
 const d = new Date(Date.now() + 10 * 60000 - new Date().getTimezoneOffset() * 60000);
 $('at').value = d.toISOString().slice(0, 16);
+
+// 배경화면 (모바일)
+const PRESETS = [
+  'linear-gradient(160deg,#4f46e5,#0ea5e9 55%,#22d3ee)',
+  'linear-gradient(160deg,#f97316,#ec4899 50%,#8b5cf6)',
+  'linear-gradient(160deg,#064e3b,#10b981 60%,#a7f3d0)',
+  'linear-gradient(160deg,#0f172a,#334155 60%,#64748b)',
+  'radial-gradient(circle at 30% 20%,#fde68a,#f472b6 45%,#1e1b4b)',
+  'linear-gradient(200deg,#111,#3f3f46)',
+  'linear-gradient(160deg,#1e3a8a,#7c3aed 50%,#db2777)',
+  'linear-gradient(160deg,#fafafa,#d4d4d8)',
+];
+const applyWall = (v) => { if (v) document.documentElement.style.setProperty('--wall', v); };
+applyWall(store.get('wall'));
+for (const p of PRESETS) {
+  const b = document.createElement('button');
+  b.style.background = p;
+  b.setAttribute('aria-label', '배경 선택');
+  b.onclick = () => { applyWall(p); store.set('wall', p); };
+  $('sw').appendChild(b);
+}
+$('btnWp').onclick = () => $('wp').classList.toggle('open');
+$('btnWpClose').onclick = () => $('wp').classList.remove('open');
+$('btnPick').onclick = () => $('file').click();
+$('file').onchange = async () => {
+  const f = $('file').files[0];
+  if (!f) return;
+  const img = await createImageBitmap(f);
+  const k = Math.min(1, 1440 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  const v = `url("${c.toDataURL('image/jpeg', 0.82)}")`;
+  applyWall(v);
+  store.set('wall', v);
+  $('file').value = '';
+};
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').then(refreshStatus);
 load();
