@@ -315,11 +315,18 @@ const SCHEMES = {
   'com.sampleapp': 'baemin', 'com.towneers.www': 'towneers', 'com.iloen.melon': 'melonapp', 'com.nhn.android.webtoon': 'naverwebtoon',
   'com.skt.tmap.ku': 'tmap', 'com.nhn.android.blog': 'naverblog', 'com.nhn.android.band': 'bandapp', 'com.twitter.android': 'twitter',
   'com.zhiliaoapp.musically': 'snssdk1233', 'com.discord': 'discord', 'com.google.android.apps.maps': 'geo',
+  // 브라우저는 웹 주소를 해당 앱으로 연다
+  'org.mozilla.firefox': 'https://www.google.com', 'org.mozilla.firefox_beta': 'https://www.google.com', 'com.android.chrome': 'https://www.google.com',
+  'com.sec.android.app.sbrowser': 'https://www.google.com',
 };
 const hrefOf = (u) => {
   if (!isPkg(u)) return u;
   const store = encodeURIComponent('https://play.google.com/store/apps/details?id=' + u);
   const sc = SCHEMES[u];
+  if (sc && sc.includes('://')) {
+    const [scheme, rest] = sc.split('://');
+    return `intent://${rest}#Intent;scheme=${scheme};action=android.intent.action.VIEW;package=${u};S.browser_fallback_url=${store};end`;
+  }
   return sc
     ? `intent://${sc === 'geo' ? '0,0' : ''}#Intent;scheme=${sc};package=${u};S.browser_fallback_url=${store};end`
     : `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${u};S.browser_fallback_url=${store};end`;
