@@ -25,10 +25,13 @@ public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만
 src/index.js        /api/* 라우트 + scheduled() 1분 cron으로 리마인더 발송
 src/webpush.js      RFC 8291(aes128gcm) + RFC 8292(VAPID), WebCrypto만 사용
 schema.sql          subscriptions, reminders
+android/            홈 런처 앱(WebView, JS 브리지 window.Jarvis: launch/apps/open). Actions가 빌드해 릴리스 'launcher'에 jarvis.apk 게시
 test/               ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립트
 ```
 - API 인증: `Authorization: Bearer <APP_TOKEN>` (`/api/vapid`만 공개)
 - 리마인더 시각은 UTC ISO 문자열로 저장
+
+- 런처 WebView는 웹 푸시 미지원 → 알림은 크롬 PWA로 받음
 
 ## 다음 기능 (예정)
 - 캘린더, 프로젝트 장부 (원래 핵심 기능)
