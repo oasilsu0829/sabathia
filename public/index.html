@@ -153,7 +153,7 @@
   <div class="label">앱 추가</div>
   <input id="appName" placeholder="이름 (예: 카카오톡)">
   <input id="appUrl" placeholder="주소 또는 패키지명 (예: com.kakao.talk)" style="margin-top:8px" autocapitalize="off">
-  <div class="hint">패키지명은 Play 스토어 앱 주소의 id= 뒤 값입니다. 아이콘을 길게 누르면 편집/삭제할 수 있어요.</div>
+  <div class="hint">패키지명은 Play 스토어 앱 주소의 id= 뒤 값입니다. 목록에 없는 앱은 'kakaotalk://' 같은 앱 주소를 직접 넣어도 됩니다. 아이콘을 길게 누르면 편집/삭제할 수 있어요.</div>
   <div class="row">
     <button class="ghost" id="btnAppCancel">닫기</button>
     <button id="btnAppSave">저장</button>
@@ -298,7 +298,6 @@ const DEFAULT_APPS = [
   { name: '문자', url: 'sms:' },
   { name: '카카오톡', url: 'com.kakao.talk' },
   { name: '네이버지도', url: 'com.nhn.android.nmap' },
-  { name: '카메라', url: 'com.sec.android.app.camera' },
   { name: '캘린더', url: 'https://calendar.google.com' },
   { name: '메일', url: 'https://mail.google.com' },
 ];
@@ -307,9 +306,24 @@ const loadApps = () => { try { return JSON.parse(store.get('apps')) || DEFAULT_A
 let apps = loadApps(), editIdx = -1;
 const saveApps = () => store.set('apps', JSON.stringify(apps));
 const isPkg = (u) => /^[a-z][\w]*(\.[\w]+)+$/i.test(u) && !u.includes('/');
-const hrefOf = (u) => isPkg(u)
-  ? `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${u};S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=' + u)};end`
-  : u;
+// 크롬은 '앱 실행' 인텐트를 막으므로, 앱마다 등록된 딥링크 스킴으로 연다
+const SCHEMES = {
+  'com.kakao.talk': 'kakaotalk', 'com.nhn.android.nmap': 'nmap', 'net.daum.android.map': 'kakaomap',
+  'com.google.android.youtube': 'vnd.youtube', 'com.instagram.android': 'instagram', 'com.nhn.android.search': 'naversearchapp',
+  'com.spotify.music': 'spotify', 'com.kakao.taxi': 'kakaot', 'com.coupang.mobile': 'coupang', 'com.coupang.mobile.eats': 'coupangeats',
+  'viva.republica.toss': 'supertoss', 'com.kakao.bank': 'kakaobank', 'com.whatsapp': 'whatsapp', 'com.google.android.gm': 'googlegmail',
+  'com.sampleapp': 'baemin', 'com.towneers.www': 'towneers', 'com.iloen.melon': 'melonapp', 'com.nhn.android.webtoon': 'naverwebtoon',
+  'com.skt.tmap.ku': 'tmap', 'com.nhn.android.blog': 'naverblog', 'com.nhn.android.band': 'bandapp', 'com.twitter.android': 'twitter',
+  'com.zhiliaoapp.musically': 'snssdk1233', 'com.discord': 'discord', 'com.google.android.apps.maps': 'geo',
+};
+const hrefOf = (u) => {
+  if (!isPkg(u)) return u;
+  const store = encodeURIComponent('https://play.google.com/store/apps/details?id=' + u);
+  const sc = SCHEMES[u];
+  return sc
+    ? `intent://${sc === 'geo' ? '0,0' : ''}#Intent;scheme=${sc};package=${u};S.browser_fallback_url=${store};end`
+    : `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${u};S.browser_fallback_url=${store};end`;
+};
 
 function renderApps() {
   const box = $('apps');
