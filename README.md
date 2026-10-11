@@ -44,7 +44,7 @@ scripts/gen-keys.mjs  VAPID 키 + 앱 토큰 생성
    각 명령마다 `npm run keys` 출력에서 `=` 뒤의 값을 붙여넣으면 됩니다. **APP_TOKEN은 따로 적어두세요** (폰에서 입력함).
 
 ## 폰 설정 (안드로이드 크롬)
-1. `https://jarvis.<서브도메인>.workers.dev` 접속
+1. `https://sabathia.<서브도메인>.workers.dev` 접속
 2. 메뉴(⋮) → **앱 설치** 또는 **홈 화면에 추가**
 3. 설치한 앱을 열고 APP_TOKEN 입력
 4. **알림 켜기** → **테스트**를 눌러 알림이 오면 성공
