@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "echo no build step",
     "dev": "wrangler dev --test-scheduled",
     "deploy": "wrangler deploy",
     "keys": "node scripts/gen-keys.mjs",
