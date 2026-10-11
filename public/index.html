@@ -30,40 +30,75 @@
   .status { font-size:13px; color:var(--dim); }
   .empty { color:var(--dim); font-size:14px; }
 
-  /* 모바일 전용: 리퀴드 글라스 */
-  .wpbtn, #wp { display:none; }
+  /* 홈: 시계 + 앱 */
+  .clock { text-align:center; margin:8px 0 18px; }
+  .clock .time { font-size:64px; font-weight:600; letter-spacing:-0.04em; line-height:1; font-variant-numeric:tabular-nums; }
+  .clock .date { font-size:15px; color:var(--dim); margin-top:6px; font-weight:500; }
+  .apps { display:grid; grid-template-columns:repeat(4,1fr); gap:18px 8px; padding:4px 2px; }
+  .app { display:flex; flex-direction:column; align-items:center; gap:6px; text-decoration:none; color:inherit; background:none; border:none; padding:0; width:auto; font-weight:400; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .app .ic { width:60px; height:60px; border-radius:27%; display:grid; place-items:center; font-size:24px; font-weight:600; color:#fff;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 6px 16px rgba(0,0,0,.18); transition:transform .25s cubic-bezier(.3,1.6,.5,1); }
+  .app:active .ic { transform:scale(.88); }
+  .app .nm { font-size:12px; max-width:72px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .app.add .ic { background:rgba(127,127,127,.2); color:var(--dim); font-weight:300; font-size:30px; }
+  .editing .app .ic { animation:jig .3s ease-in-out infinite alternate; }
+  @keyframes jig { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
+  .sheet .row input { margin-top:0; }
+  .hint { font-size:12px; color:var(--dim); margin-top:8px; }
+  .wpbtn, #wp, #appSheet { display:none; }
+  #appSheet.open { display:block; }
+
+  /* 모바일 전용: Apple 스타일 리퀴드 글라스 */
   @media (max-width: 720px) {
-    :root { --glass: rgba(255,255,255,.14); --glass-hi: rgba(255,255,255,.38); --glass-line: rgba(255,255,255,.22); --fg:#fff; --dim:rgba(255,255,255,.72); }
-    html { background:#111; }
-    body { background:transparent; min-height:100dvh; }
+    :root { --glass:rgba(255,255,255,.16); --glass-hi:rgba(255,255,255,.45); --glass-line:rgba(255,255,255,.24); --fg:#fff; --dim:rgba(255,255,255,.7); --acc:#0a84ff; --red:#ff453a;
+      --ease:cubic-bezier(.32,.72,0,1); }
+    html { background:#000; }
+    body { background:transparent; min-height:100dvh; font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", "Apple SD Gothic Neo", system-ui, sans-serif;
+      -webkit-font-smoothing:antialiased; letter-spacing:-0.01em; padding-top:max(20px, env(safe-area-inset-top)); padding-bottom:max(32px, env(safe-area-inset-bottom)); }
     #wall { position:fixed; inset:0; z-index:-1; background:var(--wall, linear-gradient(160deg,#4f46e5,#0ea5e9 55%,#22d3ee)); background-size:cover; background-position:center; }
-    #wall::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.28)); }
-    h1 { display:flex; align-items:center; font-size:28px; font-weight:700; margin:8px 4px 18px; text-shadow:0 1px 8px rgba(0,0,0,.25); }
-    h1 span { color:#fff; }
-    .wpbtn { display:block; margin-left:auto; width:auto; font-size:14px; font-weight:600; padding:8px 14px; border-radius:999px; }
-    .card, .glass { position:relative; background:var(--glass); border:1px solid var(--glass-line); border-radius:24px; padding:16px;
-      -webkit-backdrop-filter:blur(22px) saturate(180%); backdrop-filter:blur(22px) saturate(180%);
-      box-shadow:inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 rgba(255,255,255,.06), 0 10px 30px rgba(0,0,0,.18); }
-    .label { color:var(--dim); font-weight:600; }
-    input { background:rgba(255,255,255,.12); border:1px solid var(--glass-line); border-radius:14px; color:#fff; }
-    input::placeholder { color:rgba(255,255,255,.6); }
+    #wall::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.05) 40%,rgba(0,0,0,.35)); }
+    h1 { display:flex; align-items:center; font-size:17px; font-weight:600; margin:0 4px 6px; color:var(--dim); }
+    h1 span { color:#fff; font-size:10px; }
+    .clock .time, .clock .date, .app .nm { text-shadow:0 1px 10px rgba(0,0,0,.3); }
+    .clock .date { color:rgba(255,255,255,.85); }
+    .wpbtn { display:block; margin-left:auto; width:auto; font-size:13px; font-weight:600; padding:7px 14px; border-radius:999px; }
+    .card, .glass { position:relative; background:var(--glass); border:0.5px solid var(--glass-line); border-radius:28px; padding:18px; margin-bottom:12px;
+      -webkit-backdrop-filter:blur(30px) saturate(190%); backdrop-filter:blur(30px) saturate(190%);
+      box-shadow:inset 0 1px 0 var(--glass-hi), inset 0 -1px 1px rgba(255,255,255,.08), 0 12px 40px rgba(0,0,0,.18); }
+    .card::before, .glass::before { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+      background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,0) 40%); }
+    .apps-card { padding:20px 12px; }
+    .label { color:var(--dim); font-size:13px; font-weight:600; text-transform:none; letter-spacing:0; }
+    input { background:rgba(118,118,128,.24); border:none; border-radius:12px; color:#fff; padding:12px 14px; }
+    input:focus { outline:none; box-shadow:0 0 0 3px rgba(10,132,255,.5); }
+    input::placeholder { color:rgba(255,255,255,.55); }
     input[type=datetime-local] { color-scheme:dark; }
-    button { border-radius:14px; background:rgba(255,255,255,.88); color:#111; box-shadow:inset 0 1px 0 #fff, 0 4px 14px rgba(0,0,0,.15); }
-    button.ghost, .wpbtn { background:rgba(255,255,255,.16); color:#fff; border:1px solid var(--glass-line);
-      -webkit-backdrop-filter:blur(16px) saturate(180%); backdrop-filter:blur(16px) saturate(180%); box-shadow:inset 0 1px 0 var(--glass-hi); }
-    li { border-top-color:rgba(255,255,255,.14); }
-    li button { background:none; box-shadow:none; color:#fecaca; }
-    #wp { position:fixed; left:12px; right:12px; bottom:max(12px, env(safe-area-inset-bottom)); z-index:10; }
+    button { border-radius:999px; background:#fff; color:#000; font-weight:600; padding:12px 16px; transition:transform .2s var(--ease), opacity .2s; }
+    button:active { transform:scale(.96); opacity:.85; }
+    button.ghost, .wpbtn { background:rgba(255,255,255,.18); color:#fff; border:0.5px solid var(--glass-line);
+      -webkit-backdrop-filter:blur(20px) saturate(180%); backdrop-filter:blur(20px) saturate(180%); box-shadow:inset 0 1px 0 var(--glass-hi); }
+    li { border-top:0.5px solid rgba(255,255,255,.16); }
+    li button, .app { background:none; box-shadow:none; }
+    li button { color:#ff9f9a; }
+    .app .ic { width:62px; height:62px; }
+    #wp, #appSheet { position:fixed; left:10px; right:10px; bottom:max(10px, env(safe-area-inset-bottom)); z-index:10; border-radius:34px; padding:20px;
+      background:rgba(40,40,48,.35); animation:up .45s var(--ease); }
     #wp.open { display:block; }
+    @keyframes up { from { transform:translateY(110%); } to { transform:none; } }
     .sw { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:6px 0 12px; }
-    .sw button { aspect-ratio:1; padding:0; border-radius:16px; border:2px solid rgba(255,255,255,.5); }
+    .sw button { aspect-ratio:1; padding:0; border-radius:18px; border:2px solid rgba(255,255,255,.5); }
   }
-  @media (max-width: 720px) and (prefers-color-scheme: light) { #wall::after { background:linear-gradient(180deg,rgba(0,0,0,.02),rgba(0,0,0,.2)); } }
 </style>
 </head>
 <body>
 <div id="wall"></div>
 <h1><span>●</span>&nbsp;자비스<button class="wpbtn" id="btnWp">배경</button></h1>
+
+<div class="clock"><div class="time" id="time"></div><div class="date" id="date"></div></div>
+
+<div class="card apps-card">
+  <div class="apps" id="apps"></div>
+</div>
 
 <div class="card" id="setup">
   <div class="label">알림</div>
@@ -86,6 +121,17 @@
 <div class="card">
   <div class="label">예정</div>
   <ul id="list"></ul>
+</div>
+
+<div id="appSheet" class="glass sheet">
+  <div class="label">앱 추가</div>
+  <input id="appName" placeholder="이름 (예: 카카오톡)">
+  <input id="appUrl" placeholder="주소 또는 패키지명 (예: com.kakao.talk)" style="margin-top:8px" autocapitalize="off">
+  <div class="hint">패키지명은 Play 스토어 앱 주소의 id= 뒤 값입니다. 아이콘을 길게 누르면 편집/삭제할 수 있어요.</div>
+  <div class="row">
+    <button class="ghost" id="btnAppCancel">닫기</button>
+    <button id="btnAppSave">저장</button>
+  </div>
 </div>
 
 <div id="wp" class="glass">
@@ -189,7 +235,7 @@ for (const p of PRESETS) {
   b.onclick = () => { applyWall(p); store.set('wall', p); };
   $('sw').appendChild(b);
 }
-$('btnWp').onclick = () => $('wp').classList.toggle('open');
+$('btnWp').onclick = () => { $('appSheet').classList.remove('open'); $('wp').classList.toggle('open'); };
 $('btnWpClose').onclick = () => $('wp').classList.remove('open');
 $('btnPick').onclick = () => $('file').click();
 $('file').onchange = async () => {
@@ -205,6 +251,77 @@ $('file').onchange = async () => {
   store.set('wall', v);
   $('file').value = '';
 };
+
+// 시계
+const tick = () => {
+  const n = new Date();
+  $('time').textContent = n.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  $('date').textContent = n.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
+};
+tick(); setInterval(tick, 10000);
+
+// 앱 런처: 패키지명이면 안드로이드 intent로, 아니면 URL/스킴 그대로 연다
+const DEFAULT_APPS = [
+  { name: '전화', url: 'tel:' },
+  { name: '문자', url: 'sms:' },
+  { name: '카카오톡', url: 'com.kakao.talk' },
+  { name: '네이버지도', url: 'com.nhn.android.nmap' },
+  { name: '카메라', url: 'com.sec.android.app.camera' },
+  { name: '캘린더', url: 'https://calendar.google.com' },
+  { name: '메일', url: 'https://mail.google.com' },
+];
+const COLORS = ['#0a84ff', '#30d158', '#ff9f0a', '#ff375f', '#bf5af2', '#64d2ff', '#5e5ce6', '#ff453a'];
+const loadApps = () => { try { return JSON.parse(store.get('apps')) || DEFAULT_APPS; } catch { return DEFAULT_APPS; } };
+let apps = loadApps(), editIdx = -1;
+const saveApps = () => store.set('apps', JSON.stringify(apps));
+const isPkg = (u) => /^[a-z][\w]*(\.[\w]+)+$/i.test(u) && !u.includes('/');
+const hrefOf = (u) => isPkg(u)
+  ? `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${u};S.browser_fallback_url=${encodeURIComponent('https://play.google.com/store/apps/details?id=' + u)};end`
+  : u;
+
+function renderApps() {
+  const box = $('apps');
+  box.innerHTML = '';
+  apps.forEach((a, i) => {
+    const el = document.createElement('a');
+    el.className = 'app';
+    el.href = hrefOf(a.url);
+    const hue = COLORS[[...a.name].reduce((h, c) => h + c.charCodeAt(0), 0) % COLORS.length];
+    el.innerHTML = `<div class="ic" style="background:linear-gradient(160deg,${hue},${hue}cc)"></div><div class="nm"></div>`;
+    el.querySelector('.ic').textContent = [...a.name][0] || '?';
+    el.querySelector('.nm').textContent = a.name;
+    let t;
+    el.addEventListener('touchstart', () => { t = setTimeout(() => { t = 'long'; openSheet(i); }, 550); }, { passive: true });
+    el.addEventListener('touchend', (e) => { if (t === 'long') e.preventDefault(); else clearTimeout(t); });
+    el.addEventListener('touchmove', () => clearTimeout(t), { passive: true });
+    el.addEventListener('contextmenu', (e) => { e.preventDefault(); openSheet(i); });
+    box.appendChild(el);
+  });
+  const add = document.createElement('button');
+  add.className = 'app add';
+  add.innerHTML = '<div class="ic">+</div><div class="nm">추가</div>';
+  add.onclick = () => openSheet(-1);
+  box.appendChild(add);
+}
+function openSheet(i) {
+  editIdx = i;
+  $('appName').value = i < 0 ? '' : apps[i].name;
+  $('appUrl').value = i < 0 ? '' : apps[i].url;
+  $('btnAppCancel').textContent = i < 0 ? '닫기' : '삭제';
+  $('wp').classList.remove('open');
+  $('appSheet').classList.add('open');
+}
+$('btnAppSave').onclick = () => {
+  const name = $('appName').value.trim(), url = $('appUrl').value.trim();
+  if (!name || !url) return;
+  if (editIdx < 0) apps.push({ name, url }); else apps[editIdx] = { name, url };
+  saveApps(); renderApps(); $('appSheet').classList.remove('open');
+};
+$('btnAppCancel').onclick = () => {
+  if (editIdx >= 0 && confirm(`'${apps[editIdx].name}'을(를) 삭제할까요?`)) { apps.splice(editIdx, 1); saveApps(); renderApps(); }
+  $('appSheet').classList.remove('open');
+};
+renderApps();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').then(refreshStatus);
 load();
