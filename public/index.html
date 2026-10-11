@@ -182,15 +182,8 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
 
-function token() {
-  let t = store.get('token');
-  if (!t) { t = prompt('앱 토큰을 입력하세요'); if (t) store.set('token', t.trim()); }
-  return t;
-}
-
 async function call(path, opts = {}) {
-  const res = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token(), ...opts.headers } });
-  if (res.status === 401) { store.set('token', ''); try { localStorage.removeItem('token'); } catch {} alert('토큰이 틀렸어요. 다시 입력해주세요.'); throw new Error('401'); }
+  const res = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', ...opts.headers } });
   return res.json();
 }
 

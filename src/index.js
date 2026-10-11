@@ -15,10 +15,8 @@ async function pushAll(env, data) {
 }
 
 async function api(req, env, path) {
-  // 공개 키만 인증 없이 제공
+  // 인증 없음 (개인용). 주소를 아는 사람은 누구나 API를 쓸 수 있다
   if (path === '/api/vapid') return json({ key: env.VAPID_PUBLIC });
-
-  if (req.headers.get('Authorization') !== `Bearer ${env.APP_TOKEN}`) return json({ error: 'unauthorized' }, 401);
 
   const m = req.method;
   if (path === '/api/subscribe' && m === 'POST') {
