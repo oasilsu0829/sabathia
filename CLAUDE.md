@@ -13,7 +13,7 @@
 ## 현재 상태
 - [x] 코드 작성, 로컬 검증 완료 (API, cron, 푸시 암호화는 http_ece로 복호화 확인, VAPID JWT 서명 검증)
 - [x] D1 `jarvis-db` 생성, 테이블 생성 완료. ID는 `wrangler.toml`에 반영됨
-- [ ] **Workers & Pages → Import a repository로 배포** (Project name은 반드시 `sabathia`, 브랜치는 위 기본 브랜치) ← 다음 할 일
+- [ ] **Workers & Pages → Import a repository로 배포** (Project name `sabathia`, 브랜치는 위 기본 브랜치. Build command는 비우고 Deploy command는 `npx wrangler deploy`) ← 진행 중
 - [ ] 배포 주소의 `/keys.html`에서 키 생성 → Worker Settings에 Secret 3개 등록: `VAPID_PUBLIC`, `VAPID_PRIVATE_JWK`, `APP_TOKEN`
 - [ ] 폰 크롬에서 앱 설치 → 토큰 입력 → 알림 켜기 → 테스트
 
