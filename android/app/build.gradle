@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'dev.sabathia.jarvis'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'dev.sabathia.jarvis'
+        minSdk 26
+        targetSdk 35
+        versionCode Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
+        versionName '1.0'
+    }
+
+    // 개인용 사이드로드 앱: 업데이트 설치가 되도록 고정 키로 서명
+    signingConfigs {
+        fixed {
+            storeFile file('jarvis.keystore')
+            storePassword 'jarvis123'
+            keyAlias 'jarvis'
+            keyPassword 'jarvis123'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.fixed
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

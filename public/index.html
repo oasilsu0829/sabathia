@@ -45,8 +45,14 @@
   @keyframes jig { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
   .sheet .row input { margin-top:0; }
   .hint { font-size:12px; color:var(--dim); margin-top:8px; }
-  .wpbtn, #wp, #appSheet { display:none; }
-  #appSheet.open { display:block; }
+  .wpbtn, #wp, #appSheet, #allSheet { display:none; }
+  #appSheet.open, #allSheet.open { display:block; }
+  #allSheet { position:fixed; inset:0; z-index:20; overflow:auto; padding:max(20px, env(safe-area-inset-top)) 16px 40px; background:rgba(0,0,0,.55);
+    -webkit-backdrop-filter:blur(40px) saturate(180%); backdrop-filter:blur(40px) saturate(180%); color:#fff; }
+  #allSheet .row { align-items:center; }
+  #allList { list-style:none; padding:0; margin:0; }
+  #allList li { padding:13px 4px; font-size:17px; border-top:0.5px solid rgba(255,255,255,.14); cursor:pointer; }
+  #allList li span { margin-left:auto; color:var(--dim); font-size:13px; }
 
   /* 모바일 전용: Apple 스타일 리퀴드 글라스 */
   @media (max-width: 720px) {
@@ -132,6 +138,11 @@
     <button class="ghost" id="btnAppCancel">닫기</button>
     <button id="btnAppSave">저장</button>
   </div>
+</div>
+
+<div id="allSheet">
+  <div class="row" style="margin:0 0 12px"><input id="allQ" placeholder="앱 검색" autocomplete="off"><button class="ghost" id="btnAllClose" style="flex:0 0 72px">닫기</button></div>
+  <ul id="allList"></ul>
 </div>
 
 <div id="wp" class="glass">
@@ -286,6 +297,7 @@ function renderApps() {
     const el = document.createElement('a');
     el.className = 'app';
     el.href = hrefOf(a.url);
+    if (window.Jarvis && isPkg(a.url)) el.onclick = (e) => { e.preventDefault(); if (!Jarvis.launch(a.url)) alert('설치되지 않은 앱이에요.'); };
     const hue = COLORS[[...a.name].reduce((h, c) => h + c.charCodeAt(0), 0) % COLORS.length];
     el.innerHTML = `<div class="ic" style="background:linear-gradient(160deg,${hue},${hue}cc)"></div><div class="nm"></div>`;
     el.querySelector('.ic').textContent = [...a.name][0] || '?';
@@ -297,6 +309,13 @@ function renderApps() {
     el.addEventListener('contextmenu', (e) => { e.preventDefault(); openSheet(i); });
     box.appendChild(el);
   });
+  if (window.Jarvis) {
+    const all = document.createElement('button');
+    all.className = 'app add';
+    all.innerHTML = '<div class="ic">⋯</div><div class="nm">모든 앱</div>';
+    all.onclick = openAll;
+    box.appendChild(all);
+  }
   const add = document.createElement('button');
   add.className = 'app add';
   add.innerHTML = '<div class="ic">+</div><div class="nm">추가</div>';
@@ -322,6 +341,37 @@ $('btnAppCancel').onclick = () => {
   $('appSheet').classList.remove('open');
 };
 renderApps();
+
+// 런처(안드로이드 앱) 안에서만: 모든 앱 목록
+let allApps = [];
+function openAll() {
+  try { allApps = JSON.parse(Jarvis.apps()).sort((a, b) => a.name.localeCompare(b.name, 'ko')); } catch { allApps = []; }
+  $('allQ').value = '';
+  renderAll();
+  $('allSheet').classList.add('open');
+}
+function renderAll() {
+  const q = $('allQ').value.trim().toLowerCase();
+  $('allList').innerHTML = '';
+  for (const a of allApps.filter((a) => !q || a.name.toLowerCase().includes(q))) {
+    const li = document.createElement('li');
+    li.textContent = a.name;
+    const pin = document.createElement('span');
+    pin.textContent = '홈에 추가';
+    li.appendChild(pin);
+    li.onclick = (e) => {
+      if (e.target === pin) { apps.push({ name: a.name, url: a.pkg }); saveApps(); renderApps(); pin.textContent = '추가됨'; return; }
+      Jarvis.launch(a.pkg);
+    };
+    $('allList').appendChild(li);
+  }
+}
+$('allQ').oninput = renderAll;
+$('btnAllClose').onclick = () => $('allSheet').classList.remove('open');
+const closeSheets = () => ['allSheet', 'appSheet', 'wp'].forEach((id) => $(id).classList.remove('open'));
+window.onJarvisBack = closeSheets;
+window.onJarvisHome = () => { closeSheets(); scrollTo({ top: 0, behavior: 'smooth' }); };
+window.onJarvisResume = () => { tick(); load().catch(() => {}); };
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').then(refreshStatus);
 load();

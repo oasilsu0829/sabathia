@@ -1,0 +1,37 @@
+name: Android launcher
+
+on:
+  push:
+    branches: [ccr-a6652a14-opge2l]
+    paths: [android/**, .github/workflows/android.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+      - name: Build APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle --no-daemon assembleRelease
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk jarvis.apk
+          gh release delete launcher --yes --cleanup-tag || true
+          gh release create launcher jarvis.apk --target "$GITHUB_SHA" \
+            --title "자비스 런처 (빌드 ${{ github.run_number }})" \
+            --notes "폰에서 jarvis.apk를 눌러 설치하세요."
