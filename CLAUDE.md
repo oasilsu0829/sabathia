@@ -24,17 +24,22 @@ public/sw.js        서비스 워커 (push → 알림 표시)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우트 + scheduled() 1분 cron으로 리마인더 발송
 src/webpush.js      RFC 8291(aes128gcm) + RFC 8292(VAPID), WebCrypto만 사용
-schema.sql          subscriptions, reminders
+schema.sql          subscriptions, reminders, events
+src/events.js       /api/events 일정 API (D1 events 테이블, 첫 요청 때 자동 생성)
+public/schedule/    일정 PWA (홈·캘린더·일정·설정). 디자인 언어 v1.0. ?theme=projector&kiosk=1 은 책상 프로젝터용
+openclaw-skill/     OpenClaw 스킬 sabathia-schedule (SKILL.md + sched.mjs). PC의 OpenClaw가 이걸로 일정을 넣는다
 android/            홈 런처 앱(WebView, JS 브리지 window.Jarvis: launch/apps/open). Actions가 빌드해 릴리스 'launcher'에 jarvis.apk 게시
 test/               ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립트
 ```
-- API 인증 없음 (사용자 요청으로 APP_TOKEN 제거). 주소를 아는 사람은 API 사용 가능
+- 리마인더 API는 인증 없음 (사용자 요청으로 APP_TOKEN 제거). 주소를 아는 사람은 API 사용 가능
+- 일정 API(/api/events)는 Worker에 secret `API_TOKEN`이 있으면 Bearer 토큰 필요. OpenClaw는 PC 사용자 환경 변수 SABATHIA_TOKEN으로 읽는다(토큰을 채팅·설정 파일에 쓰지 않기)
 - 리마인더 시각은 UTC ISO 문자열로 저장
 
 - 런처 WebView는 웹 푸시 미지원 → 알림은 크롬 PWA로 받음
 
 ## 다음 기능 (예정)
-- 캘린더, 프로젝트 장부 (원래 핵심 기능)
+- 캘린더: 일정 앱(/schedule/) 추가함. 홈 화면 연결, 마감 웹 푸시는 아직
+- 프로젝트 장부 (원래 핵심 기능)
 - 반복 리마인더
 
 ## 사용자 선호

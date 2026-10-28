@@ -16,4 +16,5 @@ crons = ["* * * * *"]
 
 [vars]
 VAPID_SUBJECT = "https://github.com/oasilsu0829/sabathia"
-# VAPID_PUBLIC, VAPID_PRIVATE_JWK, APP_TOKEN 은 secret 으로 등록 (README 참고)
+# VAPID_PUBLIC, VAPID_PRIVATE_JWK 는 secret 으로 등록 (README 참고)
+# API_TOKEN (secret, 선택): 있으면 /api/events 에 Bearer 토큰이 필요하다. OpenClaw 스킬이 이 값을 쓴다

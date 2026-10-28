@@ -1,4 +1,5 @@
 import { sendPush } from './webpush.js';
+import { eventsApi } from './events.js';
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -55,6 +56,7 @@ async function api(req, env, path) {
 export default {
   async fetch(req, env) {
     const path = new URL(req.url).pathname;
+    if (path === '/api/events' || path.startsWith('/api/events/')) return eventsApi(req, env, path);
     if (path.startsWith('/api/')) return api(req, env, path);
     return env.ASSETS.fetch(req);
   },

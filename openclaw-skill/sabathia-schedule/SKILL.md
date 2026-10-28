@@ -1,0 +1,40 @@
+---
+name: sabathia-schedule
+description: 승찬의 일정·할 일·마감을 Sabathia 일정 앱(휴대폰 PWA, 책상 프로젝터 화면)에 추가·조회·수정·완료 처리한다. 일정, 약속, 수업, 시험, 수행평가, 제출 기한, "캘린더에 넣어줘", "오늘 뭐 있어", "이번 주 일정", "다 했어" 같은 요청에 쓴다.
+metadata: {"openclaw": {"requires": {"bins": ["node"], "env": ["SABATHIA_TOKEN"]}, "primaryEnv": "SABATHIA_TOKEN"}}
+---
+
+# Sabathia 일정
+
+이 스킬로 넣은 항목은 승찬의 일정 앱(https://sabathia.oasilsu0829.workers.dev/schedule/)에 바로 보인다(앱은 1분마다 새로 고침). 다른 저장소에 일정을 따로 적지 말고 여기에 넣는다.
+
+## 명령
+
+`node {baseDir}/sched.mjs <명령>` 으로 실행한다. 날짜는 한국 시간 기준이고 `today`, `tomorrow`, `모레`, `+3`, `-1` 같은 상대 표현도 된다. 결과는 `id  날짜(요일) 시간  [종류] 제목` 한 줄씩 나온다.
+
+| 하려는 일 | 명령 |
+| --- | --- |
+| 지연된 일 + 앞으로 7일 | `agenda` (`--days 14`) |
+| 기간 조회 | `list --from 2026-11-01 --to 2026-11-30` |
+| 하루짜리 마감 | `add --title "화학 수행평가 제출" --date 2026-11-04 --kind deadline` |
+| 시간 있는 일정 | `add --title "동아리 회의" --date tomorrow --time 16:30 --end 17:30 --note "과학실"` |
+| 할 일 | `add --title "능률보카 Day 51-55" --date today --time 19:00 --kind task` |
+| 완료 / 되돌리기 | `done <id>` / `undo <id>` |
+| 고치기 | `update <id> --date +1 --time 20:00` (시간 지우기: `--time none`) |
+| 지우기 | `remove <id>` |
+| 여러 개 한 번에 | `import 파일.json` — `[{"title":"..","date":"2026-11-02","kind":"task"}]` |
+
+## 종류 고르기
+
+- `event` 일정: 정해진 시각에 일어나는 일 (수업, 약속, 회의, 시험 시간). 끝나면 앱에서 "지남".
+- `task` 할 일: 그날 하기로 한 일. 날짜가 지나도 완료가 안 되면 앱에 빨간 "지연"으로 뜬다.
+- `deadline` 마감: 제출·신청·응시 기한. 앱 캘린더에 빨간 점으로 미리 보인다.
+
+## 규칙
+
+- 추가하기 전에 그 날짜를 `list --from D --to D` 로 확인하고, 같은 일이 있으면 새로 만들지 말고 `update` 한다.
+- "다음 주쯤", "시험 전에"처럼 날짜가 정해지지 않았으면 추측해서 넣지 말고 한 번 묻는다.
+- 메일·메신저·문서에서 읽어 넣을 때는 `--source gmail` 처럼 출처를 적는다. 외부 캘린더처럼 고유 id가 있으면 `--id` 로 넘겨 다시 보내도 중복되지 않게 한다.
+- "다 했어", "끝냈어"는 오늘 목록(`agenda --days 0`)에서 맞는 항목을 찾아 `done` 한다. 여러 개가 맞으면 묻는다.
+- 사용자에게 알릴 때는 id를 빼고 짧게: "11.04(화) 마감 — 화학 수행평가 제출 추가함".
+- `토큰이 맞지 않습니다` 오류가 나면 PC의 SABATHIA_TOKEN 환경 변수와 Worker의 API_TOKEN 비밀값이 같은지 확인해 달라고 말한다. 토큰 값을 채팅에 쓰지 않는다.
