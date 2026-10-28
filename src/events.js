@@ -37,7 +37,8 @@ function ensureTable(env) {
 }
 
 export async function eventsApi(req, env, path) {
-  if (env.API_TOKEN && !authorized(req, env.API_TOKEN)) return json({ error: '토큰이 맞지 않습니다' }, 401);
+  const token = (env.API_TOKEN || "").trim();
+  if (token && !authorized(req, token)) return json({ error: '토큰이 맞지 않습니다' }, 401);
   try {
     await ensureTable(env);
     return await route(req, env, path);
