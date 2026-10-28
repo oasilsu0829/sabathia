@@ -17,7 +17,7 @@
 - [ ] 배포 주소의 `/keys.html`에서 키 생성 → Worker Settings에 Secret 등록: `VAPID_PUBLIC`, `VAPID_PRIVATE_JWK` (완료)
 - [ ] 폰 크롬에서 앱 설치 → 토큰 입력 → 알림 켜기 → 테스트
 - [x] 할 일 타임라인 (런처 홈 화면 메인) + `/api/tasks` + OpenClaw 스킬 (`openclaw/skills/jarvis-tasks`)
-- [x] 별도 타임라인 앱 `/timeline/` (독립 PWA, 손그림 스케치 기준: 위 왼쪽 날짜 물방울, 오른쪽 일정/남은 시간, 아래 가로 타임라인)
+- [x] 별도 타임라인 앱 `/timeline/` (독립 PWA, 손그림 스케치 기준: 위 왼쪽 날짜 물방울, 오른쪽 일정/남은 시간, 아래 가로 타임라인. 디자인: 흰색/파란색 리퀴드 글라스)
 - [ ] OpenClaw 서버에 스킬 복사 (`~/.openclaw/skills/jarvis-tasks/SKILL.md`)
 
 ## 구조
