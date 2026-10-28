@@ -49,6 +49,17 @@ scripts/gen-keys.mjs  VAPID 키 + 앱 토큰 생성
 3. 설치한 앱을 열고 APP_TOKEN 입력
 4. **알림 켜기** → **테스트**를 눌러 알림이 오면 성공
 
+## 할 일 타임라인 + OpenClaw
+런처 홈 화면 맨 위에 하루 할 일이 시간순으로 나옵니다. `[ ]`를 누르면 완료, 제목을 누르면 수정/삭제, `<` `>`로 날짜 이동. 시작 시각이 되면 푸시 알림이 갑니다.
+
+OpenClaw에서 말로 등록/조회하려면 OpenClaw가 돌아가는 서버에 스킬을 복사합니다.
+```
+mkdir -p ~/.openclaw/skills/jarvis-tasks
+curl -fsSL https://raw.githubusercontent.com/oasilsu0829/sabathia/<브랜치>/openclaw/skills/jarvis-tasks/SKILL.md \
+  -o ~/.openclaw/skills/jarvis-tasks/SKILL.md
+```
+OpenClaw에 `exec` 도구와 `curl`이 있어야 합니다. 새 세션부터 적용됩니다.
+
 ## 로컬 개발
 ```
 npm run keys > .dev.vars

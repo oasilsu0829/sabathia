@@ -16,6 +16,8 @@
 - [x] **배포 완료: https://sabathia.oasilsu0829.workers.dev** (Project name `sabathia`, 브랜치는 위 기본 브랜치. Build command는 비우고 Deploy command는 `npx wrangler deploy`)
 - [ ] 배포 주소의 `/keys.html`에서 키 생성 → Worker Settings에 Secret 등록: `VAPID_PUBLIC`, `VAPID_PRIVATE_JWK` (완료)
 - [ ] 폰 크롬에서 앱 설치 → 토큰 입력 → 알림 켜기 → 테스트
+- [x] 할 일 타임라인 (런처 홈 화면 메인) + `/api/tasks` + OpenClaw 스킬 (`openclaw/skills/jarvis-tasks`)
+- [ ] OpenClaw 서버에 스킬 복사 (`~/.openclaw/skills/jarvis-tasks/SKILL.md`)
 
 ## 구조
 ```
@@ -30,6 +32,7 @@ test/               ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립�
 ```
 - API 인증 없음 (사용자 요청으로 APP_TOKEN 제거). 주소를 아는 사람은 API 사용 가능
 - 리마인더 시각은 UTC ISO 문자열로 저장
+- 할 일 API: `GET /api/tasks?date=YYYY-MM-DD`(한국 날짜, 기본 오늘) 또는 `?from=&to=`, `POST`, `PATCH /:id`, `DELETE /:id`. 필드 title/start/end/note/done/source. 오프셋 없는 시각은 +09:00으로 해석
 
 - 런처 WebView는 웹 푸시 미지원 → 알림은 크롬 PWA로 받음
 

@@ -45,8 +45,22 @@
   @keyframes jig { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
   .sheet .row input { margin-top:0; }
   .hint { font-size:12px; color:var(--dim); margin-top:8px; }
-  .wpbtn, #wp, #appSheet, #allSheet { display:none; }
-  #appSheet.open, #allSheet.open { display:block; }
+  .wpbtn, #wp, #appSheet, #allSheet, #taskSheet { display:none; }
+  #appSheet.open, #allSheet.open, #taskSheet.open { display:block; }
+
+  /* 타임라인 */
+  .tlnav { display:flex; gap:8px; margin-bottom:6px; }
+  .tlnav button { width:auto; padding:6px 12px; }
+  .tlnav #tlAdd { margin-left:auto; }
+  li.tk { align-items:flex-start; gap:8px; }
+  .tk .tm { flex:0 0 auto; color:var(--dim); font-variant-numeric:tabular-nums; }
+  .tk .ck { width:auto; padding:0 2px; color:var(--acc); font-family:ui-monospace, monospace; }
+  .tk .t { cursor:pointer; min-width:0; overflow-wrap:anywhere; }
+  .tk.done .ti { text-decoration:line-through; color:var(--dim); }
+  .tk.past:not(.done) .tm { color:var(--red); }
+  .tk.cur .tm, .tk.cur .ti { color:var(--hi, var(--acc)); }
+  li.now { color:var(--red); font-size:12px; padding:2px 0; border-top:1px dashed var(--red); }
+  #taskSheet { position:fixed; left:0; right:0; bottom:0; z-index:10; max-width:560px; margin:auto; padding:14px; background:var(--card); border-top:1px solid var(--line); }
   #allSheet { position:fixed; inset:0; z-index:20; overflow:auto; padding:max(20px, env(safe-area-inset-top)) 16px 40px; background:rgba(0,0,0,.55);
     -webkit-backdrop-filter:blur(40px) saturate(180%); backdrop-filter:blur(40px) saturate(180%); color:#fff; }
   #allSheet .row { align-items:center; }
@@ -105,7 +119,7 @@
     .app.add .nm { color:var(--dim); } .app.add .nm::before { content:"+ "; }
     .editing .app .ic { animation:none; }
     /* 팝업 */
-    #wp, #appSheet { position:fixed; left:0; right:0; bottom:calc(36px + env(safe-area-inset-bottom)); z-index:10; padding:12px 14px; background:var(--term);
+    #wp, #appSheet, #taskSheet { position:fixed; max-width:none; border-radius:0; left:0; right:0; bottom:calc(36px + env(safe-area-inset-bottom)); z-index:10; padding:12px 14px; background:var(--term);
       border-top:1px dashed var(--dim); margin:0; }
     #wp.open { display:block; }
     .sw { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:6px 0 10px; }
@@ -116,6 +130,15 @@
     #allList li::before { content:"> "; color:var(--hi); }
     #allList li span { color:var(--dim); }
     .hint { color:var(--dim); }
+    /* 타임라인 */
+    .tlnav { gap:14px; margin:0 0 2px; }
+    .tlnav button { padding:4px 0; }
+    .tk .t::before { content:none; }
+    .tk .ck { color:var(--hi); }
+    .tk .when { padding-left:0; }
+    li.now { border-top:none; padding:2px 0; }
+    li.now::before { content:"--- "; }
+    li.now::after { content:" ---"; }
     /* 하단 프롬프트 줄 */
     #taskbar { display:flex; align-items:center; gap:14px; position:fixed; left:0; right:0; bottom:0; z-index:30; height:calc(36px + env(safe-area-inset-bottom));
       padding:0 14px env(safe-area-inset-bottom); background:var(--term); border-top:1px solid #222; font-size:13px; }
@@ -138,6 +161,17 @@
  | || |/ _ \ |   / \ V /  | | \__ \
   \__//_/ \_\|_|_\  \_/  |___||___/</pre>
 <div class="clock"><div class="time" id="time"></div><div class="date" id="date"></div></div>
+
+<div class="card" id="tl">
+  <div class="label" id="tlLabel">오늘</div>
+  <div class="tlnav">
+    <button class="ghost" id="tlPrev" aria-label="이전 날">&lt;</button>
+    <button class="ghost" id="tlToday">오늘</button>
+    <button class="ghost" id="tlNext" aria-label="다음 날">&gt;</button>
+    <button class="ghost" id="tlAdd">할 일 추가</button>
+  </div>
+  <ul id="tlList"></ul>
+</div>
 
 <div class="card apps-card">
   <div class="apps" id="apps"></div>
@@ -174,6 +208,21 @@
   <div class="row">
     <button class="ghost" id="btnAppCancel">닫기</button>
     <button id="btnAppSave">저장</button>
+  </div>
+</div>
+
+<div id="taskSheet" class="glass sheet">
+  <div class="label" id="tsLabel">할 일</div>
+  <input id="tsTitle" placeholder="무엇을 할까요?">
+  <div class="row">
+    <input id="tsStart" type="datetime-local" aria-label="시작">
+    <input id="tsEnd" type="time" aria-label="끝 (선택)" style="flex:0 0 38%">
+  </div>
+  <input id="tsNote" placeholder="메모 (선택)" style="margin-top:8px">
+  <div class="hint">끝 시각은 비워둬도 됩니다. OpenClaw에서 등록한 할 일도 여기 함께 표시됩니다.</div>
+  <div class="row">
+    <button class="ghost" id="tsCancel">닫기</button>
+    <button id="tsSave">저장</button>
   </div>
 </div>
 
@@ -423,10 +472,115 @@ $('btnAllClose').onclick = () => $('allSheet').classList.remove('open');
 $('btnStart').onclick = () => $('btnWp').onclick();
 $('btnAll2').onclick = () => (window.Jarvis ? openAll() : openSheet(-1));
 if (!window.Jarvis) $('btnAll2').textContent = '앱 추가';
-const closeSheets = () => ['allSheet', 'appSheet', 'wp'].forEach((id) => $(id).classList.remove('open'));
+const closeSheets = () => ['allSheet', 'appSheet', 'wp', 'taskSheet'].forEach((id) => $(id).classList.remove('open'));
 window.onJarvisBack = closeSheets;
-window.onJarvisHome = () => { closeSheets(); scrollTo({ top: 0, behavior: 'smooth' }); };
-window.onJarvisResume = () => { tick(); load().catch(() => {}); };
+window.onJarvisHome = () => { closeSheets(); tlGo(0); scrollTo({ top: 0, behavior: 'smooth' }); };
+window.onJarvisResume = () => { tick(); load().catch(() => {}); loadTasks().catch(() => {}); };
+
+// 타임라인: 앱과 OpenClaw가 같은 /api/tasks를 읽고 쓴다
+const dayOf = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const hm = (d) => new Date(d).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+const localInput = (d) => new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+let tlDay = dayOf(Date.now()), tasks = [], taskEdit = null;
+
+async function loadTasks() {
+  const to = new Date(tlDay); to.setDate(to.getDate() + 1);
+  const r = await call(`/api/tasks?from=${encodeURIComponent(tlDay.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
+  tasks = Array.isArray(r) ? r : [];
+  renderTasks();
+}
+
+function renderTasks() {
+  const diff = Math.round((tlDay - dayOf(Date.now())) / 86400000);
+  const name = { '-1': '어제', 0: '오늘', 1: '내일' }[diff];
+  $('tlLabel').textContent = (name ? name + ' ' : '') + tlDay.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' });
+  const box = $('tlList');
+  box.innerHTML = '';
+  if (!tasks.length) { box.innerHTML = '<li class="empty">할 일 없음</li>'; return; }
+  const now = Date.now();
+  let nowShown = diff !== 0;
+  const nowLine = () => {
+    const li = document.createElement('li');
+    li.className = 'now';
+    li.textContent = `${hm(now)} 지금`;
+    box.appendChild(li);
+    nowShown = true;
+  };
+  for (const t of tasks) {
+    const s = Date.parse(t.start), e = t.end ? Date.parse(t.end) : s;
+    if (!nowShown && s > now) nowLine();
+    const li = document.createElement('li');
+    li.className = 'tk' + (t.done ? ' done' : '') + (!t.done && s <= now && now < e ? ' cur' : '') + (e < now ? ' past' : '');
+    li.innerHTML = '<span class="tm"></span><button class="ck"></button><div class="t"><div class="ti"></div><div class="when"></div></div>';
+    li.querySelector('.tm').textContent = hm(s);
+    const ck = li.querySelector('.ck');
+    ck.textContent = t.done ? '[x]' : '[ ]';
+    ck.setAttribute('aria-label', t.done ? '완료 취소' : '완료');
+    ck.onclick = async () => { await call('/api/tasks/' + t.id, { method: 'PATCH', body: JSON.stringify({ done: !t.done }) }); loadTasks(); };
+    li.querySelector('.ti').textContent = t.title;
+    const sub = [t.end && '~' + hm(t.end), t.source === 'openclaw' && 'OpenClaw', t.note].filter(Boolean).join(' · ');
+    if (sub) li.querySelector('.when').textContent = sub; else li.querySelector('.when').remove();
+    li.querySelector('.t').onclick = () => openTask(t);
+    box.appendChild(li);
+  }
+  if (!nowShown) nowLine();
+}
+
+function tlGo(step) {
+  if (step === 0) tlDay = dayOf(Date.now()); else tlDay.setDate(tlDay.getDate() + step);
+  loadTasks().catch(() => {});
+}
+$('tlPrev').onclick = () => tlGo(-1);
+$('tlNext').onclick = () => tlGo(1);
+$('tlToday').onclick = () => tlGo(0);
+
+function openTask(t) {
+  taskEdit = t || null;
+  let start;
+  if (t) start = new Date(t.start);
+  else if (+tlDay === +dayOf(Date.now())) { start = new Date(); start.setHours(start.getHours() + 1, 0, 0, 0); }
+  else { start = new Date(tlDay); start.setHours(9); }
+  $('tsLabel').textContent = t ? '할 일 수정' : '할 일 추가';
+  $('tsTitle').value = t ? t.title : '';
+  $('tsStart').value = localInput(start);
+  $('tsEnd').value = t && t.end ? hm(t.end) : '';
+  $('tsNote').value = t && t.note ? t.note : '';
+  $('tsCancel').textContent = t ? '삭제' : '닫기';
+  closeSheets();
+  $('taskSheet').classList.add('open');
+  if (!t) $('tsTitle').focus();
+}
+$('tlAdd').onclick = () => openTask(null);
+
+$('tsSave').onclick = async () => {
+  const title = $('tsTitle').value.trim(), startV = $('tsStart').value;
+  if (!title || !startV) return;
+  const start = new Date(startV);
+  let end = null;
+  if ($('tsEnd').value) {
+    const [h, mi] = $('tsEnd').value.split(':').map(Number);
+    end = new Date(start); end.setHours(h, mi, 0, 0);
+    if (end < start) end.setDate(end.getDate() + 1);   // 자정을 넘기는 경우
+  }
+  const body = JSON.stringify({ title, start: start.toISOString(), end: end && end.toISOString(), note: $('tsNote').value.trim() });
+  if (taskEdit) await call('/api/tasks/' + taskEdit.id, { method: 'PATCH', body });
+  else await call('/api/tasks', { method: 'POST', body });
+  $('taskSheet').classList.remove('open');
+  tlDay = dayOf(start);
+  loadTasks();
+};
+$('tsCancel').onclick = async () => {
+  if (taskEdit && confirm(`'${taskEdit.title}'을(를) 삭제할까요?`)) {
+    await call('/api/tasks/' + taskEdit.id, { method: 'DELETE' });
+    loadTasks();
+  }
+  $('taskSheet').classList.remove('open');
+};
+
+// OpenClaw가 바꾼 내용과 '지금' 표시를 따라가도록 주기적으로 새로 고침
+setInterval(() => { if (!document.hidden) loadTasks().catch(() => {}); }, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadTasks().catch(() => {}); });
+loadTasks().catch(() => { $('tlList').innerHTML = '<li class="empty">불러오지 못했어요</li>'; });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').then(refreshStatus);
 load();
