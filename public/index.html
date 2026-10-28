@@ -168,7 +168,8 @@
     <button class="ghost" id="tlPrev" aria-label="이전 날">&lt;</button>
     <button class="ghost" id="tlToday">오늘</button>
     <button class="ghost" id="tlNext" aria-label="다음 날">&gt;</button>
-    <button class="ghost" id="tlAdd">할 일 추가</button>
+    <button class="ghost" id="tlBig" style="margin-left:auto">크게 보기</button>
+    <button class="ghost" id="tlAdd" style="margin-left:0">할 일 추가</button>
   </div>
   <ul id="tlList"></ul>
 </div>
@@ -551,6 +552,7 @@ function openTask(t) {
   if (!t) $('tsTitle').focus();
 }
 $('tlAdd').onclick = () => openTask(null);
+$('tlBig').onclick = () => { location.href = '/timeline/'; };
 
 $('tsSave').onclick = async () => {
   const title = $('tsTitle').value.trim(), startV = $('tsStart').value;

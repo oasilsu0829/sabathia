@@ -17,12 +17,14 @@
 - [ ] 배포 주소의 `/keys.html`에서 키 생성 → Worker Settings에 Secret 등록: `VAPID_PUBLIC`, `VAPID_PRIVATE_JWK` (완료)
 - [ ] 폰 크롬에서 앱 설치 → 토큰 입력 → 알림 켜기 → 테스트
 - [x] 할 일 타임라인 (런처 홈 화면 메인) + `/api/tasks` + OpenClaw 스킬 (`openclaw/skills/jarvis-tasks`)
+- [x] 별도 타임라인 앱 `/timeline/` (독립 PWA, 손그림 스케치 기준: 위 왼쪽 날짜 물방울, 오른쪽 일정/남은 시간, 아래 가로 타임라인)
 - [ ] OpenClaw 서버에 스킬 복사 (`~/.openclaw/skills/jarvis-tasks/SKILL.md`)
 
 ## 구조
 ```
 public/index.html   PWA UI (리마인더 추가/삭제, 알림 구독, 테스트)
 public/sw.js        서비스 워커 (push → 알림 표시)
+public/timeline/    별도 타임라인 앱(PWA, scope /timeline/). 같은 /api/tasks, 같은 sw.js 구독 사용
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우트 + scheduled() 1분 cron으로 리마인더 발송
 src/webpush.js      RFC 8291(aes128gcm) + RFC 8292(VAPID), WebCrypto만 사용

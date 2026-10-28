@@ -52,6 +52,8 @@ scripts/gen-keys.mjs  VAPID 키 + 앱 토큰 생성
 ## 할 일 타임라인 + OpenClaw
 런처 홈 화면 맨 위에 하루 할 일이 시간순으로 나옵니다. `[ ]`를 누르면 완료, 제목을 누르면 수정/삭제, `<` `>`로 날짜 이동. 시작 시각이 되면 푸시 알림이 갑니다.
 
+별도 앱: `https://sabathia.oasilsu0829.workers.dev/timeline/`을 크롬으로 열고 메뉴(⋮) → **앱 설치**. 위에는 지금/다음 일정과 남은 시간, 아래에는 가로 타임라인(좌우로 밀어서 이동, 빈 곳을 누르면 그 시각에 추가)이 나옵니다. 런처 홈의 '크게 보기'로도 열 수 있습니다.
+
 OpenClaw에서 말로 등록/조회하려면 OpenClaw가 돌아가는 서버에 스킬을 복사합니다.
 ```
 mkdir -p ~/.openclaw/skills/jarvis-tasks
