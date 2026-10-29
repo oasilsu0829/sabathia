@@ -1,7 +1,7 @@
 // Sabathia 서비스 워커. 주소 전체(/)를 맡는다: 홈, 15577, 어원 단어, 일정, 사진 PDF.
 // 앱 파일은 네트워크를 먼저 쓰고 실패하면 캐시로 연다(오프라인). 글꼴은 캐시 우선. /api/ 는 건드리지 않는다.
-const VERSION = 'sabathia-v4';
-const SHELL = ['/', '/sabathia.js', '/apps.js', '/manifest.webmanifest', '/icon-192.png'];
+const VERSION = 'sabathia-v5';
+const SHELL = ['/', '/sabathia.js', '/today.js', '/apps.js', '/manifest.webmanifest', '/icon-192.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

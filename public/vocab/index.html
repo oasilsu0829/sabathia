@@ -2660,8 +2660,9 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && !SE
 /* ---------- Sabathia: 홈 아이콘에 오늘 진행을 알리고, 런처 뒤로가기는 설정·학습 화면부터 닫음 ---------- */
 function reportHome(){
   if(!window.Sabathia) return;
-  const t = today(), L = logOf(t), done = L.n + L.r, left = dueIds(t).length + Math.min(newLeft(t), newAvail());
-  Sabathia.report('vocab', {done, total: done + left, pct: done + left ? done / (done + left) * 100 : 100});
+  const t = today(), L = logOf(t), done = L.n + L.r, left = dueIds(t).length + Math.min(newLeft(t), newAvail()), E = examInfo();
+  const exam = E ? {title: '영어 시험', date: S.set.exam.date, note: `Day ${DD(E.a)}–${DD(E.b)}`} : null;
+  Sabathia.report('vocab', {done, total: done + left, pct: done + left ? done / (done + left) * 100 : 100, exam});
 }
 document.addEventListener('visibilitychange', () => { if(document.hidden) reportHome(); });
 if(window.Sabathia) Sabathia.back = () => {

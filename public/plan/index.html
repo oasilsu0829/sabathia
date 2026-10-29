@@ -2061,9 +2061,13 @@ if(!S.seenPinch && !VIEW_ID){ S.seenPinch = 1; localSave(); setTimeout(() => toa
 /* ── Sabathia: 홈 아이콘에 오늘 진행률과 지연 블록을, 런처 뒤로가기는 집중 화면·시트부터 닫음 ── */
 function reportHome(){
   if(VIEW_ID || !window.Sabathia) return;
-  const t = todayKey(), {items, pct} = dayProg(t);
-  const ends = layout(S.days[t] || [], null, t).filter(a => !a.b.done).map(a => a.s + a.d);
-  Sabathia.report('plan', {pct, n: items.length, doneN: items.filter(b => b.done).length, ends});
+  const t = todayKey(), {items, pct} = dayProg(t), st = statusOf(t);
+  const lay = layout(S.days[t] || [], null, t);
+  const ends = lay.filter(a => !a.b.done).map(a => a.s + a.d);
+  /* 홈의 "오늘 하루" 줄: 실제로 놓인 자리(수업에 밀린 위치)와 상태, 오늘 수업, D-day */
+  const blocks = lay.map(a => ({s:a.s, e:a.s + a.d, t:a.b.title, st:st.get(a.b.id) || 'wait'}));
+  const fixed = fixedFor(t).map(x => ({s:x.s, e:x.s + x.d, t:x.f.school ? `${x.f.period}교시 ${x.self ? '자습' : x.f.title}` : x.f.title, meal:!!x.f.meal, school:!!x.f.school}));
+  Sabathia.report('plan', {pct, n: items.length, doneN: items.filter(b => b.done).length, ends, blocks, fixed, dday: S.dday && S.dday.date ? S.dday : null});
 }
 document.addEventListener('visibilitychange', () => { if(document.hidden) reportHome(); });
 if(window.Sabathia) Sabathia.back = () => {

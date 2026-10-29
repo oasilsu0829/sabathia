@@ -3,7 +3,8 @@
 ## 목표
 개인용 "자비스" 파이프라인. 안드로이드 폰 중심. 텔레그램은 쓰지 않기로 함 (한국에서 이미지가 좋지 않음). **PWA + 웹 푸시** 방식.
 학습앱은 전부 **Sabathia** 하나로 묶었다(2026-10-29). 한 주소, 한 번 설치(PWA 하나), 디자인 언어 v1.0(`docs/design-language.md`).
-- 루트 `/` = Sabathia 홈. 예전 CMD 자비스 화면(리마인더 UI·배경화면)은 지웠다. 폰 앱 실행(런처)만 홈에 남김
+- 루트 `/` = Sabathia 홈. 예전 CMD 자비스 화면(리마인더 UI·배경화면)은 지웠다. 폰 앱 실행(런처)은 홈의 "폰 앱" 시트로
+- 홈 배치(사용자가 시안에서 고름): 가로 화면 = C(하루 줄 3칸), 폰 = P5(시계 먼저 + 하루 띠), 패드 세로 = P6. 독(작업표시줄)은 어느 쪽에도 두지 않음
 - 앱: 15577 `/plan/`, 어원 단어 `/vocab/`, 일정 `/schedule/`, 사진 PDF `/pdf/`. 원본 저장소(Block-planner, llm-wiki-private)의 사본이고 이제 이쪽이 기준
 - FFF 대시보드·주간 루틴은 쓰지 않음(사용자 결정). 할 일·일정은 Sabathia 일정(D1)으로
 - 새 앱 추가: `public/<폴더>/index.html` + `public/apps.js`에 한 항목. 앱 페이지는 `/sabathia.js`를 불러오고 맨 위에 `SABATHIA` 줄을 둔다
@@ -26,6 +27,7 @@
 ```
 public/index.html   Sabathia 홈: 날짜·시계, 앱 아이콘(컨택트 맵, 홈에서만 앱 고유색), 폰 앱(런처 브리지), 독
 public/apps.js      앱 목록(코드·이름·주소·고유색·홈 아이콘 진행률 계산). 새 앱은 여기에
+public/today.js     홈의 "오늘 하루": 15577 보고(블록 위치·상태·수업·D-day) + /api/events + 어원 단어 보고를 한 줄로 모음
 public/sabathia.js  공통: 런처 뒤로가기/홈 버튼, 앱 상태 보고(localStorage sabathia.status.<id>), /sw.js 등록
 public/sw.js        서비스 워커 하나가 / 전체를 맡음 (네트워크 우선 + 오프라인 캐시, push → 알림)
 public/manifest.webmanifest  PWA 하나 (scope /)

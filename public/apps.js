@@ -40,20 +40,7 @@
   // 일정: 서버(/api/events)에서 오늘 할 일과 지난 미완료를 센다. 연결이 안 되면 일정 앱이 남긴 캐시로
   async function cal() {
     const t = ymd(new Date());
-    const from = ymd(new Date(Date.now() - 60 * 864e5));
-    const base = (json('sab.base') || location.origin).replace(/\/+$/, '');
-    const token = json('sab.token') || '';
-    let events = null;
-    try {
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 5000);
-      const r = await fetch(`${base}/api/events?from=${from}&to=${t}`, {
-        headers: token ? { authorization: 'Bearer ' + token } : {}, cache: 'no-store', signal: ctl.signal,
-      });
-      clearTimeout(timer);
-      if (r.ok) events = (await r.json()).events;
-    } catch {}
-    if (!events) { const c = json('sab.cache'); events = c && Array.isArray(c.events) ? c.events : []; }
+    const events = await SabathiaToday.events();
     const tasks = events.filter((e) => e.kind === 'task' && e.date === t);
     const doneN = tasks.filter((e) => e.done).length;
     const late = events.filter((e) => e.kind !== 'event' && !e.done && e.date < t).length;

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sabathia</title>
-<meta name="description" content="승찬의 학습앱 모음. 15577, 어원 단어, 일정, 사진 PDF와 폰 앱 실행">
+<meta name="description" content="승찬의 학습앱 모음. 오늘 하루 타임라인과 15577, 어원 단어, 일정, 사진 PDF, 폰 앱 실행">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -15,14 +15,17 @@
 <style>
 /* 디자인 언어 v1.0 — 흑백 표처럼 정렬하고, 파랑은 "평소", 빨강은 "문제"에만.
    홈 아이콘만 예외: 앱마다 고유색으로 컨택트 맵을 그린다(디자인 언어 12장). 앱 화면 안은 규칙 그대로.
-   Layout: 480px 단일 열. 큰 날짜 → 앱 아이콘 4열 → 폰 앱 → 하단 고정 독. */
+   Layout: 화면에 따라 세 가지, 독 없음.
+   - 폰(폭 640 미만): 큰 시계 → 하루 띠 한 줄 → 지금 · 다음 · 지연 → 앱
+   - 세로 화면(패드 세로): 큰 날짜 · 시계 → 하루 줄 3칸(수업 · 15577 · 일정) → 오늘 할 일 | 다가올 일정 → 앱
+   - 가로 화면(패드 가로 · 컴퓨터): 큰 날짜 | 시계 · 다음 | D-day → 하루 줄 3칸 → 앱 */
 :root {
   --bg: #ffffff; --ink: #000000; --muted: #5c5c5c;
   --accent: #026395; --on-accent: #ffffff;
-  --warn: #d1001f; --on-warn: #ffffff;
+  --warn: #d1001f; --on-warn: #ffffff; --warn-text: #d1001f;
   --map-pending: #c4c4c4; --map-empty: #f0f0f0;
   --line-bold: 3px; --line-thin: 1px; --body-size: 16px;
-  --pad-x: 20px; --gap-section: 24px; --tab-h: 56px; --tint: 30%;
+  --pad-x: 20px; --gap-section: 24px; --tint: 30%;
   --font-title: 'Hahmlet', 'Noto Serif KR', serif;
   --font-body: 'Gothic A1', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   --font-num: 'Space Grotesk', 'Gothic A1', sans-serif;
@@ -32,22 +35,22 @@
   :root:not([data-theme="light"]) {
     --bg: #000000; --ink: #ffffff; --muted: #a3a3a3;
     --accent: #4fb3e0; --on-accent: #000000;
-    --warn: #e4002b; --on-warn: #ffffff;
+    --warn: #e4002b; --on-warn: #ffffff; --warn-text: #ff6b6b;
     --map-pending: #5a5a5a; --map-empty: #1c1c1c;
     --line-thin: 2px; --body-size: 17px; --tint: 45%;
     color-scheme: dark;
   }
-  :root:not([data-theme="light"]) .tile { --c: var(--c-d); }
+  :root:not([data-theme="light"]) .app-c { --c: var(--c-d); }
 }
 :root[data-theme="dark"], :root[data-theme="projector"] {
   --bg: #000000; --ink: #ffffff; --muted: #a3a3a3;
   --accent: #4fb3e0; --on-accent: #000000;
-  --warn: #e4002b; --on-warn: #ffffff;
+  --warn: #e4002b; --on-warn: #ffffff; --warn-text: #ff6b6b;
   --map-pending: #5a5a5a; --map-empty: #1c1c1c;
   --line-thin: 2px; --body-size: 17px; --tint: 45%;
   color-scheme: dark;
 }
-:root[data-theme="dark"] .tile, :root[data-theme="projector"] .tile { --c: var(--c-d); }
+:root[data-theme="dark"] .app-c, :root[data-theme="projector"] .app-c { --c: var(--c-d); }
 
 [hidden] { display: none !important; }
 * { box-sizing: border-box; }
@@ -63,88 +66,190 @@ button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 
 .app {
-  max-width: 480px; margin: 0 auto;
+  margin: 0 auto; display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh;
   padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
   padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
   padding-top: calc(16px + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(var(--tab-h) + 3px + 40px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
+.m-phone .app { max-width: 480px; }
+.m-tall .app { --pad-x: 40px; max-width: 900px; padding-top: calc(32px + env(safe-area-inset-top, 0px)); padding-bottom: calc(36px + env(safe-area-inset-bottom, 0px)); }
+.m-wide .app { --pad-x: 40px; max-width: 1320px; padding-top: calc(32px + env(safe-area-inset-top, 0px)); padding-bottom: calc(36px + env(safe-area-inset-bottom, 0px)); }
 
-/* 머리: 큰 날짜 | 월·요일·시계 */
-.hero { display: flex; justify-content: space-between; align-items: stretch; gap: 12px; }
-.hero-num {
-  font-family: var(--font-num); font-weight: 700; font-size: 168px; line-height: 132px;
-  letter-spacing: -0.06em; margin-left: -6px; font-variant-numeric: tabular-nums;
-}
-.hero-side { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; text-align: right; padding-block: 4px 2px; }
+/* 글자 단계 */
+.hero-num { font-family: var(--font-num); font-weight: 700; font-size: 168px; line-height: 132px; letter-spacing: -0.06em; margin-left: -6px; font-variant-numeric: tabular-nums; }
+.clock-xl { font-family: var(--font-num); font-weight: 700; font-size: 112px; line-height: 92px; letter-spacing: -0.05em; margin-left: -4px; font-variant-numeric: tabular-nums; }
+.stat { font-family: var(--font-num); font-weight: 700; font-size: 52px; line-height: 44px; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.stat-sm { font-family: var(--font-num); font-weight: 700; font-size: 36px; line-height: 36px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .month { font-family: var(--font-title); font-weight: 800; font-size: 26px; line-height: 30px; }
 .weekday { font-family: var(--font-title); font-weight: 500; font-size: 22px; line-height: 28px; }
-.clock { font-family: var(--font-num); font-weight: 700; font-size: 36px; line-height: 36px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.label { font-weight: 800; font-size: 11px; line-height: 14px; letter-spacing: 0.06em; color: var(--muted); }
+.meta { font-size: 13px; line-height: 18px; color: var(--muted); margin: 0; }
+.meta b { color: var(--ink); font-weight: 800; }
+.meta b.ac { color: var(--accent); }
 
 /* 섹션 */
 .sec { margin-top: var(--gap-section); }
 .sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: var(--line-bold) solid var(--ink); padding-block: 10px 6px; }
 .sec-title { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 30px; margin: 0; }
-.sec-count { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
-.sec-acts { display: flex; gap: 16px; }
-.sec-acts button { background: none; border: 0; padding: 0; min-height: 44px; font-weight: 800; font-size: 13px; }
+.sec-count { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sec-link { background: none; border: 0; padding: 0; min-height: 44px; margin-block: -12px; font-weight: 800; font-size: 13px; }
+.sec-link .num { font-weight: 700; }
 
-/* 앱 아이콘: 컨택트 맵 7×7 + 이름 + 숫자 */
-.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px 8px; padding-top: 14px; }
-.tile { --c: var(--c-l); display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; padding-bottom: 2px; }
-.ic { position: relative; display: block; padding: 6px; }
+/* 머리: 폰 */
+.p-date { margin-top: 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.p-date .md { font-family: var(--font-title); font-weight: 800; font-size: 22px; line-height: 28px; }
+.p-date .wd { font-family: var(--font-title); font-weight: 500; font-size: 19px; line-height: 28px; }
+.p-date .dd { font-family: var(--font-num); font-weight: 700; font-size: 15px; white-space: nowrap; }
+/* 머리: 가로 */
+.c-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 32px; align-items: end; }
+.c-date { display: flex; align-items: flex-end; gap: 16px; }
+.c-date > div:last-child { padding-bottom: 2px; }
+.c-mid { min-width: 0; padding-bottom: 2px; }
+.c-mid .meta { margin-top: 10px; }
+.c-dday { text-align: right; padding-bottom: 2px; }
+.c-dday .stat { margin-top: 4px; }
+/* 머리: 세로 화면 */
+.t-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.t-head .right { text-align: right; padding-bottom: 2px; }
+.t-head .stat { margin-top: 6px; }
+.t-line { margin-top: 14px; }
+
+/* 하루 줄 3칸 (가로 · 세로 화면) */
+.lanes { position: relative; }
+.hrs, .lane { display: grid; grid-template-columns: 72px minmax(0, 1fr); }
+.hrs .track { height: 24px; }
+.hrs .track span { position: absolute; top: 4px; font-family: var(--font-num); font-size: 11px; line-height: 14px; color: var(--muted); transform: translateX(-50%); }
+.hrs .track span.first { transform: none; }
+.hrs .track span.last { transform: translateX(-100%); }
+.lane { border-top: var(--line-thin) solid var(--ink); }
+.lane:last-of-type { border-bottom: var(--line-thin) solid var(--ink); }
+.lane .name { padding-top: 12px; font-weight: 800; font-size: 13px; line-height: 18px; }
+.track { position: relative; height: 88px; }
+.m-wide .lane .track { height: clamp(88px, 12vh, 132px); }
+.blk { position: absolute; top: 12px; bottom: 12px; padding: 6px 8px; overflow: hidden; border: var(--line-thin) solid var(--ink); }
+.blk .bt { display: block; font-family: var(--font-num); font-size: 12px; line-height: 16px; white-space: nowrap; }
+.blk .bn { display: block; font-weight: 800; font-size: 14px; line-height: 20px; white-space: nowrap; }
+.blk.s-past, .blk.s-done { border-color: var(--muted); color: var(--muted); }
+.blk.s-past .bn, .blk.s-done .bn { font-weight: 500; }
+.blk.s-done .bn { text-decoration: line-through; }
+.blk.s-now { border: 2px solid var(--accent); color: var(--accent); }
+.blk.s-now .bt, .blk.s-next .bt { font-weight: 700; }
+.blk.s-next .bt { color: var(--accent); }
+.blk.s-late .bn::before { content: "지연"; display: inline-block; margin-right: 6px; padding: 0 3px; background: var(--warn); color: var(--on-warn); font-size: 10px; line-height: 16px; letter-spacing: 0.06em; vertical-align: 2px; }
+.blk.small { padding: 6px 5px; }
+.blk.small .bt { display: none; }
+.blk.small .bn { font-size: 12px; line-height: 16px; }
+.blk.tiny { padding: 0; }
+.blk.tiny .bt, .blk.tiny .bn { display: none; }
+.blk.tiny.s-late { background: var(--warn); border-color: var(--warn); }
+.blk.mk { border: 0; border-left: 3px solid var(--ink); }
+.blk.mk.s-done, .blk.mk.s-past, .blk.mk.s-due { border-left-color: var(--muted); color: var(--muted); }
+.blk.mk.s-next, .blk.mk.s-now { border-left-color: var(--accent); color: var(--accent); }
+.now-line { position: absolute; top: 24px; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; }
+.now-tag { position: absolute; top: 2px; transform: translateX(-50%); background: var(--accent); color: var(--on-accent); font-family: var(--font-num); font-weight: 700; font-size: 12px; line-height: 18px; padding: 0 4px; }
+.lane-chip { display: inline-block; margin-top: 4px; background: var(--warn); color: var(--on-warn); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 20px; padding: 0 4px; }
+
+/* 하루 띠 한 줄 (폰) */
+.bar { position: relative; height: 44px; border-top: var(--line-thin) solid var(--ink); border-bottom: var(--line-thin) solid var(--ink); }
+.bar .blk { top: 6px; bottom: 6px; padding: 0; }
+.bar .blk.s-done { background: var(--map-pending); border: 0; }
+.bar .blk.mk { top: 0; bottom: 0; border: 0; background: var(--ink); }
+.bar .blk.mk.s-done, .bar .blk.mk.s-past, .bar .blk.mk.s-due { background: var(--muted); }
+.bar .blk.mk.s-next, .bar .blk.mk.s-now { background: var(--accent); }
+.bar .blk.s-late { background: var(--warn); border-color: var(--warn); }
+.bar .now-line { top: -8px; bottom: -8px; }
+.bar-hrs { position: relative; height: 18px; }
+.bar-hrs span { position: absolute; top: 4px; font-family: var(--font-num); font-size: 11px; line-height: 14px; color: var(--muted); transform: translateX(-50%); }
+.bar-hrs span.first { transform: none; }
+.bar-hrs span.last { transform: translateX(-100%); }
+.legend { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; line-height: 14px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { display: inline-block; width: 12px; height: 8px; border: var(--line-thin) solid var(--ink); }
+.legend i.l-fix { border-color: var(--muted); }
+.legend i.l-ev { width: 3px; height: 10px; border: 0; background: var(--ink); }
+.legend i.l-now { width: 2px; height: 10px; border: 0; background: var(--accent); }
+
+/* 지금 · 다음 (폰) */
+.focus { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding-block: 10px 12px; }
+.focus.first { margin-top: 18px; border-top: var(--line-bold) solid var(--ink); }
+.focus + .focus { border-top: var(--line-thin) solid var(--ink); }
+.focus .label.ac { color: var(--accent); }
+.focus .ttl { margin-top: 4px; font-family: var(--font-title); font-weight: 800; font-size: 26px; line-height: 32px; overflow-wrap: anywhere; }
+.focus.sub .ttl { font-size: 22px; line-height: 28px; }
+.focus .ttl.empty { color: var(--muted); font-weight: 500; }
+.focus .r { text-align: right; flex: none; }
+.focus .r .muted-num { font-family: var(--font-num); font-weight: 700; font-size: 19px; line-height: 22px; color: var(--muted); }
+.late-row { display: flex; align-items: center; gap: 10px; padding-block: 10px; border-top: var(--line-thin) solid var(--ink); border-bottom: var(--line-thin) solid var(--ink); }
+.late-row .t { font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.late-row .d { margin-left: auto; font-family: var(--font-num); font-weight: 700; font-size: 15px; color: var(--warn-text); white-space: nowrap; }
+.chip-late { flex: none; background: var(--warn); color: var(--on-warn); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 20px; padding: 0 4px; white-space: nowrap; }
+
+/* 할 일 행 (세로 화면) */
+.split2 { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 32px; }
+.row { display: grid; grid-template-columns: 56px minmax(0, 1fr) 44px; gap: 0 8px; align-items: start; padding-block: 12px; border-bottom: var(--line-thin) solid var(--ink); }
+.row .tm { font-family: var(--font-num); font-size: 15px; line-height: 22px; font-variant-numeric: tabular-nums; }
+.row .tt { display: block; font-weight: 800; line-height: 22px; overflow-wrap: anywhere; }
+.row .mt { display: block; font-size: 13px; line-height: 18px; color: var(--muted); margin-top: 2px; }
+.row .chip { justify-self: end; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 20px; padding: 0 4px; white-space: nowrap; }
+.row.s-late .tm { color: var(--warn-text); font-weight: 700; }
+.row.s-late .chip { background: var(--warn); color: var(--on-warn); }
+.row.s-next .tm, .row.s-now .tm { color: var(--accent); font-weight: 700; }
+.row.s-next .chip, .row.s-now .chip { border: 2px solid var(--accent); color: var(--accent); line-height: 16px; padding: 0 3px; }
+.row.s-done .tm, .row.s-done .chip { color: var(--muted); }
+.row.s-done .tt { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.ahead { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 0 8px; padding-block: 12px; border-bottom: var(--line-thin) solid var(--ink); }
+.ahead .tm { font-family: var(--font-num); font-size: 15px; line-height: 22px; }
+.ahead .tt { display: block; font-weight: 800; overflow-wrap: anywhere; }
+.empty { padding-block: 14px; color: var(--muted); font-size: 13px; line-height: 18px; border-bottom: var(--line-thin) solid var(--ink); margin: 0; }
+
+/* 앱 */
+.apps-sec { margin-top: auto; padding-top: var(--gap-section); }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding-top: 6px; }
+.tile { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; padding-top: 8px; }
+.cell { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; min-width: 0; }
+.app-c { --c: var(--c-l); }
+.ic { position: relative; display: block; }
 .cmap { display: block; shape-rendering: crispEdges; }
-.cmap .f { fill: var(--c); }
+.cmap .f { fill: var(--c, var(--accent)); }
 .cmap .p { fill: var(--map-pending); }
-@supports (fill: color-mix(in srgb, red 30%, white)) { .cmap .p { fill: color-mix(in srgb, var(--c) var(--tint), var(--bg)); } }
+@supports (fill: color-mix(in srgb, red 30%, white)) { .app-c .cmap .p { fill: color-mix(in srgb, var(--c) var(--tint), var(--bg)); } }
 .cmap .e { fill: var(--map-empty); }
 .badge {
-  position: absolute; top: -2px; right: -6px; min-width: 22px; height: 22px; padding: 0 5px;
+  position: absolute; top: -8px; right: -10px; min-width: 22px; height: 22px; padding: 0 5px;
   background: var(--warn); color: var(--on-warn);
   font-family: var(--font-num); font-weight: 700; font-size: 13px; line-height: 22px; text-align: center; font-variant-numeric: tabular-nums;
 }
-.nm { margin-top: 8px; font-weight: 800; font-size: 14px; line-height: 18px; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mt { margin-top: 2px; font-family: var(--font-num); font-weight: 500; font-size: 12px; line-height: 16px; color: var(--muted); text-align: center; white-space: nowrap; }
-.tile:active .nm { color: var(--muted); }
+.tile .nm { margin-top: 6px; font-weight: 800; font-size: 13px; line-height: 18px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .mt { font-family: var(--font-num); font-size: 11px; line-height: 14px; color: var(--muted); white-space: nowrap; }
+.cell .cd { display: block; font-family: var(--font-num); font-weight: 700; font-size: 11px; line-height: 14px; letter-spacing: 0.06em; color: var(--muted); }
+.cell .nm { display: block; font-family: var(--font-title); font-weight: 800; font-size: 19px; line-height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell .mt { display: block; font-family: var(--font-num); font-size: 13px; line-height: 18px; color: var(--muted); }
+.tile:active .nm, .cell:active .nm { color: var(--muted); }
 
-/* 폰 앱: 글자 2열 표 */
-.plist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+/* 시트: 화면 전체를 덮는다 */
+.sheet { position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto; }
+.sheet .in { max-width: 560px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top, 0px)) 20px calc(40px + env(safe-area-inset-bottom, 0px)); }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: var(--line-bold) solid var(--ink); padding-bottom: 10px; }
+.sheet-head h2 { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 30px; margin: 0; }
+.sheet-acts { display: flex; gap: 20px; }
+.close, .sheet-acts button { background: none; border: 0; min-height: 44px; padding: 0; font-weight: 800; font-size: 14px; }
+.plist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; margin-top: 4px; }
 .pa {
-  display: flex; align-items: center; min-height: 48px; padding-block: 12px; min-width: 0;
+  display: flex; align-items: center; min-height: 52px; padding-block: 12px; min-width: 0;
   border-bottom: var(--line-thin) solid var(--ink); font-weight: 800; font-size: 16px; line-height: 22px;
   user-select: none; -webkit-user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .pa:active { color: var(--muted); }
 .hint { font-size: 13px; line-height: 18px; color: var(--muted); margin: 10px 0 0; }
-
-/* 독: 탭바와 같은 생김새, 활성 표시 없음 */
-.dock {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
-  padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
-}
-.dock-in { max-width: 440px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: var(--line-bold) solid var(--ink); }
-.dock-in a, .dock-in button {
-  min-height: var(--tab-h); display: grid; place-items: center; background: none; border: 0; padding: 0;
-  font-weight: 800; font-size: 13px; text-align: center;
-}
-
-/* 시트: 화면 전체를 덮는다 */
-.sheet { position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto; }
-.sheet .app { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
-.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: var(--line-bold) solid var(--ink); padding-bottom: 10px; }
-.sheet-head h2 { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 30px; margin: 0; }
-.close { background: none; border: 0; min-height: 44px; padding: 0; font-weight: 800; font-size: 14px; }
 .form { display: grid; gap: 16px; margin-top: 16px; }
 .field { display: grid; gap: 6px; }
 .field > span { font-weight: 800; font-size: 12px; letter-spacing: 0.06em; }
-.field input {
-  width: 100%; min-height: 44px; padding: 10px; border: var(--line-thin) solid var(--ink); border-radius: 0;
-  background: var(--bg); font-size: 16px; line-height: 22px;
-}
+.field input { width: 100%; min-height: 44px; padding: 10px; border: var(--line-thin) solid var(--ink); border-radius: 0; background: var(--bg); font-size: 16px; line-height: 22px; }
 .btns { display: flex; gap: 12px; }
 .btn { flex: 1; min-height: 48px; padding: 0 16px; border: 0; background: var(--ink); color: var(--bg); font-weight: 800; font-size: 15px; }
 .btn.line { background: none; color: var(--ink); border: var(--line-bold) solid var(--ink); }
@@ -155,42 +260,24 @@ a { color: inherit; text-decoration: none; }
 .alist .pin.on { color: var(--accent); }
 
 @media (max-width: 359px) {
-  .hero-num { font-size: 136px; line-height: 108px; }
-  .clock { font-size: 28px; line-height: 30px; }
-  .grid { column-gap: 4px; }
+  .clock-xl { font-size: 92px; line-height: 76px; }
+  .tiles { gap: 4px; }
+}
+@media (max-width: 900px) {
+  .m-wide .hero-num { font-size: 132px; line-height: 104px; }
+  .m-wide .cells { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .m-tall .split2 { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
 </head>
 <body>
-<div class="app">
-  <header class="hero">
-    <div class="hero-num" id="day" aria-hidden="true"></div>
-    <div class="hero-side">
-      <div><div class="month" id="mon"></div><div class="weekday" id="wd"></div></div>
-      <div class="clock" id="clock"></div>
-    </div>
-    <h1 class="sr-only" id="today"></h1>
-  </header>
-
-  <section class="sec" aria-labelledby="h-apps">
-    <div class="sec-head"><h2 class="sec-title" id="h-apps">앱</h2><span class="sec-count" id="appCount"></span></div>
-    <nav class="grid" id="grid" aria-label="앱"></nav>
-  </section>
-
-  <section class="sec" id="phone" aria-labelledby="h-phone">
-    <div class="sec-head">
-      <h2 class="sec-title" id="h-phone">폰 앱</h2>
-      <span class="sec-acts"><button type="button" id="btnAll" hidden>모든 앱</button><button type="button" id="btnAdd">추가</button></span>
-    </div>
-    <div class="plist" id="plist"></div>
-    <p class="hint">길게 누르면 이름을 바꾸거나 지울 수 있습니다.</p>
-  </section>
-</div>
-
-<nav class="dock" aria-label="독"><div class="dock-in" id="dock"></div></nav>
+<div class="app" id="app"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
 
 <script src="/sabathia.js"></script>
+<script src="/today.js"></script>
 <script src="/apps.js"></script>
 <script>
 (() => {
@@ -201,18 +288,21 @@ a { color: inherit; text-decoration: none; }
   const WD = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
   const APPS = window.SABATHIA_APPS || [];
   const J = window.Jarvis; // 안드로이드 런처 앱 안에서만 있다
+  const S0 = 6 * 60, S1 = 24 * 60; // 하루 줄 06:00–24:00
 
   const q = new URLSearchParams(location.search).get('theme');
   if (q === 'light' || q === 'dark' || q === 'projector') document.documentElement.dataset.theme = q;
 
-  /* ---------- 시계 ---------- */
-  function tick() {
-    const n = new Date();
-    $('#day').textContent = pad(n.getDate());
-    $('#mon').textContent = (n.getMonth() + 1) + '월';
-    $('#wd').textContent = WD[n.getDay()];
-    $('#clock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes());
-    $('#today').textContent = `${n.getMonth() + 1}월 ${n.getDate()}일 ${WD[n.getDay()]}`;
+  /* ---------- 화면 모드: 폰 · 세로 화면 · 가로 화면 ---------- */
+  const modeOf = () => innerWidth < 640 ? 'phone' : innerHeight > innerWidth ? 'tall' : 'wide';
+  let mode = '';
+  function setMode() {
+    const m = modeOf();
+    if (m === mode) return false;
+    if (mode) document.documentElement.classList.remove('m-' + mode);
+    document.documentElement.classList.add('m-' + m);
+    mode = m;
+    return true;
   }
 
   /* ---------- 컨택트 맵 (디자인 언어 5장) ---------- */
@@ -231,8 +321,8 @@ a { color: inherit; text-decoration: none; }
     const filled = new Set(order.slice(0, Math.round(order.length * pct / 100)).map((c) => c.join(',')));
     return { set, filled };
   }
-  function mapSVG(seed, pct) {
-    const n = 7, cell = 8, g = 2, w = n * cell + (n - 1) * g;
+  function mapSVG(seed, pct, cell) {
+    const n = 7, g = 2, w = n * cell + (n - 1) * g;
     const { set, filled } = contactMap(seed, n, pct);
     let r = '';
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
@@ -242,35 +332,157 @@ a { color: inherit; text-decoration: none; }
     return `<svg class="cmap" viewBox="0 0 ${w} ${w}" width="${w}" height="${w}" aria-hidden="true">${r}</svg>`;
   }
 
-  /* ---------- 앱 아이콘 ---------- */
-  const STATE = {};
-  function tileHTML(a) {
-    const s = STATE[a.id];
-    const pct = a.status ? (s ? s.pct : 0) : 100;
-    const meta = a.status ? (s ? s.meta : '') : a.code;
-    const badge = s && s.badge > 0 ? `<span class="badge">${s.badge > 99 ? '99' : s.badge}</span>` : '';
-    const label = [a.name, meta, s && s.badge > 0 ? `지연 ${s.badge}` : '', a.status ? `${Math.round(pct)}퍼센트 진행` : ''].filter(Boolean).join(', ');
-    return `<a class="tile" href="${esc(a.href)}" style="--c-l:${a.color[0]};--c-d:${a.color[1]}" aria-label="${esc(label)}">
-      <span class="ic">${mapSVG(a.name, pct)}${badge}</span>
-      <span class="nm">${esc(a.name)}</span><span class="mt">${esc(meta) || '&nbsp;'}</span></a>`;
-  }
-  function renderGrid() {
-    $('#grid').innerHTML = APPS.map(tileHTML).join('');
-    $('#appCount').textContent = pad(APPS.length);
-  }
+  /* ---------- 시각 ---------- */
+  const fmt = (m) => pad(Math.floor(m / 60) % 24) + ':' + pad(m % 60);
+  const left = (m) => (m >= 60 ? `${Math.floor(m / 60)}:${pad(m % 60)}` : `${m}분`);
+  const after = (m) => (m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분 뒤` : `${m}분 뒤`);
+  const frac = (m) => Math.max(0, Math.min(1, (m - S0) / (S1 - S0)));
+  const pctOf = (m) => (frac(m) * 100).toFixed(3) + '%';
+  const md = (s) => s.slice(5).replace('-', '.');
+
+  /* ---------- 상태 ---------- */
+  let D = null;          // SabathiaToday.load() 결과
+  const ST = {};         // 앱별 홈 아이콘 상태
+
   async function refresh() {
+    try { D = await SabathiaToday.load(); } catch { D = null; }
     await Promise.all(APPS.filter((a) => a.status).map(async (a) => {
-      try { STATE[a.id] = await a.status(); } catch { STATE[a.id] = null; }
+      try { ST[a.id] = await a.status(); } catch { ST[a.id] = null; }
     }));
-    renderGrid();
+    render();
   }
 
-  /* ---------- 독: 앱 3개 + 폰 앱 ---------- */
-  function renderDock() {
-    const apps = APPS.filter((a) => a.dock).slice(0, 3);
-    $('#dock').innerHTML = apps.map((a) => `<a href="${esc(a.href)}">${esc(a.dock)}</a>`).join('')
-      + '<button type="button" id="dockPhone">폰 앱</button>';
-    $('#dockPhone').onclick = () => (J ? openAll() : $('#phone').scrollIntoView({ behavior: 'smooth' }));
+  /* ---------- 조각 ---------- */
+  const ddLabel = (d) => (d.left ? 'D-' + d.left : 'D-DAY');
+  function nextLine() {
+    if (!D) return '';
+    const n = D.next, c = D.cur, parts = [];
+    if (c && mode === 'tall') parts.push(`지금 — <b class="ac">${esc(c.t)}${c.e ? ' · ' + left(c.e - D.now) + ' 남음' : ''}</b>`);
+    parts.push(n ? `다음 — <b>${fmt(n.s)} ${esc(n.t)}</b> · ${after(n.s - D.now)}` : '오늘 남은 일정이 없습니다');
+    return parts.join(' · ');
+  }
+
+  // 하루 줄의 블록 하나. 끝 시각이 없는 일정은 표시(왼쪽 3px 선)로
+  function blkHTML(x, compact, trackW) {
+    if (x.e != null && (x.e <= S0 || x.s >= S1)) return '';
+    if (x.e == null && (x.s < S0 || x.s >= S1)) return '';
+    const l = pctOf(x.s);
+    const w = x.e != null ? ((frac(x.e) - frac(x.s)) * 100).toFixed(3) + '%' : (compact ? '3px' : (115 / (S1 - S0) * 100).toFixed(3) + '%');
+    // 좁은 블록은 시각을 빼고(small), 더 좁으면 글자 없이(tiny) 그린다. 폭은 화면 폭으로 어림
+    const px = x.e != null && trackW ? (frac(x.e) - frac(x.s)) * trackW : 999;
+    const cls = `blk s-${x.st}${x.e == null ? ' mk' : px < 28 ? ' tiny' : px < 110 ? ' small' : ''}`;
+    const time = x.e != null ? fmt(x.s) + '–' + fmt(x.e) : fmt(x.s);
+    if (compact) return `<span class="${cls}" style="left:${l};width:${w}" title="${esc(time + ' ' + x.t)}"></span>`;
+    return `<div class="${cls}" style="left:${l};width:${w}" title="${esc(time + ' ' + x.t)}"><span class="bt">${time}</span><span class="bn">${esc(x.t)}</span></div>`;
+  }
+  function hoursHTML(step) {
+    let s = '';
+    for (let h = 6; h <= 24; h += step) s += `<span class="${h === 6 ? 'first' : h === 24 ? 'last' : ''}" style="left:${pctOf(h * 60)}">${pad(h)}</span>`;
+    return s;
+  }
+  const nowIn = () => D && D.now >= S0 && D.now < S1;
+
+  function lanesHTML() {
+    const lanes = D ? D.lanes : [{ name: '수업', items: [] }, { name: '15577', items: [] }, { name: '일정', items: [] }];
+    const nowL = `calc(72px + (100% - 72px) * ${frac(D ? D.now : 0).toFixed(4)})`;
+    const trackW = Math.min(innerWidth, mode === 'wide' ? 1320 : 900) - 80 - 72;
+    return `<div class="lanes">
+      <div class="hrs"><div></div><div class="track">${hoursHTML(mode === 'wide' ? 2 : 3)}</div></div>
+      ${lanes.map((ln) => `<div class="lane"><div class="name">${esc(ln.name)}${ln.late ? `<br><span class="lane-chip">지연 ${ln.late}</span>` : ''}</div>
+        <div class="track">${ln.items.map((x) => blkHTML(x, false, trackW)).join('')}</div></div>`).join('')}
+      ${nowIn() ? `<div class="now-line" style="left:${nowL}"></div><div class="now-tag" style="left:${nowL}">${fmt(D.now)}</div>` : ''}
+    </div>`;
+  }
+  function barHTML() {
+    const items = D ? D.lanes.flatMap((ln) => ln.items.map((x) => ({ ...x, st: ln.name === '수업' && x.st !== 'now' ? 'past' : x.st }))) : [];
+    return `<div class="bar">${items.map((x) => blkHTML(x, true)).join('')}
+      ${nowIn() ? `<span class="now-line" style="left:${pctOf(D.now)}"></span>` : ''}</div>
+      <div class="bar-hrs">${hoursHTML(6)}</div>
+      <div class="legend"><span><i class="l-fix"></i>수업</span><span><i></i>15577</span><span><i class="l-ev"></i>일정</span><span><i class="l-now"></i>지금</span></div>`;
+  }
+
+  function focusHTML() {
+    const c = D && D.cur, n = D && D.next;
+    const curH = c
+      ? `<div class="focus first"><div style="min-width:0"><div class="label ac">지금 · ${fmt(c.s)}${c.e ? '–' + fmt(c.e) : ''}</div><div class="ttl">${esc(c.t)}</div><p class="meta">${esc(c.src)}</p></div>
+          ${c.e ? `<div class="r"><div class="stat-sm">${left(c.e - D.now)}</div><div class="label">남음</div></div>` : ''}</div>`
+      : `<div class="focus first"><div><div class="label">지금</div><div class="ttl empty">비는 시간</div></div></div>`;
+    const nextH = n
+      ? `<div class="focus sub"><div style="min-width:0"><div class="label">다음 · ${fmt(n.s)} · ${esc(n.src)}</div><div class="ttl">${esc(n.t)}</div></div><div class="r"><div class="muted-num">${after(n.s - D.now)}</div></div></div>`
+      : `<div class="focus sub"><div><div class="label">다음</div><div class="ttl empty">오늘 남은 일 없음</div></div></div>`;
+    const late = D ? D.late : [];
+    const lateH = late.length
+      ? `<div class="late-row"><span class="chip-late">지연${late.length > 1 ? ' ' + late.length : ''}</span><span class="t">${esc(late[0].t)}</span><span class="d">${esc(late[0].time)}</span></div>`
+      : '';
+    return curH + nextH + lateH;
+  }
+
+  function todoHTML() {
+    const rows = D ? D.todo.slice(0, 7) : [];
+    const CHIP = { late: '지연', next: '다음', now: '지금', wait: '대기', done: '완료' };
+    return `<section aria-labelledby="h-todo"><div class="sec-head"><h2 class="sec-title" id="h-todo">오늘 할 일</h2><span class="sec-count">${D ? D.doneN : 0} / ${D ? D.todo.length : 0}</span></div>
+      ${rows.length ? rows.map((r) => `<div class="row s-${r.st}"><span class="tm">${esc(r.time)}</span><span><span class="tt">${esc(r.t)}</span><span class="mt">${esc(r.meta)}</span></span><span class="chip">${CHIP[r.st]}</span></div>`).join('')
+        : '<p class="empty">오늘 할 일이 없습니다.</p>'}</section>`;
+  }
+  function aheadHTML() {
+    const WDS = ['일', '월', '화', '수', '목', '금', '토'];
+    const rows = D ? D.ahead : [];
+    return `<section aria-labelledby="h-ahead"><div class="sec-head"><h2 class="sec-title" id="h-ahead">다가올 일정</h2></div>
+      ${rows.length ? rows.map((e) => {
+        const [y, m, d] = e.date.split('-').map(Number);
+        return `<div class="ahead"><span class="tm">${md(e.date)}</span><span><span class="tt">${esc(e.t)}</span><span class="meta">${WDS[new Date(y, m - 1, d).getDay()]}${e.time ? ' · ' + esc(e.time) : ''}${e.kind === 'deadline' ? ' · 마감' : ''}</span></span></div>`;
+      }).join('') : '<p class="empty">30일 안에 일정이 없습니다.</p>'}</section>`;
+  }
+
+  function appsHTML() {
+    const phone = mode === 'phone';
+    const items = APPS.map((a) => {
+      const s = ST[a.id];
+      const pct = a.status ? (s ? s.pct : 0) : 100;
+      const meta = a.status ? (s ? s.meta : '') : '도구';
+      const badge = s && s.badge > 0 ? `<span class="badge">${s.badge > 99 ? '99' : s.badge}</span>` : '';
+      const label = [a.name, meta, s && s.badge > 0 ? `지연 ${s.badge}` : '', a.status ? `${Math.round(pct)}퍼센트 진행` : ''].filter(Boolean).join(', ');
+      const style = `--c-l:${a.color[0]};--c-d:${a.color[1]}`;
+      return phone
+        ? `<a class="tile app-c" href="${esc(a.href)}" style="${style}" aria-label="${esc(label)}"><span class="ic">${mapSVG(a.name, pct, 6)}${badge}</span><span class="nm">${esc(a.name)}</span><span class="mt">${esc(meta) || '&nbsp;'}</span></a>`
+        : `<a class="cell app-c" href="${esc(a.href)}" style="${style}" aria-label="${esc(label)}"><span class="ic">${mapSVG(a.name, pct, 8)}${badge}</span><span style="min-width:0"><span class="cd">${esc(a.code)}</span><span class="nm">${esc(a.name)}</span><span class="mt">${esc(meta)}</span></span></a>`;
+    }).join('');
+    return `<section class="apps-sec" aria-labelledby="h-apps"><div class="sec-head"><h2 class="sec-title" id="h-apps">앱</h2>
+      <button type="button" class="sec-link" data-act="phone">폰 앱 <span class="num">${pad(phoneApps.length)}</span></button></div>
+      <nav class="${phone ? 'tiles' : 'cells'}" aria-label="앱">${items}</nav></section>`;
+  }
+
+  /* ---------- 화면 ---------- */
+  function render() {
+    const n = new Date();
+    const dd = pad(n.getDate()), mon = (n.getMonth() + 1) + '월', wd = WD[n.getDay()], clock = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    const h1 = `<h1 class="sr-only">${n.getMonth() + 1}월 ${n.getDate()}일 ${wd} ${clock}</h1>`;
+    const dday = D && D.dday;
+    const dayCount = D ? `${D.doneN} / ${D.todo.length}` : '';
+    let html;
+    if (mode === 'phone') {
+      html = `<header>${h1}<div class="clock-xl" aria-hidden="true">${clock}</div>
+          <div class="p-date"><span><span class="md">${mon} ${n.getDate()}일</span> <span class="wd">${wd}</span></span>${dday ? `<span class="dd">${esc(dday.title)} ${ddLabel(dday)}</span>` : ''}</div></header>
+        <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">06–24</span></div>${barHTML()}</section>
+        <section aria-label="지금과 다음">${focusHTML()}</section>
+        ${appsHTML()}`;
+    } else if (mode === 'tall') {
+      html = `<header class="t-head">${h1}
+          <div class="c-date"><div class="hero-num" aria-hidden="true">${dd}</div><div><div class="month">${mon}</div><div class="weekday">${wd}</div></div></div>
+          <div class="right">${dday ? `<div class="label">${esc(dday.title)} · ${md(dday.date)} · <span class="num" style="color:var(--ink)">${ddLabel(dday)}</span></div>` : ''}<div class="stat">${clock}</div></div></header>
+        <p class="meta t-line">${nextLine()}</p>
+        <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div>${lanesHTML()}</section>
+        <div class="sec split2">${todoHTML()}${aheadHTML()}</div>
+        ${appsHTML()}`;
+    } else {
+      html = `<header class="c-head">${h1}
+          <div class="c-date"><div class="hero-num" aria-hidden="true">${dd}</div><div><div class="month">${mon}</div><div class="weekday">${wd}</div></div></div>
+          <div class="c-mid"><div class="stat">${clock}</div><p class="meta">${nextLine()}</p></div>
+          ${dday ? `<div class="c-dday"><div class="label">${esc(dday.title)} · ${md(dday.date)}${dday.note ? ' · ' + esc(dday.note) : ''}</div><div class="stat">${ddLabel(dday)}</div></div>` : '<div></div>'}</header>
+        <section class="sec" aria-labelledby="h-day" style="margin-top:28px"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div>${lanesHTML()}</section>
+        ${appsHTML()}`;
+    }
+    $('#app').innerHTML = html;
   }
 
   /* ---------- 폰 앱 (예전 자비스 런처에서 옮김. 저장 키 'apps' 그대로) ---------- */
@@ -286,8 +498,8 @@ a { color: inherit; text-decoration: none; }
     { name: '캘린더', url: 'https://calendar.google.com' },
     { name: '메일', url: 'https://mail.google.com' },
   ];
-  let phone = (() => { try { return JSON.parse(store.get('apps')) || DEFAULT_APPS; } catch { return DEFAULT_APPS; } })();
-  const savePhone = () => store.set('apps', JSON.stringify(phone));
+  let phoneApps = (() => { try { return JSON.parse(store.get('apps')) || DEFAULT_APPS; } catch { return DEFAULT_APPS; } })();
+  const savePhone = () => store.set('apps', JSON.stringify(phoneApps));
   const isPkg = (u) => /^[a-z][\w]*(\.[\w]+)+$/i.test(u) && !u.includes('/');
   // 크롬은 '앱 실행' 인텐트를 막으므로, 앱마다 등록된 딥링크 스킴으로 연다
   const SCHEMES = {
@@ -315,10 +527,37 @@ a { color: inherit; text-decoration: none; }
       : `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${u};S.browser_fallback_url=${fallback};end`;
   };
 
-  function renderPhone() {
+  /* ---------- 시트 ---------- */
+  const sheet = $('#sheet');
+  let sheetKind = '', lastFocus = null;
+  function openSheet(kind, html) {
+    if (sheet.hidden) lastFocus = document.activeElement;
+    sheetKind = kind;
+    sheet.innerHTML = `<div class="in">${html}</div>`;
+    sheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+    const f = sheet.querySelector('input, button');
+    if (f) f.focus();
+  }
+  function closeSheet() {
+    if (sheet.hidden) return false;
+    sheet.hidden = true; sheet.innerHTML = ''; sheetKind = '';
+    document.body.style.overflow = '';
+    if (lastFocus && lastFocus.isConnected) lastFocus.focus();
+    return true;
+  }
+  // 뒤로가기: 고치기 · 모든 앱 → 폰 앱 목록 → 닫기
+  function back() {
+    if (sheetKind === 'edit' || sheetKind === 'all') { openPhone(); return true; }
+    return closeSheet();
+  }
+  const head = (title, acts) => `<div class="sheet-head"><h2 id="sheet-title">${esc(title)}</h2><div class="sheet-acts">${acts || ''}<button class="close" type="button" data-act="close">닫기</button></div></div>`;
+
+  function openPhone() {
+    openSheet('phone', `${head('폰 앱', `${J ? '<button type="button" data-act="all">모든 앱</button>' : ''}<button type="button" data-act="add">추가</button>`)}
+      <div class="plist" id="plist"></div><p class="hint">길게 누르면 이름을 바꾸거나 지울 수 있습니다.</p>`);
     const box = $('#plist');
-    box.innerHTML = '';
-    phone.forEach((a, i) => {
+    phoneApps.forEach((a, i) => {
       const el = document.createElement('a');
       el.className = 'pa';
       el.href = hrefOf(a.url);
@@ -331,32 +570,10 @@ a { color: inherit; text-decoration: none; }
       el.addEventListener('contextmenu', (e) => { e.preventDefault(); openEdit(i); });
       box.appendChild(el);
     });
-    $('#btnAll').hidden = !J;
   }
-
-  /* ---------- 시트 ---------- */
-  const sheet = $('#sheet');
-  let lastFocus = null;
-  function openSheet(html) {
-    lastFocus = document.activeElement;
-    sheet.innerHTML = `<div class="app">${html}</div>`;
-    sheet.hidden = false;
-    document.body.style.overflow = 'hidden';
-    const f = sheet.querySelector('input, button');
-    if (f) f.focus();
-  }
-  function closeSheet() {
-    if (sheet.hidden) return false;
-    sheet.hidden = true; sheet.innerHTML = '';
-    document.body.style.overflow = '';
-    if (lastFocus) lastFocus.focus();
-    return true;
-  }
-  const head = (title) => `<div class="sheet-head"><h2 id="sheet-title">${esc(title)}</h2><button class="close" type="button" data-act="close">닫기</button></div>`;
-
   function openEdit(i) {
-    const a = i < 0 ? { name: '', url: '' } : phone[i];
-    openSheet(`${head(i < 0 ? '폰 앱 추가' : '폰 앱 고치기')}
+    const a = i < 0 ? { name: '', url: '' } : phoneApps[i];
+    openSheet('edit', `${head(i < 0 ? '폰 앱 추가' : '폰 앱 고치기')}
       <form class="form" id="editForm">
         <label class="field"><span>이름</span><input id="fName" value="${esc(a.name)}" required></label>
         <label class="field"><span>패키지 이름 또는 주소</span><input id="fUrl" value="${esc(a.url)}" placeholder="com.kakao.talk, tel:, https://…" autocapitalize="off" spellcheck="false" required></label>
@@ -366,21 +583,20 @@ a { color: inherit; text-decoration: none; }
       e.preventDefault();
       const name = $('#fName').value.trim(), url = $('#fUrl').value.trim();
       if (!name || !url) return;
-      if (i < 0) phone.push({ name, url }); else phone[i] = { name, url };
-      savePhone(); renderPhone(); closeSheet();
+      if (i < 0) phoneApps.push({ name, url }); else phoneApps[i] = { name, url };
+      savePhone(); render(); openPhone();
     };
     const del = sheet.querySelector('[data-act="del"]');
     if (del) del.onclick = () => {
-      if (!confirm(`'${phone[i].name}'을(를) 지울까요?`)) return;
-      phone.splice(i, 1); savePhone(); renderPhone(); closeSheet();
+      if (!confirm(`'${phoneApps[i].name}'을(를) 지울까요?`)) return;
+      phoneApps.splice(i, 1); savePhone(); render(); openPhone();
     };
   }
-
   // 런처 안에서만: 설치된 모든 앱
   let allApps = [];
   function openAll() {
     try { allApps = JSON.parse(J.apps()).sort((a, b) => a.name.localeCompare(b.name, 'ko')); } catch { allApps = []; }
-    openSheet(`${head('모든 앱')}
+    openSheet('all', `${head('모든 앱')}
       <div class="form"><label class="field"><span>찾기</span><input id="allQ" type="search" autocomplete="off"></label></div>
       <ul class="alist" id="allList"></ul>`);
     $('#allQ').oninput = renderAll;
@@ -388,35 +604,37 @@ a { color: inherit; text-decoration: none; }
   }
   function renderAll() {
     const qq = $('#allQ').value.trim().toLowerCase();
-    const pinned = new Set(phone.map((a) => a.url));
+    const pinned = new Set(phoneApps.map((a) => a.url));
     $('#allList').innerHTML = allApps.filter((a) => !qq || a.name.toLowerCase().includes(qq)).map((a) =>
       `<li><button class="go" type="button" data-pkg="${esc(a.pkg)}">${esc(a.name)}</button>
-        <button class="pin${pinned.has(a.pkg) ? ' on' : ''}" type="button" data-pin="${esc(a.pkg)}" data-name="${esc(a.name)}">${pinned.has(a.pkg) ? '홈에 있음' : '홈에 추가'}</button></li>`).join('');
+        <button class="pin${pinned.has(a.pkg) ? ' on' : ''}" type="button" data-pin="${esc(a.pkg)}" data-name="${esc(a.name)}">${pinned.has(a.pkg) ? '폰 앱에 있음' : '폰 앱에 추가'}</button></li>`).join('');
   }
   sheet.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.act === 'close') closeSheet();
+    const act = b.dataset.act;
+    if (act === 'close') closeSheet();
+    else if (act === 'add') openEdit(-1);
+    else if (act === 'all') openAll();
     else if (b.dataset.pkg) J.launch(b.dataset.pkg);
     else if (b.dataset.pin && !b.classList.contains('on')) {
-      phone.push({ name: b.dataset.name, url: b.dataset.pin }); savePhone(); renderPhone();
-      b.classList.add('on'); b.textContent = '홈에 있음';
+      phoneApps.push({ name: b.dataset.name, url: b.dataset.pin }); savePhone(); render();
+      b.classList.add('on'); b.textContent = '폰 앱에 있음';
     }
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
-
-  $('#btnAdd').onclick = () => openEdit(-1);
-  $('#btnAll').onclick = openAll;
+  $('#app').addEventListener('click', (e) => { if (e.target.closest('[data-act="phone"]')) openPhone(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') back(); });
 
   /* ---------- 런처 버튼 ---------- */
-  window.onJarvisBack = closeSheet;
+  window.onJarvisBack = back;
   window.onJarvisHome = () => { closeSheet(); scrollTo({ top: 0, behavior: 'smooth' }); };
-  window.onJarvisResume = () => { tick(); refresh(); };
+  window.onJarvisResume = refresh;
 
-  tick(); renderGrid(); renderDock(); renderPhone(); refresh();
-  setInterval(tick, 10000);
-  setInterval(refresh, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { tick(); refresh(); } });
+  setMode(); render(); refresh();
+  let rz;
+  addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (setMode()) render(); }, 120); });
+  setInterval(() => { if (!document.hidden) refresh(); }, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   addEventListener('pageshow', (e) => { if (e.persisted) refresh(); });
 })();
 </script>
