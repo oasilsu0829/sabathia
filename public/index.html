@@ -3,433 +3,422 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<title>Sabathia</title>
+<meta name="description" content="승찬의 학습앱 모음. 15577, 어원 단어, 일정, 사진 PDF와 폰 앱 실행">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icon-192.png">
-<title>자비스</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;800&family=Hahmlet:wght@500;800&family=Space+Grotesk:wght@500;700&display=swap">
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --fg:#e2e8f0; --dim:#94a3b8; --acc:#38bdf8; --red:#f87171; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, -apple-system, "Pretendard", sans-serif;
-         padding: max(16px, env(safe-area-inset-top)) 16px 32px; max-width: 560px; margin-inline: auto; }
-  h1 { font-size: 22px; margin: 4px 0 16px; letter-spacing: -0.02em; }
-  h1 span { color: var(--acc); }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px; }
-  .label { font-size:13px; color:var(--dim); margin-bottom:8px; }
-  input, button { font:inherit; color:inherit; border-radius:10px; border:1px solid var(--line); background:var(--bg); padding:10px 12px; width:100%; }
-  button { background:var(--acc); color:#0f172a; border:none; font-weight:600; cursor:pointer; }
-  button.ghost { background:transparent; color:var(--acc); border:1px solid var(--line); }
-  .row { display:flex; gap:8px; margin-top:8px; }
-  .row > * { flex:1; min-width:0; }
-  ul { list-style:none; margin:0; padding:0; }
-  li { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
-  li:first-child { border-top:none; }
-  li .t { flex:1; }
-  li .when { font-size:13px; color:var(--dim); }
-  li button { width:auto; background:none; color:var(--red); padding:4px 8px; }
-  .status { font-size:13px; color:var(--dim); }
-  .empty { color:var(--dim); font-size:14px; }
-
-  /* 홈: 시계 + 앱 */
-  .clock { text-align:center; margin:8px 0 18px; }
-  .clock .time { font-size:64px; font-weight:600; letter-spacing:-0.04em; line-height:1; font-variant-numeric:tabular-nums; }
-  .clock .date { font-size:15px; color:var(--dim); margin-top:6px; font-weight:500; }
-  .apps { display:grid; grid-template-columns:repeat(4,1fr); gap:18px 8px; padding:4px 2px; }
-  .app { display:flex; flex-direction:column; align-items:center; gap:6px; text-decoration:none; color:inherit; background:none; border:none; padding:0; width:auto; font-weight:400; cursor:pointer; -webkit-tap-highlight-color:transparent; }
-  .app .ic { width:60px; height:60px; border-radius:27%; display:grid; place-items:center; font-size:24px; font-weight:600; color:#fff;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 6px 16px rgba(0,0,0,.18); transition:transform .25s cubic-bezier(.3,1.6,.5,1); }
-  .app:active .ic { transform:scale(.88); }
-  .app .nm { font-size:12px; max-width:72px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .app.add .ic { background:rgba(127,127,127,.2); color:var(--dim); font-weight:300; font-size:30px; }
-  .editing .app .ic { animation:jig .3s ease-in-out infinite alternate; }
-  @keyframes jig { from { transform:rotate(-2deg); } to { transform:rotate(2deg); } }
-  .sheet .row input { margin-top:0; }
-  .hint { font-size:12px; color:var(--dim); margin-top:8px; }
-  .wpbtn, #wp, #appSheet, #allSheet { display:none; }
-  #appSheet.open, #allSheet.open { display:block; }
-  #allSheet { position:fixed; inset:0; z-index:20; overflow:auto; padding:max(20px, env(safe-area-inset-top)) 16px 40px; background:rgba(0,0,0,.55);
-    -webkit-backdrop-filter:blur(40px) saturate(180%); backdrop-filter:blur(40px) saturate(180%); color:#fff; }
-  #allSheet .row { align-items:center; }
-  #allList { list-style:none; padding:0; margin:0; }
-  #allList li { padding:13px 4px; font-size:17px; border-top:0.5px solid rgba(255,255,255,.14); cursor:pointer; }
-  #allList li span { margin-left:auto; color:var(--dim); font-size:13px; }
-
-  /* 모바일 전용: 터미널(CMD) */
-  #taskbar, .banner { display:none; }
-  @media (max-width: 720px) {
-    :root { --fg:#c8c8c8; --hi:#33ff66; --dim:#6b6b6b; --red:#ff5f56; --term:#0c0c0c; }
-    html { background:var(--term); }
-    body { background:transparent; min-height:100dvh; color:var(--fg); font:14px/1.55 "D2Coding", "Consolas", "Menlo", "Noto Sans Mono", ui-monospace, monospace;
-      padding:max(12px, env(safe-area-inset-top)) 14px calc(48px + env(safe-area-inset-bottom)); }
-    #wall { position:fixed; inset:0; z-index:-1; background:var(--wall, var(--term)); background-size:cover; background-position:center; }
-    #wall::after { content:""; position:absolute; inset:0; pointer-events:none;
-      background:repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); }
-    h1 { display:none; }
-    .banner { display:block; margin:0 0 4px; color:var(--hi); font:12px/1.25 ui-monospace, "Menlo", "Consolas", monospace; white-space:pre; text-shadow:0 0 6px rgba(51,255,102,.45); overflow:hidden; }
-    .clock { text-align:left; margin:0 0 14px; }
-    .clock .time, .clock .date { display:inline; font-size:13px; font-weight:400; letter-spacing:0; color:var(--dim); margin:0; text-shadow:none; }
-    .clock .time::before { content:"[ "; } .clock .date::after { content:" ]"; } .clock .time::after { content:"  "; }
-    /* 섹션: 박스 대신 구분선 */
-    .card, .glass { background:none; border:none; border-radius:0; box-shadow:none; padding:0; margin:0 0 18px; }
-    .label { color:var(--hi); font-size:14px; font-weight:400; margin:0 0 6px; white-space:nowrap; overflow:hidden; }
-    .label::before { content:"+-- "; color:var(--dim); }
-    .label::after { content:" " "------------------------------------------------------------"; color:var(--dim); }
-    .status::before { content:"> "; color:var(--dim); }
-    .status { color:var(--fg); }
-    /* 입력 */
-    input { background:transparent; color:var(--fg); border:none; border-bottom:1px dashed var(--dim); border-radius:0; padding:6px 0 6px 2px; caret-color:var(--hi); }
-    input:focus { outline:none; border-bottom-color:var(--hi); }
-    input::placeholder { color:var(--dim); }
-    input[type=datetime-local] { color-scheme:dark; }
-    /* 버튼: [ 텍스트 ] */
-    button, button.ghost { background:none; color:var(--fg); border:none; border-radius:0; box-shadow:none; padding:6px 0; font-weight:400; text-align:left; }
-    button::before { content:"[ "; color:var(--dim); } button::after { content:" ]"; color:var(--dim); }
-    button:active { background:var(--fg); color:var(--term); }
-    .row { gap:14px; }
-    /* 목록 */
-    li { border-top:none; padding:4px 0; }
-    li .t::before { content:"- "; color:var(--dim); }
-    li .when { color:var(--dim); font-size:12px; padding-left:16px; }
-    li button { color:var(--red); }
-    li button::before, li button::after { content:""; }
-    .empty { color:var(--dim); }
-    /* 앱: 글자 목록 */
-    .apps-card { padding:0; }
-    .apps { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; padding:0; }
-    .app, .app.add { display:block; padding:5px 0; text-align:left; background:none; }
-    .app::before, .app::after { content:""; }
-    .app .ic { display:none; }
-    .app .nm { max-width:none; font-size:15px; color:var(--fg); text-shadow:none; }
-    .app .nm::before { content:"> "; color:var(--hi); }
-    .app:active { background:none; } .app:active .nm { background:var(--hi); color:var(--term); }
-    .app.add .nm { color:var(--dim); } .app.add .nm::before { content:"+ "; }
-    .editing .app .ic { animation:none; }
-    /* 팝업 */
-    #wp, #appSheet { position:fixed; left:0; right:0; bottom:calc(36px + env(safe-area-inset-bottom)); z-index:10; padding:12px 14px; background:var(--term);
-      border-top:1px dashed var(--dim); margin:0; }
-    #wp.open { display:block; }
-    .sw { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:6px 0 10px; }
-    .sw button { aspect-ratio:2; padding:0; border:1px solid var(--dim); }
-    .sw button::before, .sw button::after { content:""; }
-    #allSheet { background:var(--term); color:var(--fg); -webkit-backdrop-filter:none; backdrop-filter:none; padding:max(12px, env(safe-area-inset-top)) 14px 60px; }
-    #allList li { font-size:15px; padding:8px 0; border-top:none; }
-    #allList li::before { content:"> "; color:var(--hi); }
-    #allList li span { color:var(--dim); }
-    .hint { color:var(--dim); }
-    /* 하단 프롬프트 줄 */
-    #taskbar { display:flex; align-items:center; gap:14px; position:fixed; left:0; right:0; bottom:0; z-index:30; height:calc(36px + env(safe-area-inset-bottom));
-      padding:0 14px env(safe-area-inset-bottom); background:var(--term); border-top:1px solid #222; font-size:13px; }
-    #taskbar button { width:auto; padding:4px 0; }
-    #taskbar .flag { display:none; }
-    #tray { margin-left:auto; color:var(--dim); }
-    #tray::after { content:"_"; color:var(--hi); animation:blink 1s steps(1) infinite; }
-    @keyframes blink { 50% { opacity:0; } }
+/* 디자인 언어 v1.0 — 흑백 표처럼 정렬하고, 파랑은 "평소", 빨강은 "문제"에만.
+   홈 아이콘만 예외: 앱마다 고유색으로 컨택트 맵을 그린다(디자인 언어 12장). 앱 화면 안은 규칙 그대로.
+   Layout: 480px 단일 열. 큰 날짜 → 앱 아이콘 4열 → 폰 앱 → 하단 고정 독. */
+:root {
+  --bg: #ffffff; --ink: #000000; --muted: #5c5c5c;
+  --accent: #026395; --on-accent: #ffffff;
+  --warn: #d1001f; --on-warn: #ffffff;
+  --map-pending: #c4c4c4; --map-empty: #f0f0f0;
+  --line-bold: 3px; --line-thin: 1px; --body-size: 16px;
+  --pad-x: 20px; --gap-section: 24px; --tab-h: 56px; --tint: 30%;
+  --font-title: 'Hahmlet', 'Noto Serif KR', serif;
+  --font-body: 'Gothic A1', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-num: 'Space Grotesk', 'Gothic A1', sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --ink: #ffffff; --muted: #a3a3a3;
+    --accent: #4fb3e0; --on-accent: #000000;
+    --warn: #e4002b; --on-warn: #ffffff;
+    --map-pending: #5a5a5a; --map-empty: #1c1c1c;
+    --line-thin: 2px; --body-size: 17px; --tint: 45%;
+    color-scheme: dark;
   }
+  :root:not([data-theme="light"]) .tile { --c: var(--c-d); }
+}
+:root[data-theme="dark"], :root[data-theme="projector"] {
+  --bg: #000000; --ink: #ffffff; --muted: #a3a3a3;
+  --accent: #4fb3e0; --on-accent: #000000;
+  --warn: #e4002b; --on-warn: #ffffff;
+  --map-pending: #5a5a5a; --map-empty: #1c1c1c;
+  --line-thin: 2px; --body-size: 17px; --tint: 45%;
+  color-scheme: dark;
+}
+:root[data-theme="dark"] .tile, :root[data-theme="projector"] .tile { --c: var(--c-d); }
+
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-weight: 500; font-size: var(--body-size); line-height: 22px;
+  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; word-break: keep-all;
+  -webkit-touch-callout: none;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.app {
+  max-width: 480px; margin: 0 auto;
+  padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(var(--tab-h) + 3px + 40px + env(safe-area-inset-bottom, 0px));
+}
+
+/* 머리: 큰 날짜 | 월·요일·시계 */
+.hero { display: flex; justify-content: space-between; align-items: stretch; gap: 12px; }
+.hero-num {
+  font-family: var(--font-num); font-weight: 700; font-size: 168px; line-height: 132px;
+  letter-spacing: -0.06em; margin-left: -6px; font-variant-numeric: tabular-nums;
+}
+.hero-side { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; text-align: right; padding-block: 4px 2px; }
+.month { font-family: var(--font-title); font-weight: 800; font-size: 26px; line-height: 30px; }
+.weekday { font-family: var(--font-title); font-weight: 500; font-size: 22px; line-height: 28px; }
+.clock { font-family: var(--font-num); font-weight: 700; font-size: 36px; line-height: 36px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+/* 섹션 */
+.sec { margin-top: var(--gap-section); }
+.sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: var(--line-bold) solid var(--ink); padding-block: 10px 6px; }
+.sec-title { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 30px; margin: 0; }
+.sec-count { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+.sec-acts { display: flex; gap: 16px; }
+.sec-acts button { background: none; border: 0; padding: 0; min-height: 44px; font-weight: 800; font-size: 13px; }
+
+/* 앱 아이콘: 컨택트 맵 7×7 + 이름 + 숫자 */
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px 8px; padding-top: 14px; }
+.tile { --c: var(--c-l); display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; padding-bottom: 2px; }
+.ic { position: relative; display: block; padding: 6px; }
+.cmap { display: block; shape-rendering: crispEdges; }
+.cmap .f { fill: var(--c); }
+.cmap .p { fill: var(--map-pending); }
+@supports (fill: color-mix(in srgb, red 30%, white)) { .cmap .p { fill: color-mix(in srgb, var(--c) var(--tint), var(--bg)); } }
+.cmap .e { fill: var(--map-empty); }
+.badge {
+  position: absolute; top: -2px; right: -6px; min-width: 22px; height: 22px; padding: 0 5px;
+  background: var(--warn); color: var(--on-warn);
+  font-family: var(--font-num); font-weight: 700; font-size: 13px; line-height: 22px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.nm { margin-top: 8px; font-weight: 800; font-size: 14px; line-height: 18px; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt { margin-top: 2px; font-family: var(--font-num); font-weight: 500; font-size: 12px; line-height: 16px; color: var(--muted); text-align: center; white-space: nowrap; }
+.tile:active .nm { color: var(--muted); }
+
+/* 폰 앱: 글자 2열 표 */
+.plist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+.pa {
+  display: flex; align-items: center; min-height: 48px; padding-block: 12px; min-width: 0;
+  border-bottom: var(--line-thin) solid var(--ink); font-weight: 800; font-size: 16px; line-height: 22px;
+  user-select: none; -webkit-user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pa:active { color: var(--muted); }
+.hint { font-size: 13px; line-height: 18px; color: var(--muted); margin: 10px 0 0; }
+
+/* 독: 탭바와 같은 생김새, 활성 표시 없음 */
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
+}
+.dock-in { max-width: 440px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: var(--line-bold) solid var(--ink); }
+.dock-in a, .dock-in button {
+  min-height: var(--tab-h); display: grid; place-items: center; background: none; border: 0; padding: 0;
+  font-weight: 800; font-size: 13px; text-align: center;
+}
+
+/* 시트: 화면 전체를 덮는다 */
+.sheet { position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto; }
+.sheet .app { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: var(--line-bold) solid var(--ink); padding-bottom: 10px; }
+.sheet-head h2 { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 30px; margin: 0; }
+.close { background: none; border: 0; min-height: 44px; padding: 0; font-weight: 800; font-size: 14px; }
+.form { display: grid; gap: 16px; margin-top: 16px; }
+.field { display: grid; gap: 6px; }
+.field > span { font-weight: 800; font-size: 12px; letter-spacing: 0.06em; }
+.field input {
+  width: 100%; min-height: 44px; padding: 10px; border: var(--line-thin) solid var(--ink); border-radius: 0;
+  background: var(--bg); font-size: 16px; line-height: 22px;
+}
+.btns { display: flex; gap: 12px; }
+.btn { flex: 1; min-height: 48px; padding: 0 16px; border: 0; background: var(--ink); color: var(--bg); font-weight: 800; font-size: 15px; }
+.btn.line { background: none; color: var(--ink); border: var(--line-bold) solid var(--ink); }
+.alist { list-style: none; margin: 8px 0 0; padding: 0; }
+.alist li { display: flex; align-items: center; gap: 12px; border-bottom: var(--line-thin) solid var(--ink); }
+.alist .go { flex: 1; min-width: 0; min-height: 48px; padding: 12px 0; background: none; border: 0; text-align: left; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alist .pin { flex: none; min-height: 44px; background: none; border: 0; padding: 0; font-weight: 800; font-size: 12px; letter-spacing: 0.06em; color: var(--muted); }
+.alist .pin.on { color: var(--accent); }
+
+@media (max-width: 359px) {
+  .hero-num { font-size: 136px; line-height: 108px; }
+  .clock { font-size: 28px; line-height: 30px; }
+  .grid { column-gap: 4px; }
+}
 </style>
 </head>
 <body>
-<div id="wall"></div>
-<h1><span>●</span>&nbsp;자비스<button class="wpbtn" id="btnWp">배경</button></h1>
+<div class="app">
+  <header class="hero">
+    <div class="hero-num" id="day" aria-hidden="true"></div>
+    <div class="hero-side">
+      <div><div class="month" id="mon"></div><div class="weekday" id="wd"></div></div>
+      <div class="clock" id="clock"></div>
+    </div>
+    <h1 class="sr-only" id="today"></h1>
+  </header>
 
-<div id="taskbar"><button id="btnStart"><span class="flag"></span>배경</button><button id="btnAll2" style="font-weight:400">모든 앱</button><div id="tray"></div></div>
+  <section class="sec" aria-labelledby="h-apps">
+    <div class="sec-head"><h2 class="sec-title" id="h-apps">앱</h2><span class="sec-count" id="appCount"></span></div>
+    <nav class="grid" id="grid" aria-label="앱"></nav>
+  </section>
 
-<pre class="banner">     _   _    ___ __   __ ___  ___
-  _ | | /_\  | _ \\ \ / /|_ _|/ __|
- | || |/ _ \ |   / \ V /  | | \__ \
-  \__//_/ \_\|_|_\  \_/  |___||___/</pre>
-<div class="clock"><div class="time" id="time"></div><div class="date" id="date"></div></div>
-
-<div class="card apps-card">
-  <div class="apps" id="apps"></div>
+  <section class="sec" id="phone" aria-labelledby="h-phone">
+    <div class="sec-head">
+      <h2 class="sec-title" id="h-phone">폰 앱</h2>
+      <span class="sec-acts"><button type="button" id="btnAll" hidden>모든 앱</button><button type="button" id="btnAdd">추가</button></span>
+    </div>
+    <div class="plist" id="plist"></div>
+    <p class="hint">길게 누르면 이름을 바꾸거나 지울 수 있습니다.</p>
+  </section>
 </div>
 
-<div class="card" id="setup">
-  <div class="label">알림</div>
-  <div class="status" id="status">확인 중…</div>
-  <div class="row">
-    <button id="btnSub">알림 켜기</button>
-    <button class="ghost" id="btnTest">테스트</button>
-  </div>
-</div>
+<nav class="dock" aria-label="독"><div class="dock-in" id="dock"></div></nav>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
 
-<div class="card">
-  <div class="label">리마인더 추가</div>
-  <input id="title" placeholder="무엇을 알려줄까요?">
-  <div class="row">
-    <input id="at" type="datetime-local">
-    <button id="btnAdd" style="flex:0 0 72px">추가</button>
-  </div>
-</div>
-
-<div class="card">
-  <div class="label">예정</div>
-  <ul id="list"></ul>
-</div>
-
-<div id="appSheet" class="glass sheet">
-  <div class="label">앱 추가</div>
-  <input id="appName" placeholder="이름 (예: 카카오톡)">
-  <input id="appUrl" placeholder="주소 또는 패키지명 (예: com.kakao.talk)" style="margin-top:8px" autocapitalize="off">
-  <div class="hint">패키지명은 Play 스토어 앱 주소의 id= 뒤 값입니다. 목록에 없는 앱은 'kakaotalk://' 같은 앱 주소를 직접 넣어도 됩니다. 아이콘을 길게 누르면 편집/삭제할 수 있어요.</div>
-  <div class="row">
-    <button class="ghost" id="btnAppCancel">닫기</button>
-    <button id="btnAppSave">저장</button>
-  </div>
-</div>
-
-<div id="allSheet">
-  <div class="row" style="margin:0 0 12px"><input id="allQ" placeholder="앱 검색" autocomplete="off"><button class="ghost" id="btnAllClose" style="flex:0 0 72px">닫기</button></div>
-  <ul id="allList"></ul>
-</div>
-
-<div id="wp" class="glass">
-  <div class="label">배경화면</div>
-  <div class="sw" id="sw"></div>
-  <div class="row">
-    <button class="ghost" id="btnPick">사진 선택</button>
-    <button id="btnWpClose">닫기</button>
-  </div>
-  <input type="file" id="file" accept="image/*" hidden>
-</div>
-
+<script src="/sabathia.js"></script>
+<script src="/apps.js"></script>
 <script>
-const $ = (id) => document.getElementById(id);
-const store = {
-  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
-};
+(() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad = (n) => String(n).padStart(2, '0');
+  const WD = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+  const APPS = window.SABATHIA_APPS || [];
+  const J = window.Jarvis; // 안드로이드 런처 앱 안에서만 있다
 
-async function call(path, opts = {}) {
-  const res = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', ...opts.headers } });
-  return res.json();
-}
+  const q = new URLSearchParams(location.search).get('theme');
+  if (q === 'light' || q === 'dark' || q === 'projector') document.documentElement.dataset.theme = q;
 
-const b64ToBytes = (s) => {
-  const p = s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4);
-  return Uint8Array.from(atob(p), (c) => c.charCodeAt(0));
-};
-
-async function refreshStatus() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) { $('status').textContent = '이 브라우저는 푸시를 지원하지 않아요.'; return; }
-  const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.getSubscription();
-  $('status').textContent = sub ? '켜짐' : (Notification.permission === 'denied' ? '차단됨 — 브라우저 설정에서 허용해주세요' : '꺼짐');
-}
-
-$('btnSub').onclick = async () => {
-  const perm = await Notification.requestPermission();
-  if (perm !== 'granted') return refreshStatus();
-  const reg = await navigator.serviceWorker.ready;
-  const { key } = await (await fetch('/api/vapid')).json();
-  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(key) });
-  await call('/api/subscribe', { method: 'POST', body: JSON.stringify(sub) });
-  refreshStatus();
-};
-
-$('btnTest').onclick = async () => {
-  const r = await call('/api/test', { method: 'POST' });
-  $('status').textContent = `테스트 발송: ${r.sent}대`;
-};
-
-async function load() {
-  const items = await call('/api/reminders');
-  $('list').innerHTML = items.length ? '' : '<li class="empty">없음</li>';
-  for (const r of items) {
-    const li = document.createElement('li');
-    const when = new Date(r.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
-    li.innerHTML = `<div class="t"><div></div><div class="when">${when}</div></div><button aria-label="삭제">✕</button>`;
-    li.querySelector('.t div').textContent = r.title;
-    li.querySelector('button').onclick = async () => { await call('/api/reminders/' + r.id, { method: 'DELETE' }); load(); };
-    $('list').appendChild(li);
+  /* ---------- 시계 ---------- */
+  function tick() {
+    const n = new Date();
+    $('#day').textContent = pad(n.getDate());
+    $('#mon').textContent = (n.getMonth() + 1) + '월';
+    $('#wd').textContent = WD[n.getDay()];
+    $('#clock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    $('#today').textContent = `${n.getMonth() + 1}월 ${n.getDate()}일 ${WD[n.getDay()]}`;
   }
-}
 
-$('btnAdd').onclick = async () => {
-  const title = $('title').value.trim(), at = $('at').value;
-  if (!title || !at) return;
-  await call('/api/reminders', { method: 'POST', body: JSON.stringify({ title, at: new Date(at).toISOString() }) });
-  $('title').value = '';
-  load();
-};
-
-// 기본값: 10분 뒤
-const d = new Date(Date.now() + 10 * 60000 - new Date().getTimezoneOffset() * 60000);
-$('at').value = d.toISOString().slice(0, 16);
-
-// 배경화면 (모바일)
-const PRESETS = [
-  '#0c0c0c',
-  '#012456',
-  '#1a1a1a',
-  '#001b0b',
-  '#1d1300',
-  '#000',
-  'radial-gradient(circle at 50% 40%,#10241a,#050505 70%)',
-  '#2b0a1f',
-];
-const applyWall = (v) => { if (v) document.documentElement.style.setProperty('--wall', v); };
-applyWall(store.get('wallcmd'));
-for (const p of PRESETS) {
-  const b = document.createElement('button');
-  b.style.background = p;
-  b.setAttribute('aria-label', '배경 선택');
-  b.onclick = () => { applyWall(p); store.set('wallcmd', p); };
-  $('sw').appendChild(b);
-}
-$('btnWp').onclick = () => { $('appSheet').classList.remove('open'); $('wp').classList.toggle('open'); };
-$('btnWpClose').onclick = () => $('wp').classList.remove('open');
-$('btnPick').onclick = () => $('file').click();
-$('file').onchange = async () => {
-  const f = $('file').files[0];
-  if (!f) return;
-  const img = await createImageBitmap(f);
-  const k = Math.min(1, 1440 / Math.max(img.width, img.height));
-  const c = document.createElement('canvas');
-  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-  const v = `url("${c.toDataURL('image/jpeg', 0.82)}")`;
-  applyWall(v);
-  store.set('wallcmd', v);
-  $('file').value = '';
-};
-
-// 시계
-const tick = () => {
-  const n = new Date();
-  $('time').textContent = n.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
-  $('tray').textContent = n.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
-  $('date').textContent = n.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
-};
-tick(); setInterval(tick, 10000);
-
-// 앱 런처: 패키지명이면 안드로이드 intent로, 아니면 URL/스킴 그대로 연다
-const DEFAULT_APPS = [
-  { name: '전화', url: 'tel:' },
-  { name: '문자', url: 'sms:' },
-  { name: '카카오톡', url: 'com.kakao.talk' },
-  { name: '네이버지도', url: 'com.nhn.android.nmap' },
-  { name: '캘린더', url: 'https://calendar.google.com' },
-  { name: '메일', url: 'https://mail.google.com' },
-];
-const COLORS = ['#0a84ff', '#30d158', '#ff9f0a', '#ff375f', '#bf5af2', '#64d2ff', '#5e5ce6', '#ff453a'];
-const loadApps = () => { try { return JSON.parse(store.get('apps')) || DEFAULT_APPS; } catch { return DEFAULT_APPS; } };
-let apps = loadApps(), editIdx = -1;
-const saveApps = () => store.set('apps', JSON.stringify(apps));
-const isPkg = (u) => /^[a-z][\w]*(\.[\w]+)+$/i.test(u) && !u.includes('/');
-// 크롬은 '앱 실행' 인텐트를 막으므로, 앱마다 등록된 딥링크 스킴으로 연다
-const SCHEMES = {
-  'com.kakao.talk': 'kakaotalk', 'com.nhn.android.nmap': 'nmap', 'net.daum.android.map': 'kakaomap',
-  'com.google.android.youtube': 'vnd.youtube', 'com.instagram.android': 'instagram', 'com.nhn.android.search': 'naversearchapp',
-  'com.spotify.music': 'spotify', 'com.kakao.taxi': 'kakaot', 'com.coupang.mobile': 'coupang', 'com.coupang.mobile.eats': 'coupangeats',
-  'viva.republica.toss': 'supertoss', 'com.kakao.bank': 'kakaobank', 'com.whatsapp': 'whatsapp', 'com.google.android.gm': 'googlegmail',
-  'com.sampleapp': 'baemin', 'com.towneers.www': 'towneers', 'com.iloen.melon': 'melonapp', 'com.nhn.android.webtoon': 'naverwebtoon',
-  'com.skt.tmap.ku': 'tmap', 'com.nhn.android.blog': 'naverblog', 'com.nhn.android.band': 'bandapp', 'com.twitter.android': 'twitter',
-  'com.zhiliaoapp.musically': 'snssdk1233', 'com.discord': 'discord', 'com.google.android.apps.maps': 'geo',
-  // 브라우저는 웹 주소를 해당 앱으로 연다
-  'org.mozilla.firefox': 'https://www.google.com', 'org.mozilla.firefox_beta': 'https://www.google.com', 'com.android.chrome': 'https://www.google.com',
-  'com.sec.android.app.sbrowser': 'https://www.google.com',
-};
-const hrefOf = (u) => {
-  if (!isPkg(u)) return u;
-  const store = encodeURIComponent('https://play.google.com/store/apps/details?id=' + u);
-  const sc = SCHEMES[u];
-  if (sc && sc.includes('://')) {
-    const [scheme, rest] = sc.split('://');
-    return `intent://${rest}#Intent;scheme=${scheme};action=android.intent.action.VIEW;package=${u};S.browser_fallback_url=${store};end`;
+  /* ---------- 컨택트 맵 (디자인 언어 5장) ---------- */
+  function contactMap(seed, n, pct) {
+    let h = 7;
+    for (const ch of seed) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+    const rnd = () => (h = (h * 1103515245 + 12345) >>> 0) / 4294967296;
+    const set = new Set();
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (Math.abs(i - j) <= 1) set.add(i + ',' + j);
+    for (let t = 0; t < n; t++) {
+      const a = Math.floor(rnd() * n), b = Math.floor(rnd() * n);
+      if (Math.abs(a - b) >= 2) { set.add(a + ',' + b); set.add(b + ',' + a); }
+    }
+    const order = [...set].map((k) => k.split(',').map(Number)).sort((p, r) =>
+      Math.abs(p[0] - p[1]) - Math.abs(r[0] - r[1]) || Math.min(...p) - Math.min(...r) || p[0] - r[0]);
+    const filled = new Set(order.slice(0, Math.round(order.length * pct / 100)).map((c) => c.join(',')));
+    return { set, filled };
   }
-  return sc
-    ? `intent://${sc === 'geo' ? '0,0' : ''}#Intent;scheme=${sc};package=${u};S.browser_fallback_url=${store};end`
-    : `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${u};S.browser_fallback_url=${store};end`;
-};
-
-function renderApps() {
-  const box = $('apps');
-  box.innerHTML = '';
-  apps.forEach((a, i) => {
-    const el = document.createElement('a');
-    el.className = 'app';
-    el.href = hrefOf(a.url);
-    if (window.Jarvis && isPkg(a.url)) el.onclick = (e) => { e.preventDefault(); if (!Jarvis.launch(a.url)) alert('설치되지 않은 앱이에요.'); };
-    const hue = COLORS[[...a.name].reduce((h, c) => h + c.charCodeAt(0), 0) % COLORS.length];
-    el.innerHTML = `<div class="ic" style="background:linear-gradient(160deg,${hue},${hue}cc)"></div><div class="nm"></div>`;
-    el.querySelector('.ic').textContent = [...a.name][0] || '?';
-    el.querySelector('.nm').textContent = a.name;
-    let t;
-    el.addEventListener('touchstart', () => { t = setTimeout(() => { t = 'long'; openSheet(i); }, 550); }, { passive: true });
-    el.addEventListener('touchend', (e) => { if (t === 'long') e.preventDefault(); else clearTimeout(t); });
-    el.addEventListener('touchmove', () => clearTimeout(t), { passive: true });
-    el.addEventListener('contextmenu', (e) => { e.preventDefault(); openSheet(i); });
-    box.appendChild(el);
-  });
-  if (window.Jarvis) {
-    const all = document.createElement('button');
-    all.className = 'app add';
-    all.innerHTML = '<div class="ic">⋯</div><div class="nm">모든 앱</div>';
-    all.onclick = openAll;
-    box.appendChild(all);
+  function mapSVG(seed, pct) {
+    const n = 7, cell = 8, g = 2, w = n * cell + (n - 1) * g;
+    const { set, filled } = contactMap(seed, n, pct);
+    let r = '';
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const k = i + ',' + j;
+      r += `<rect class="${filled.has(k) ? 'f' : set.has(k) ? 'p' : 'e'}" x="${j * (cell + g)}" y="${i * (cell + g)}" width="${cell}" height="${cell}"/>`;
+    }
+    return `<svg class="cmap" viewBox="0 0 ${w} ${w}" width="${w}" height="${w}" aria-hidden="true">${r}</svg>`;
   }
-  const add = document.createElement('button');
-  add.className = 'app add';
-  add.innerHTML = '<div class="ic">+</div><div class="nm">추가</div>';
-  add.onclick = () => openSheet(-1);
-  box.appendChild(add);
-}
-function openSheet(i) {
-  editIdx = i;
-  $('appName').value = i < 0 ? '' : apps[i].name;
-  $('appUrl').value = i < 0 ? '' : apps[i].url;
-  $('btnAppCancel').textContent = i < 0 ? '닫기' : '삭제';
-  $('wp').classList.remove('open');
-  $('appSheet').classList.add('open');
-}
-$('btnAppSave').onclick = () => {
-  const name = $('appName').value.trim(), url = $('appUrl').value.trim();
-  if (!name || !url) return;
-  if (editIdx < 0) apps.push({ name, url }); else apps[editIdx] = { name, url };
-  saveApps(); renderApps(); $('appSheet').classList.remove('open');
-};
-$('btnAppCancel').onclick = () => {
-  if (editIdx >= 0 && confirm(`'${apps[editIdx].name}'을(를) 삭제할까요?`)) { apps.splice(editIdx, 1); saveApps(); renderApps(); }
-  $('appSheet').classList.remove('open');
-};
-renderApps();
 
-// 런처(안드로이드 앱) 안에서만: 모든 앱 목록
-let allApps = [];
-function openAll() {
-  try { allApps = JSON.parse(Jarvis.apps()).sort((a, b) => a.name.localeCompare(b.name, 'ko')); } catch { allApps = []; }
-  $('allQ').value = '';
-  renderAll();
-  $('allSheet').classList.add('open');
-}
-function renderAll() {
-  const q = $('allQ').value.trim().toLowerCase();
-  $('allList').innerHTML = '';
-  for (const a of allApps.filter((a) => !q || a.name.toLowerCase().includes(q))) {
-    const li = document.createElement('li');
-    li.textContent = a.name;
-    const pin = document.createElement('span');
-    pin.textContent = '홈에 추가';
-    li.appendChild(pin);
-    li.onclick = (e) => {
-      if (e.target === pin) { apps.push({ name: a.name, url: a.pkg }); saveApps(); renderApps(); pin.textContent = '추가됨'; return; }
-      Jarvis.launch(a.pkg);
+  /* ---------- 앱 아이콘 ---------- */
+  const STATE = {};
+  function tileHTML(a) {
+    const s = STATE[a.id];
+    const pct = a.status ? (s ? s.pct : 0) : 100;
+    const meta = a.status ? (s ? s.meta : '') : a.code;
+    const badge = s && s.badge > 0 ? `<span class="badge">${s.badge > 99 ? '99' : s.badge}</span>` : '';
+    const label = [a.name, meta, s && s.badge > 0 ? `지연 ${s.badge}` : '', a.status ? `${Math.round(pct)}퍼센트 진행` : ''].filter(Boolean).join(', ');
+    return `<a class="tile" href="${esc(a.href)}" style="--c-l:${a.color[0]};--c-d:${a.color[1]}" aria-label="${esc(label)}">
+      <span class="ic">${mapSVG(a.name, pct)}${badge}</span>
+      <span class="nm">${esc(a.name)}</span><span class="mt">${esc(meta) || '&nbsp;'}</span></a>`;
+  }
+  function renderGrid() {
+    $('#grid').innerHTML = APPS.map(tileHTML).join('');
+    $('#appCount').textContent = pad(APPS.length);
+  }
+  async function refresh() {
+    await Promise.all(APPS.filter((a) => a.status).map(async (a) => {
+      try { STATE[a.id] = await a.status(); } catch { STATE[a.id] = null; }
+    }));
+    renderGrid();
+  }
+
+  /* ---------- 독: 앱 3개 + 폰 앱 ---------- */
+  function renderDock() {
+    const apps = APPS.filter((a) => a.dock).slice(0, 3);
+    $('#dock').innerHTML = apps.map((a) => `<a href="${esc(a.href)}">${esc(a.dock)}</a>`).join('')
+      + '<button type="button" id="dockPhone">폰 앱</button>';
+    $('#dockPhone').onclick = () => (J ? openAll() : $('#phone').scrollIntoView({ behavior: 'smooth' }));
+  }
+
+  /* ---------- 폰 앱 (예전 자비스 런처에서 옮김. 저장 키 'apps' 그대로) ---------- */
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+  const DEFAULT_APPS = [
+    { name: '전화', url: 'tel:' },
+    { name: '문자', url: 'sms:' },
+    { name: '카카오톡', url: 'com.kakao.talk' },
+    { name: '네이버지도', url: 'com.nhn.android.nmap' },
+    { name: '캘린더', url: 'https://calendar.google.com' },
+    { name: '메일', url: 'https://mail.google.com' },
+  ];
+  let phone = (() => { try { return JSON.parse(store.get('apps')) || DEFAULT_APPS; } catch { return DEFAULT_APPS; } })();
+  const savePhone = () => store.set('apps', JSON.stringify(phone));
+  const isPkg = (u) => /^[a-z][\w]*(\.[\w]+)+$/i.test(u) && !u.includes('/');
+  // 크롬은 '앱 실행' 인텐트를 막으므로, 앱마다 등록된 딥링크 스킴으로 연다
+  const SCHEMES = {
+    'com.kakao.talk': 'kakaotalk', 'com.nhn.android.nmap': 'nmap', 'net.daum.android.map': 'kakaomap',
+    'com.google.android.youtube': 'vnd.youtube', 'com.instagram.android': 'instagram', 'com.nhn.android.search': 'naversearchapp',
+    'com.spotify.music': 'spotify', 'com.kakao.taxi': 'kakaot', 'com.coupang.mobile': 'coupang', 'com.coupang.mobile.eats': 'coupangeats',
+    'viva.republica.toss': 'supertoss', 'com.kakao.bank': 'kakaobank', 'com.whatsapp': 'whatsapp', 'com.google.android.gm': 'googlegmail',
+    'com.sampleapp': 'baemin', 'com.towneers.www': 'towneers', 'com.iloen.melon': 'melonapp', 'com.nhn.android.webtoon': 'naverwebtoon',
+    'com.skt.tmap.ku': 'tmap', 'com.nhn.android.blog': 'naverblog', 'com.nhn.android.band': 'bandapp', 'com.twitter.android': 'twitter',
+    'com.zhiliaoapp.musically': 'snssdk1233', 'com.discord': 'discord', 'com.google.android.apps.maps': 'geo',
+    // 브라우저는 웹 주소를 해당 앱으로 연다
+    'org.mozilla.firefox': 'https://www.google.com', 'org.mozilla.firefox_beta': 'https://www.google.com', 'com.android.chrome': 'https://www.google.com',
+    'com.sec.android.app.sbrowser': 'https://www.google.com',
+  };
+  const hrefOf = (u) => {
+    if (!isPkg(u)) return u;
+    const fallback = encodeURIComponent('https://play.google.com/store/apps/details?id=' + u);
+    const sc = SCHEMES[u];
+    if (sc && sc.includes('://')) {
+      const [scheme, rest] = sc.split('://');
+      return `intent://${rest}#Intent;scheme=${scheme};action=android.intent.action.VIEW;package=${u};S.browser_fallback_url=${fallback};end`;
+    }
+    return sc
+      ? `intent://${sc === 'geo' ? '0,0' : ''}#Intent;scheme=${sc};package=${u};S.browser_fallback_url=${fallback};end`
+      : `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${u};S.browser_fallback_url=${fallback};end`;
+  };
+
+  function renderPhone() {
+    const box = $('#plist');
+    box.innerHTML = '';
+    phone.forEach((a, i) => {
+      const el = document.createElement('a');
+      el.className = 'pa';
+      el.href = hrefOf(a.url);
+      el.textContent = a.name;
+      if (J && isPkg(a.url)) el.onclick = (e) => { e.preventDefault(); if (!J.launch(a.url)) alert('설치되지 않은 앱이에요.'); };
+      let t;
+      el.addEventListener('touchstart', () => { t = setTimeout(() => { t = 'long'; openEdit(i); }, 550); }, { passive: true });
+      el.addEventListener('touchend', (e) => { if (t === 'long') e.preventDefault(); else clearTimeout(t); });
+      el.addEventListener('touchmove', () => clearTimeout(t), { passive: true });
+      el.addEventListener('contextmenu', (e) => { e.preventDefault(); openEdit(i); });
+      box.appendChild(el);
+    });
+    $('#btnAll').hidden = !J;
+  }
+
+  /* ---------- 시트 ---------- */
+  const sheet = $('#sheet');
+  let lastFocus = null;
+  function openSheet(html) {
+    lastFocus = document.activeElement;
+    sheet.innerHTML = `<div class="app">${html}</div>`;
+    sheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+    const f = sheet.querySelector('input, button');
+    if (f) f.focus();
+  }
+  function closeSheet() {
+    if (sheet.hidden) return false;
+    sheet.hidden = true; sheet.innerHTML = '';
+    document.body.style.overflow = '';
+    if (lastFocus) lastFocus.focus();
+    return true;
+  }
+  const head = (title) => `<div class="sheet-head"><h2 id="sheet-title">${esc(title)}</h2><button class="close" type="button" data-act="close">닫기</button></div>`;
+
+  function openEdit(i) {
+    const a = i < 0 ? { name: '', url: '' } : phone[i];
+    openSheet(`${head(i < 0 ? '폰 앱 추가' : '폰 앱 고치기')}
+      <form class="form" id="editForm">
+        <label class="field"><span>이름</span><input id="fName" value="${esc(a.name)}" required></label>
+        <label class="field"><span>패키지 이름 또는 주소</span><input id="fUrl" value="${esc(a.url)}" placeholder="com.kakao.talk, tel:, https://…" autocapitalize="off" spellcheck="false" required></label>
+        <div class="btns">${i < 0 ? '' : '<button class="btn line" type="button" data-act="del">지우기</button>'}<button class="btn" type="submit">저장</button></div>
+      </form>`);
+    $('#editForm').onsubmit = (e) => {
+      e.preventDefault();
+      const name = $('#fName').value.trim(), url = $('#fUrl').value.trim();
+      if (!name || !url) return;
+      if (i < 0) phone.push({ name, url }); else phone[i] = { name, url };
+      savePhone(); renderPhone(); closeSheet();
     };
-    $('allList').appendChild(li);
+    const del = sheet.querySelector('[data-act="del"]');
+    if (del) del.onclick = () => {
+      if (!confirm(`'${phone[i].name}'을(를) 지울까요?`)) return;
+      phone.splice(i, 1); savePhone(); renderPhone(); closeSheet();
+    };
   }
-}
-$('allQ').oninput = renderAll;
-$('btnAllClose').onclick = () => $('allSheet').classList.remove('open');
-$('btnStart').onclick = () => $('btnWp').onclick();
-$('btnAll2').onclick = () => (window.Jarvis ? openAll() : openSheet(-1));
-if (!window.Jarvis) $('btnAll2').textContent = '앱 추가';
-const closeSheets = () => ['allSheet', 'appSheet', 'wp'].forEach((id) => $(id).classList.remove('open'));
-window.onJarvisBack = closeSheets;
-window.onJarvisHome = () => { closeSheets(); scrollTo({ top: 0, behavior: 'smooth' }); };
-window.onJarvisResume = () => { tick(); load().catch(() => {}); };
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').then(refreshStatus);
-load();
+  // 런처 안에서만: 설치된 모든 앱
+  let allApps = [];
+  function openAll() {
+    try { allApps = JSON.parse(J.apps()).sort((a, b) => a.name.localeCompare(b.name, 'ko')); } catch { allApps = []; }
+    openSheet(`${head('모든 앱')}
+      <div class="form"><label class="field"><span>찾기</span><input id="allQ" type="search" autocomplete="off"></label></div>
+      <ul class="alist" id="allList"></ul>`);
+    $('#allQ').oninput = renderAll;
+    renderAll();
+  }
+  function renderAll() {
+    const qq = $('#allQ').value.trim().toLowerCase();
+    const pinned = new Set(phone.map((a) => a.url));
+    $('#allList').innerHTML = allApps.filter((a) => !qq || a.name.toLowerCase().includes(qq)).map((a) =>
+      `<li><button class="go" type="button" data-pkg="${esc(a.pkg)}">${esc(a.name)}</button>
+        <button class="pin${pinned.has(a.pkg) ? ' on' : ''}" type="button" data-pin="${esc(a.pkg)}" data-name="${esc(a.name)}">${pinned.has(a.pkg) ? '홈에 있음' : '홈에 추가'}</button></li>`).join('');
+  }
+  sheet.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.act === 'close') closeSheet();
+    else if (b.dataset.pkg) J.launch(b.dataset.pkg);
+    else if (b.dataset.pin && !b.classList.contains('on')) {
+      phone.push({ name: b.dataset.name, url: b.dataset.pin }); savePhone(); renderPhone();
+      b.classList.add('on'); b.textContent = '홈에 있음';
+    }
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+
+  $('#btnAdd').onclick = () => openEdit(-1);
+  $('#btnAll').onclick = openAll;
+
+  /* ---------- 런처 버튼 ---------- */
+  window.onJarvisBack = closeSheet;
+  window.onJarvisHome = () => { closeSheet(); scrollTo({ top: 0, behavior: 'smooth' }); };
+  window.onJarvisResume = () => { tick(); refresh(); };
+
+  tick(); renderGrid(); renderDock(); renderPhone(); refresh();
+  setInterval(tick, 10000);
+  setInterval(refresh, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { tick(); refresh(); } });
+  addEventListener('pageshow', (e) => { if (e.persisted) refresh(); });
+})();
 </script>
 </body>
 </html>

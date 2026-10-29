@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>사진 PDF</title>
+<meta name="description" content="사진 여러 장을 PDF 한 개로 묶는다. 사진은 브라우저 안에서만 처리된다">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;800&family=Hahmlet:wght@500;800&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* 사진 PDF · 디자인 언어 v1.0
+   Layout: 480px 단일 열. 화면 제목 → 사진 고르기 → 설정 → 페이지 격자(3열) → 하단 고정 줄(상태 + PDF 만들기). */
+:root {
+  --bg: #ffffff; --ink: #000000; --muted: #5c5c5c;
+  --accent: #026395; --on-accent: #ffffff;
+  --warn: #d1001f; --on-warn: #ffffff; --warn-text: #d1001f;
+  --map-empty: #f0f0f0;
+  --line-bold: 3px; --line-thin: 1px; --body-size: 16px;
+  --pad-x: 20px; --gap-section: 24px;
+  --font-title: 'Hahmlet', 'Noto Serif KR', serif;
+  --font-body: 'Gothic A1', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-num: 'Space Grotesk', 'Gothic A1', sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --ink: #ffffff; --muted: #a3a3a3;
+    --accent: #4fb3e0; --on-accent: #000000;
+    --warn: #e4002b; --on-warn: #ffffff; --warn-text: #ff6b6b;
+    --map-empty: #1c1c1c;
+    --line-thin: 2px; --body-size: 17px;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"], :root[data-theme="projector"] {
+  --bg: #000000; --ink: #ffffff; --muted: #a3a3a3;
+  --accent: #4fb3e0; --on-accent: #000000;
+  --warn: #e4002b; --on-warn: #ffffff; --warn-text: #ff6b6b;
+  --map-empty: #1c1c1c;
+  --line-thin: 2px; --body-size: 17px;
+  color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-weight: 500; font-size: var(--body-size); line-height: 22px;
+  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; word-break: keep-all;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  max-width: 480px; margin: 0 auto;
+  padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+}
+.sab { display: flex; align-items: center; justify-content: space-between; min-height: 44px; font-family: var(--font-num); font-weight: 700; font-size: 12px; letter-spacing: 0.06em; color: var(--ink); text-decoration: none; }
+.sab span { color: var(--muted); }
+
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 4px; }
+.page-title { font-family: var(--font-title); font-weight: 800; font-size: 44px; line-height: 48px; margin: 0; }
+.page-sub { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; padding-bottom: 6px; }
+.lead { margin: 8px 0 0; font-size: 13px; line-height: 18px; color: var(--muted); }
+
+.sec { margin-top: var(--gap-section); }
+.sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: var(--line-bold) solid var(--ink); padding-block: 10px 6px; }
+.sec-title { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 30px; margin: 0; }
+.sec-count { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 사진 고르기: 끌어 놓을 때는 파랑 3px 테두리 */
+.drop { padding: 14px 0 4px; display: grid; gap: 12px; }
+.drop.over { box-shadow: inset 0 0 0 var(--line-bold) var(--accent); padding-inline: 12px; }
+.drop p { margin: 0; font-size: 13px; line-height: 18px; color: var(--muted); }
+.btn { position: relative; display: grid; place-items: center; min-height: 48px; padding: 0 16px; border: 0; background: var(--ink); color: var(--bg); font-weight: 800; font-size: 15px; }
+.btn.line { background: none; color: var(--ink); border: var(--line-bold) solid var(--ink); }
+.btn:disabled { background: var(--muted); }
+/* 진짜 파일 입력이 버튼을 덮어서, 눌렀을 때 바로 입력에 닿는다 (안드로이드에서 필요) */
+.pick { overflow: hidden; }
+.pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 100px; }
+.pick:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* 설정 */
+.form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; margin-top: 14px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field > span { font-weight: 800; font-size: 12px; letter-spacing: 0.06em; }
+.field select, .field input {
+  width: 100%; min-height: 44px; padding: 10px; border: var(--line-thin) solid var(--ink); border-radius: 0;
+  background: var(--bg); font-size: 16px; line-height: 22px; appearance: none; -webkit-appearance: none;
+}
+.field select {
+  padding-right: 32px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 11px) 50%; background-size: 6px 6px; background-repeat: no-repeat;
+}
+
+/* 정렬 도구 */
+.tools { display: flex; gap: 20px; border-bottom: var(--line-thin) solid var(--ink); }
+.tools button { min-height: 44px; padding: 0; background: none; border: 0; font-weight: 800; font-size: 13px; }
+.tools .end { margin-left: auto; }
+.hint { margin: 10px 0 0; font-size: 13px; line-height: 18px; color: var(--muted); }
+
+/* 페이지 격자 3열 */
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; list-style: none; margin: 14px 0 0; padding: 0; }
+.tile { display: grid; gap: 6px; min-width: 0; cursor: grab; }
+.tile.dragging { opacity: 0.4; }
+.tile.target .thumb { box-shadow: inset 0 0 0 var(--line-bold) var(--accent); }
+.thumb { aspect-ratio: 3 / 4; background: var(--map-empty); display: grid; place-items: center; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.meta { display: flex; gap: 6px; align-items: baseline; min-width: 0; border-top: var(--line-thin) solid var(--ink); padding-top: 6px; }
+.pno { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; flex: none; }
+.fname { font-size: 12px; line-height: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ex-chip { justify-self: start; border: 2px solid var(--ink); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 16px; padding: 0 3px; }
+.err { font-size: 12px; line-height: 16px; color: var(--warn-text); font-weight: 800; }
+.ctrl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ctrl button { min-height: 44px; padding: 0; background: none; border: 0; font-family: var(--font-num); font-weight: 700; font-size: 15px; }
+.ctrl button:disabled { color: var(--muted); cursor: default; }
+
+/* 하단 고정 줄 */
+.action {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: max(var(--pad-x), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--pad-x), env(safe-area-inset-right, 0px));
+}
+.action-in { max-width: 440px; margin: 0 auto; border-top: var(--line-bold) solid var(--ink); padding-block: 12px; display: flex; gap: 12px; align-items: center; }
+.status { flex: 1; min-width: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 18px; }
+.status p { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.status a { font-weight: 800; text-decoration: underline; text-underline-offset: 3px; color: inherit; }
+.ok-chip { border: 2px solid var(--accent); color: var(--accent); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 16px; padding: 0 3px; white-space: nowrap; flex: none; }
+.err-chip { background: var(--warn); color: var(--on-warn); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 20px; padding: 0 4px; white-space: nowrap; flex: none; }
+.action .btn { flex: none; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <a class="sab" href="/" aria-label="Sabathia 홈으로">SABATHIA<span>PDF-04</span></a>
+  <header class="page-head">
+    <h1 class="page-title">사진 PDF</h1>
+    <span class="page-sub" id="count"></span>
+  </header>
+  <p class="lead">사진 여러 장을 PDF 한 개로 묶습니다. 사진은 이 브라우저 안에서만 처리되고 어디에도 올라가지 않습니다.</p>
+
+  <section class="sec" aria-labelledby="h-pick">
+    <div class="sec-head"><h2 class="sec-title" id="h-pick">사진</h2></div>
+    <div class="drop" id="drop">
+      <span class="btn pick">사진 고르기<input id="file" type="file" accept="image/*" multiple aria-label="사진 고르기"></span>
+      <p>JPG · PNG · WEBP · GIF. 갤러리에서 사진을 길게 눌러 여러 장 고를 수 있습니다. PC에서는 여기로 끌어다 놓아도 됩니다.</p>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-set">
+    <div class="sec-head"><h2 class="sec-title" id="h-set">설정</h2></div>
+    <div class="form">
+      <label class="field"><span>용지</span>
+        <select id="paper">
+          <option value="a4">A4 210×297</option>
+          <option value="letter">Letter 216×279</option>
+          <option value="fit">사진 크기에 맞춤</option>
+        </select>
+      </label>
+      <label class="field"><span>여백</span>
+        <select id="margin">
+          <option value="0">없음</option>
+          <option value="20" selected>좁게 7mm</option>
+          <option value="42">보통 15mm</option>
+        </select>
+      </label>
+      <label class="field wide"><span>화질 · 용량</span>
+        <select id="quality">
+          <option value="2400|0.9">고화질 (긴 변 2400px)</option>
+          <option value="1600|0.82" selected>표준 (긴 변 1600px)</option>
+          <option value="1100|0.72">작게 (긴 변 1100px, 메일 첨부용)</option>
+        </select>
+      </label>
+      <label class="field wide"><span>파일 이름</span><input id="fname" type="text" value="사진모음.pdf" spellcheck="false"></label>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-pages">
+    <div class="sec-head"><h2 class="sec-title" id="h-pages">페이지</h2><span class="sec-count" id="pages"></span></div>
+    <div class="tools">
+      <button id="sortAsc" type="button">이름순</button>
+      <button id="sortDesc" type="button">역순</button>
+      <button id="clear" class="end" type="button">모두 지우기</button>
+    </div>
+    <p class="hint">사진을 끌어서 옮기거나 ‹ › 로 순서를 바꿉니다. 가로 사진은 페이지도 가로가 됩니다.</p>
+    <ul class="grid" id="grid"></ul>
+  </section>
+</div>
+
+<div class="action">
+  <div class="action-in">
+    <div class="status" id="status" role="status"><p id="msg">사진을 추가하면 PDF를 만들 수 있습니다.</p></div>
+    <button class="btn" id="make" type="button">PDF 만들기</button>
+  </div>
+</div>
+
+<script src="/sabathia.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const grid = $("grid"), drop = $("drop"), fileInput = $("file"), status = $("status"), makeBtn = $("make");
+  const pad = (n) => String(n).padStart(2, "0");
+  let items = [];            // {id, name, src, w, h, example, error}
+  let nextId = 1;
+  let lastPdfUrl = null;
+
+  const collator = new Intl.Collator("ko", { numeric: true, sensitivity: "base" });
+
+  // kind: "" 보통 · "ok" 파랑 테두리 칩 · "bad" 빨강 칩
+  function setMsg(text, kind, link) {
+    status.textContent = "";
+    if (kind) {
+      const c = document.createElement("span");
+      c.className = kind === "ok" ? "ok-chip" : "err-chip";
+      c.textContent = kind === "ok" ? "완성" : "오류";
+      status.appendChild(c);
+    }
+    const p = document.createElement("p");
+    p.id = "msg"; p.textContent = text;
+    if (link) { p.append(" "); p.appendChild(link); }
+    status.appendChild(p);
+  }
+
+  // ---- 처음 열었을 때 바로 써 볼 수 있게 예시 페이지 (흑백)
+  function makeExample(n, w, h) {
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d");
+    g.fillStyle = "#f0f0f0"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#000"; g.fillRect(0, 0, w, Math.round(h * 0.012));
+    g.font = `700 ${Math.round(w / 5)}px sans-serif`;
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(pad(n), w / 2, h / 2);
+    return { id: nextId++, name: `예시-${n}.jpg`, src: c.toDataURL("image/jpeg", 0.85), w, h, example: true };
+  }
+  items = [makeExample(1, 600, 800), makeExample(2, 800, 600), makeExample(3, 600, 800)];
+
+  // ---- 사진 추가
+  function loadImage(src) {
+    return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+  }
+  async function addFiles(fileList) {
+    const files = Array.from(fileList).filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+    if (!files.length) { setMsg("이미지 파일이 아닙니다. JPG나 PNG 사진을 골라 주세요.", "bad"); return; }
+    if (items.some((i) => i.example)) items = items.filter((i) => !i.example);
+    files.sort((a, b) => collator.compare(a.name, b.name));
+    setMsg(`${files.length}장 불러오는 중`);
+    const added = await Promise.all(files.map(async (f) => {
+      const src = URL.createObjectURL(f);
+      const it = { id: nextId++, name: f.name, src, w: 0, h: 0 };
+      try { const im = await loadImage(src); it.w = im.naturalWidth; it.h = im.naturalHeight; }
+      catch { it.error = /\.(heic|heif)$/i.test(f.name) ? "HEIC는 이 브라우저에서 못 엽니다. JPG로 바꿔서 넣어 주세요." : "이 사진을 열 수 없습니다."; }
+      return it;
+    }));
+    items = items.concat(added);
+    render();
+    const bad = added.filter((i) => i.error).length;
+    if (bad) setMsg(`${added.length - bad}장 추가. ${bad}장은 열 수 없어서 PDF에서 빠집니다.`, "bad");
+    else setMsg(`${added.length}장 추가. 순서를 확인하고 PDF 만들기를 누르세요.`);
+  }
+
+  fileInput.addEventListener("change", () => { if (fileInput.files.length) addFiles(fileInput.files); fileInput.value = ""; });
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); drop.classList.add("over"); } }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, () => drop.classList.remove("over")));
+  drop.addEventListener("drop", (e) => { e.preventDefault(); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+  // 페이지 어디에 놓아도 추가된다
+  document.addEventListener("dragover", (e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); });
+  document.addEventListener("drop", (e) => { if (e.target.closest("#drop")) return; if (e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } });
+
+  // ---- 격자
+  function move(from, to) {
+    if (to < 0 || to >= items.length || from === to) return;
+    const [it] = items.splice(from, 1); items.splice(to, 0, it); render();
+  }
+  let dragIndex = -1;
+  function render() {
+    grid.textContent = "";
+    items.forEach((it, i) => {
+      const li = document.createElement("li");
+      li.className = "tile"; li.draggable = true; li.dataset.index = i;
+      const th = document.createElement("div"); th.className = "thumb";
+      if (!it.error) { const im = document.createElement("img"); im.src = it.src; im.alt = it.name; im.loading = "lazy"; th.appendChild(im); }
+      li.appendChild(th);
+      const meta = document.createElement("div"); meta.className = "meta";
+      const p = document.createElement("span"); p.className = "pno"; p.textContent = pad(i + 1);
+      const n = document.createElement("span"); n.className = "fname"; n.textContent = it.name; n.title = it.name;
+      meta.append(p, n); li.appendChild(meta);
+      if (it.example) { const t = document.createElement("span"); t.className = "ex-chip"; t.textContent = "예시"; li.appendChild(t); }
+      if (it.error) { const e = document.createElement("span"); e.className = "err"; e.textContent = it.error; li.appendChild(e); }
+      const ctrl = document.createElement("div"); ctrl.className = "ctrl";
+      const l = document.createElement("button"); l.type = "button"; l.textContent = "‹"; l.setAttribute("aria-label", `${i + 1}쪽 앞으로`); l.disabled = i === 0; l.onclick = () => move(i, i - 1);
+      const r = document.createElement("button"); r.type = "button"; r.textContent = "›"; r.setAttribute("aria-label", `${i + 1}쪽 뒤로`); r.disabled = i === items.length - 1; r.onclick = () => move(i, i + 1);
+      const x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.setAttribute("aria-label", `${i + 1}쪽 빼기`);
+      x.onclick = () => { if (!it.example && it.src.startsWith("blob:")) URL.revokeObjectURL(it.src); items.splice(i, 1); render(); };
+      ctrl.append(l, r, x); li.appendChild(ctrl);
+
+      li.addEventListener("dragstart", (e) => { dragIndex = i; li.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(i)); });
+      li.addEventListener("dragend", () => { dragIndex = -1; li.classList.remove("dragging"); grid.querySelectorAll(".target").forEach((t) => t.classList.remove("target")); });
+      li.addEventListener("dragover", (e) => { if (dragIndex < 0) return; e.preventDefault(); li.classList.add("target"); });
+      li.addEventListener("dragleave", () => li.classList.remove("target"));
+      li.addEventListener("drop", (e) => { if (dragIndex < 0) return; e.preventDefault(); e.stopPropagation(); move(dragIndex, i); });
+      grid.appendChild(li);
+    });
+    const ok = items.filter((i) => !i.error).length;
+    const ex = items.some((i) => i.example);
+    $("count").textContent = ex ? "예시" : `${pad(ok)}쪽`;
+    $("pages").textContent = ex ? `예시 ${ok}장` : `${ok}장 → ${ok}쪽`;
+    makeBtn.disabled = ok === 0;
+  }
+
+  $("sortAsc").onclick = () => { items.sort((a, b) => collator.compare(a.name, b.name)); render(); };
+  $("sortDesc").onclick = () => { items.sort((a, b) => collator.compare(b.name, a.name)); render(); };
+  $("clear").onclick = () => { items.forEach((i) => { if (i.src.startsWith("blob:")) URL.revokeObjectURL(i.src); }); items = []; render(); setMsg("모두 지웠습니다. 사진을 다시 추가하세요."); };
+
+  // ---- PDF
+  const PAPER = { a4: [595.28, 841.89], letter: [612, 792] };
+
+  async function toJpeg(it, maxSide, q) {
+    const im = await loadImage(it.src);
+    const w0 = im.naturalWidth, h0 = im.naturalHeight;
+    const s = Math.min(1, maxSide / Math.max(w0, h0));
+    const w = Math.round(w0 * s), h = Math.round(h0 * s);
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d");
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);   // PNG 투명 부분은 흰색으로
+    g.imageSmoothingQuality = "high";
+    g.drawImage(im, 0, 0, w, h);
+    return { data: c.toDataURL("image/jpeg", q), w, h };
+  }
+
+  function fmtSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.round(b / 1024) + " KB"; }
+
+  makeBtn.onclick = async () => {
+    const list = items.filter((i) => !i.error);
+    if (!list.length) return;
+    if (!window.jspdf) { setMsg("PDF 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침하세요.", "bad"); return; }
+    const paper = $("paper").value, margin = Number($("margin").value);
+    const [maxSide, q] = $("quality").value.split("|").map(Number);
+    let fname = ($("fname").value || "사진모음").trim();
+    if (!/\.pdf$/i.test(fname)) fname += ".pdf";
+
+    makeBtn.disabled = true;
+    let doc = null;
+    try {
+      for (let k = 0; k < list.length; k++) {
+        setMsg(`${k + 1} / ${list.length}쪽 만드는 중`);
+        const img = await toJpeg(list[k], maxSide, q);
+        const landscape = img.w > img.h;
+        let pw, ph;
+        if (paper === "fit") {
+          const s = 841.89 / Math.max(img.w, img.h);
+          pw = img.w * s + margin * 2; ph = img.h * s + margin * 2;
+        } else {
+          [pw, ph] = PAPER[paper]; if (landscape) [pw, ph] = [ph, pw];
+        }
+        const orient = pw > ph ? "l" : "p";
+        if (!doc) doc = new window.jspdf.jsPDF({ unit: "pt", format: [pw, ph], orientation: orient, compress: true });
+        else doc.addPage([pw, ph], orient);
+        const aw = pw - margin * 2, ah = ph - margin * 2;
+        const s = Math.min(aw / img.w, ah / img.h);
+        const dw = img.w * s, dh = img.h * s;
+        doc.addImage(img.data, "JPEG", (pw - dw) / 2, (ph - dh) / 2, dw, dh, undefined, "FAST");
+        await new Promise((r) => setTimeout(r, 0));   // 화면이 멈추지 않게
+      }
+      const blob = doc.output("blob");
+      if (lastPdfUrl) URL.revokeObjectURL(lastPdfUrl);
+      lastPdfUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = lastPdfUrl; a.download = fname; a.textContent = fname + " 받기";
+      setMsg(`${list.length}쪽 · ${fmtSize(blob.size)}.`, "ok", a);
+      a.click();
+    } catch (e) {
+      setMsg("PDF를 만들다 멈췄습니다. 화질을 '작게'로 바꾸거나 사진 수를 줄여서 다시 해 보세요.", "bad");
+    } finally {
+      makeBtn.disabled = false;
+    }
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
