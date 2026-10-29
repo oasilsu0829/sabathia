@@ -15,6 +15,7 @@
 - 사용자는 **지금 PC가 없음** → 배포는 **GitHub 연동(Workers Builds)** 방식. 로컬 `wrangler` 명령어를 전제로 하지 말 것
 - 이 저장소에 있던 이전 텔레그램/OpenClaw 알리미 코드는 삭제함 (커밋 62ce707에 남아 있음)
 - 기본 브랜치: `ccr-a6652a14-opge2l`
+- Cloudflare Workers Builds 설정: Build command는 비우거나 `npm run build`(echo만 함), Deploy command `npx wrangler deploy`. 이 칸에 브랜치 이름을 넣으면 `ccr-a6652a14-opge2l: not found`로 실패한다(2026-10-29 PR 미리보기에서 발생). 설정을 고친 뒤 'Retry build'는 예전 설정으로 도는 듯하니 새 커밋으로 확인할 것
 
 ## 현재 상태
 - [x] 코드 작성, 로컬 검증 완료 (API, cron, 푸시 암호화는 http_ece로 복호화 확인, VAPID JWT 서명 검증)
