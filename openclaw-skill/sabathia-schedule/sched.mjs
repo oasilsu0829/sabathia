@@ -1,10 +1,20 @@
 #!/usr/bin/env node
 // Sabathia 일정 API용 작은 CLI. Node 18 이상(fetch 내장)에서 Windows·macOS·Linux 모두 동작.
-// 환경 변수: SABATHIA_TOKEN (필수), SABATHIA_URL (선택, 기본 https://sabathia.oasilsu0829.workers.dev)
+// 토큰: SABATHIA_TOKEN 환경 변수 또는 ~/.openclaw/sabathia-token 파일. 주소: SABATHIA_URL (선택, 기본 https://sabathia.oasilsu0829.workers.dev)
 // 출력은 토큰 절약을 위해 한 줄 요약으로 낸다.
 
 const BASE = (process.env.SABATHIA_URL || 'https://sabathia.oasilsu0829.workers.dev').replace(/\/+$/, '');
-const TOKEN = process.env.SABATHIA_TOKEN || '';
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+// 토큰: 환경 변수 SABATHIA_TOKEN → 파일 SABATHIA_TOKEN_FILE → ~/.openclaw/sabathia-token 순서로 찾는다
+const TOKEN_FILE = process.env.SABATHIA_TOKEN_FILE || join(homedir(), '.openclaw', 'sabathia-token');
+function loadToken() {
+  if (process.env.SABATHIA_TOKEN) return process.env.SABATHIA_TOKEN.trim();
+  try { return readFileSync(TOKEN_FILE, 'utf8').trim(); } catch { return ''; }
+}
+const TOKEN = loadToken();
 const TZ = 'Asia/Seoul';
 const KIND = { event: '일정', task: '할 일', deadline: '마감' };
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
@@ -54,7 +64,7 @@ function fail(msg) {
 }
 
 async function call(path, opt = {}) {
-  if (!TOKEN) fail('SABATHIA_TOKEN 환경 변수가 필요합니다 (Windows 사용자 환경 변수 또는 openclaw.json의 skills.entries.sabathia-schedule.apiKey)');
+  if (!TOKEN) fail(`토큰이 없습니다. ${TOKEN_FILE} 파일에 토큰을 저장하거나 SABATHIA_TOKEN 환경 변수를 설정하세요`);
   let r;
   try {
     r = await fetch(BASE + path, { ...opt, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + TOKEN } });

@@ -1,7 +1,7 @@
 ---
 name: sabathia-schedule
 description: 승찬의 일정·할 일·마감을 Sabathia 일정 앱(휴대폰 PWA, 책상 프로젝터 화면)에 추가·조회·수정·완료 처리한다. 일정, 약속, 수업, 시험, 수행평가, 제출 기한, "캘린더에 넣어줘", "오늘 뭐 있어", "이번 주 일정", "다 했어" 같은 요청에 쓴다.
-metadata: {"openclaw": {"requires": {"bins": ["node"], "env": ["SABATHIA_TOKEN"]}, "primaryEnv": "SABATHIA_TOKEN"}}
+metadata: {"openclaw": {"requires": {"bins": ["node"]}}}
 ---
 
 # Sabathia 일정
@@ -37,4 +37,5 @@ metadata: {"openclaw": {"requires": {"bins": ["node"], "env": ["SABATHIA_TOKEN"]
 - 메일·메신저·문서에서 읽어 넣을 때는 `--source gmail` 처럼 출처를 적는다. 외부 캘린더처럼 고유 id가 있으면 `--id` 로 넘겨 다시 보내도 중복되지 않게 한다.
 - "다 했어", "끝냈어"는 오늘 목록(`agenda --days 0`)에서 맞는 항목을 찾아 `done` 한다. 여러 개가 맞으면 묻는다.
 - 사용자에게 알릴 때는 id를 빼고 짧게: "11.04(화) 마감 — 화학 수행평가 제출 추가함".
-- `토큰이 맞지 않습니다` 오류가 나면 PC의 SABATHIA_TOKEN 환경 변수와 Worker의 API_TOKEN 비밀값이 같은지 확인해 달라고 말한다. 토큰 값을 채팅에 쓰지 않는다.
+- 토큰은 `~/.openclaw/sabathia-token` 파일(또는 SABATHIA_TOKEN 환경 변수)에서 읽는다. 토큰 값을 채팅·로그·다른 파일에 쓰지 않는다.
+- `토큰이 맞지 않습니다` 오류가 나면 그 파일 값과 Worker의 API_TOKEN 비밀값이 같은지 확인해 달라고 말한다.
