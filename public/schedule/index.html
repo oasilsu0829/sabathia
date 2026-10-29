@@ -51,7 +51,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font-family: var(--font-body); font-weight: 500; font-size: var(--body-size); line-height: 22px;
-  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; word-break: keep-all;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -117,8 +117,8 @@ button { cursor: pointer; }
   background: none; border: 0; border-bottom: var(--line-thin) solid var(--ink);
 }
 .r-time { font-family: var(--font-num); font-size: 15px; line-height: 22px; font-variant-numeric: tabular-nums; }
-.r-title { display: block; font-weight: 800; line-height: 22px; overflow-wrap: anywhere; }
-.r-meta { display: block; font-size: 13px; line-height: 18px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.r-title { display: block; font-weight: 800; line-height: 22px; overflow-wrap: break-word; }
+.r-meta { display: block; font-size: 13px; line-height: 18px; color: var(--muted); margin-top: 2px; overflow-wrap: break-word; }
 .chip { justify-self: end; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 20px; padding: 0 4px; white-space: nowrap; }
 .label-num { font-family: var(--font-num); font-weight: 700; font-size: 12px; letter-spacing: 0; }
 .s-late .r-time { color: var(--warn-text); font-weight: 700; }
@@ -202,6 +202,54 @@ button { cursor: pointer; }
 .err-chip { background: var(--warn); color: var(--on-warn); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 20px; padding: 0 4px; white-space: nowrap; flex: none; }
 .ok-chip { border: 2px solid var(--accent); color: var(--accent); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 16px; padding: 0 3px; white-space: nowrap; flex: none; }
 .ex-chip { border: 2px solid var(--ink); font-weight: 800; font-size: 11px; letter-spacing: 0.06em; line-height: 16px; padding: 0 3px; white-space: nowrap; flex: none; }
+
+/* 체크리스트: 상자 | 시간 | 제목 | 칩 */
+.check {
+  display: grid; grid-template-columns: 44px 52px minmax(0, 1fr) auto; column-gap: 6px; align-items: center;
+  padding-block: 4px; border-bottom: var(--line-thin) solid var(--ink);
+}
+.cbox { width: 44px; height: 44px; padding: 0; margin-left: -8px; background: none; border: 0; display: grid; place-items: center; }
+.cbox > span { width: 26px; height: 26px; box-sizing: border-box; border: var(--line-bold) solid var(--ink); display: grid; place-items: center; color: var(--bg); }
+.cbox svg { width: 16px; height: 16px; visibility: hidden; }
+.check.s-done .cbox > span { background: var(--muted); border-color: var(--muted); }
+.check.s-done .cbox svg { visibility: visible; }
+.check.s-late .cbox > span { border-color: var(--warn); }
+.c-time { font-family: var(--font-num); font-size: 15px; line-height: 22px; font-variant-numeric: tabular-nums; }
+.c-body { display: block; min-width: 0; padding: 8px 0; background: none; border: 0; text-align: left; }
+.check.s-late .c-time { color: var(--warn-text); font-weight: 700; }
+.check.s-next .c-time { color: var(--accent); font-weight: 700; }
+.check.s-done .c-time { color: var(--muted); }
+.sub-head { font-weight: 800; font-size: 12px; line-height: 16px; letter-spacing: 0.06em; color: var(--muted); padding: 14px 0 2px; }
+
+/* 일 단위 타임라인: 날짜가 마디, 굵은 세로선이 날을 잇는다 */
+.tl { margin-top: 6px; }
+.tl-day { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: 12px; }
+.tl-day::before { content: ""; position: absolute; left: 7px; top: 0; bottom: 0; width: 3px; background: var(--ink); }
+.tl-day:first-child::before { top: 14px; }
+.tl-day:last-child::before { bottom: auto; height: 14px; }
+.tl-day:only-child::before { display: none; }
+.tl-node { position: relative; z-index: 1; width: 17px; height: 17px; margin-top: 12px; box-sizing: border-box; border: var(--line-bold) solid var(--ink); background: var(--bg); }
+.tl-day.is-today .tl-node { background: var(--accent); border-color: var(--accent); }
+.tl-day.is-late .tl-node { background: var(--warn); border-color: var(--warn); }
+.tl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0 2px; }
+.tl-date { font-family: var(--font-num); font-weight: 700; font-size: 19px; line-height: 24px; font-variant-numeric: tabular-nums; }
+.tl-wd { font-family: var(--font-title); font-weight: 500; font-size: 15px; margin-left: 6px; }
+.tl-label { font-family: var(--font-title); font-weight: 800; font-size: 17px; line-height: 24px; color: var(--warn-text); }
+.tl-d { font-family: var(--font-num); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tl-day.is-today .tl-d { color: var(--accent); }
+.tl-items { display: grid; padding-bottom: 14px; }
+.tl-item { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; column-gap: 8px; align-items: start; width: 100%; padding: 6px 0; background: none; border: 0; text-align: left; }
+.t-time { font-family: var(--font-num); font-size: 14px; line-height: 22px; font-variant-numeric: tabular-nums; }
+.t-body { min-width: 0; }
+.mk { display: inline-block; width: 10px; height: 10px; box-sizing: border-box; margin-right: 6px; vertical-align: 1px; }
+.mk-ev { border: 2px solid currentColor; }
+.mk-dl { background: var(--warn); }
+.mk-task { background: currentColor; }
+.tl-item.s-next .t-time { color: var(--accent); font-weight: 700; }
+.tl-item.s-late .t-time { color: var(--warn-text); font-weight: 700; }
+.tl-item.s-done .t-time, .tl-item.s-past .t-time, .tl-item.s-done .chip, .tl-item.s-past .chip, .tl-item.s-past .r-title { color: var(--muted); }
+.tl-item.s-done .r-title { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.tl-empty { margin: 4px 0 0; font-size: 13px; line-height: 18px; color: var(--muted); }
 
 /* 탭바 · 추가 버튼 */
 .tabbar {
@@ -391,12 +439,90 @@ button { cursor: pointer; }
     return '';
   }
 
+  /* ---------- 체크리스트 (할 일) ---------- */
+  const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="square" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>';
+  function checkRowHTML(e, st, t, opt = {}) {
+    let time;
+    if (st === 'late') time = `−${diffDays(t, e.date)}D`;
+    else if (opt.dateCol) time = md(e.date);
+    else time = e.time || '—';
+    const meta = [opt.dateCol && e.time ? e.time : '', e.note].filter(Boolean).join(' · ');
+    const chip = st === 'late' ? '<span class="chip">지연</span>' : st === 'next' ? '<span class="chip">다음</span>' : '';
+    return `<div class="check s-${st}">
+      <button type="button" class="cbox" data-act="check" data-id="${esc(e.id)}" aria-pressed="${e.done}" aria-label="${esc(e.title)} ${e.done ? '완료 취소' : '완료'}"><span>${CHECK_SVG}</span></button>
+      <span class="c-time">${esc(time)}</span>
+      <button type="button" class="c-body" data-act="open" data-id="${esc(e.id)}"><span class="r-title">${esc(e.title)}</span>${meta ? `<span class="r-meta">${esc(meta)}</span>` : ''}</button>
+      ${chip}
+    </div>`;
+  }
+  function checklistHTML(t, now, aheadDays) {
+    const tasks = S.events.filter((e) => e.kind === 'task');
+    const rows = tasks
+      .filter((e) => e.date === t || (e.date < t && !e.done))
+      .map((e) => ({ e, st: statusOf(e, t, now) }));
+    const waiting = rows.filter((r) => r.st === 'wait').sort((a, b) => byTime(a.e, b.e));
+    const nx = waiting.find((r) => r.e.time && r.e.time >= now) || waiting.find((r) => !r.e.time);
+    if (nx) nx.st = 'next';
+    rows.sort((a, b) => RANK[a.st] - RANK[b.st] || byTime(a.e, b.e));
+    const todays = rows.filter((r) => r.e.date === t);
+    const doneN = todays.filter((r) => r.st === 'done').length;
+    const ahead = aheadDays ? tasks.filter((e) => e.date > t && e.date <= addDays(t, aheadDays) && !e.done).sort(byTime) : [];
+    let html = `<div class="sec-head"><h2 class="sec-title" id="h-tasks">할 일</h2><span class="sec-count">${doneN} / ${todays.length}</span></div>`;
+    html += rows.length ? rows.map((r) => checkRowHTML(r.e, r.st, t)).join('') : '<p class="empty">오늘 할 일이 없습니다.</p>';
+    if (ahead.length) {
+      html += `<div class="sub-head">이후 ${aheadDays}일</div>`;
+      html += ahead.map((e) => checkRowHTML(e, 'wait', t, { dateCol: true })).join('');
+    }
+    return html;
+  }
+
+  /* ---------- 일 단위 타임라인 (일정 · 마감) ---------- */
+  function tlItemHTML(e, st, t) {
+    const time = e.time ? (e.end ? `${e.time}–${e.end}` : e.time) : '종일';
+    const mk = e.kind === 'deadline' ? 'mk-dl' : e.kind === 'task' ? 'mk-task' : 'mk-ev';
+    const meta = [KIND[e.kind], e.note].filter(Boolean).join(' · ');
+    const chip = st === 'late' ? '<span class="chip">지연</span>' : st === 'next' ? '<span class="chip">다음</span>' : st === 'done' ? '<span class="chip">완료</span>' : st === 'past' ? '<span class="chip">지남</span>' : '';
+    return `<button type="button" class="tl-item s-${st}" data-act="open" data-id="${esc(e.id)}">
+      <span class="t-time">${esc(time)}</span>
+      <span class="t-body"><span class="r-title"><i class="mk ${mk}" aria-hidden="true"></i>${esc(e.title)}</span>${meta ? `<span class="r-meta">${esc(meta)}</span>` : ''}</span>
+      ${chip}
+    </button>`;
+  }
+  // days일 동안 항목이 있는 날만 마디로 그린다. 오늘은 비어 있어도 그린다.
+  function timelineHTML(t, now, days, withTasks) {
+    const pick = (e) => withTasks || e.kind !== 'task';
+    const late = S.events.filter((e) => pick(e) && e.kind === 'deadline' && statusOf(e, t, now) === 'late').sort(byTime);
+    const end = addDays(t, days);
+    const groups = {};
+    for (const e of S.events) if (pick(e) && e.date >= t && e.date <= end) (groups[e.date] ||= []).push(e);
+    if (!groups[t]) groups[t] = [];
+    let html = '<div class="tl">';
+    if (late.length) {
+      html += `<div class="tl-day is-late"><span class="tl-node" aria-hidden="true"></span><div>
+        <div class="tl-head"><span class="tl-label">지난 마감</span><span class="tl-d">${late.length}</span></div>
+        <div class="tl-items">${late.map((e) => tlItemHTML(e, 'late', t)).join('')}</div></div></div>`;
+    }
+    for (const day of Object.keys(groups).sort()) {
+      const dd = parse(day), n = diffDays(day, t);
+      const items = groups[day].map((e) => ({ e, st: statusOf(e, t, now) }));
+      if (day === t) {
+        const w = items.filter((r) => r.st === 'wait').sort((a, b) => byTime(a.e, b.e));
+        const nx = w.find((r) => r.e.time && r.e.time >= now) || w.find((r) => !r.e.time);
+        if (nx) nx.st = 'next';
+      }
+      items.sort((a, b) => byTime(a.e, b.e));
+      html += `<div class="tl-day${day === t ? ' is-today' : ''}"><span class="tl-node" aria-hidden="true"></span><div>
+        <div class="tl-head"><span><span class="tl-date">${md(day)}</span><span class="tl-wd">${WD_LONG[dd.getDay()]}</span></span><span class="tl-d">${n === 0 ? '오늘' : 'D-' + n}</span></div>
+        <div class="tl-items">${items.length ? items.map((r) => tlItemHTML(r.e, r.st, t)).join('') : '<p class="tl-empty">남은 일정이 없습니다.</p>'}</div></div></div>`;
+    }
+    return html + '</div>';
+  }
+
   /* ---------- 화면: 홈 ---------- */
   function renderHome() {
     const t = today(), now = nowHM(), d = parse(t);
-    const list = todayList(t, now);
-    const todays = list.filter((r) => r.e.date === t);
-    const doneN = todays.filter((r) => r.st === 'done' || r.st === 'past').length;
+    const todays = S.events.filter((e) => e.date === t);
+    const doneN = todays.filter((e) => { const s = statusOf(e, t, now); return s === 'done' || s === 'past'; }).length;
     const pct = todays.length ? Math.round((doneN / todays.length) * 100) : 0;
 
     const start = addDays(t, -d.getDay());
@@ -408,11 +534,7 @@ button { cursor: pointer; }
         <span class="wd">${WD[i]}</span><span class="dn">${parse(day).getDate()}</span><span class="dot${has ? '' : ' ghost'}"></span></button>`;
     }
 
-    const upcoming = S.events
-      .filter((e) => e.date > t && e.date <= addDays(t, 7) && !e.done)
-      .sort(byTime);
-    const shown = upcoming.slice(0, 6);
-
+    const evN = S.events.filter((e) => e.kind !== 'task' && e.date >= t && e.date <= addDays(t, 14) && !e.done).length;
     return `
       <header class="hero">
         <div class="hero-num" aria-label="${d.getMonth() + 1}월 ${d.getDate()}일">${d.getDate()}</div>
@@ -423,14 +545,11 @@ button { cursor: pointer; }
       </header>
       <div class="week">${week}</div>
       ${noticeHTML()}
-      <section class="sec" aria-labelledby="h-today">
-        <div class="sec-head"><h2 class="sec-title" id="h-today">오늘 할 일</h2><span class="sec-count">${doneN} / ${todays.length}</span></div>
-        ${list.length ? list.map((r) => rowHTML(r.e, r.st, t)).join('') : '<p class="empty">오늘은 일정이 없습니다. + 버튼이나 OpenClaw로 추가하세요.</p>'}
-      </section>
-      <section class="sec" aria-labelledby="h-up">
-        <div class="sec-head"><h2 class="sec-title" id="h-up">다가올 7일</h2><span class="sec-count">${upcoming.length}</span></div>
-        ${shown.length ? shown.map((e) => rowHTML(e, 'wait', t, { dateCol: true, dday: true })).join('') : '<p class="empty">앞으로 7일 동안 잡힌 일정이 없습니다.</p>'}
-        ${upcoming.length > shown.length ? `<button type="button" class="more" data-tab="agenda">${upcoming.length - shown.length}개 더 보기</button>` : ''}
+      <section class="sec" aria-labelledby="h-tasks">${checklistHTML(t, now, 7)}</section>
+      <section class="sec" aria-labelledby="h-tl">
+        <div class="sec-head"><h2 class="sec-title" id="h-tl">일정 · 마감</h2><span class="sec-count">${evN}</span></div>
+        ${timelineHTML(t, now, 14, false)}
+        <button type="button" class="more" data-tab="agenda">30일 전체 보기</button>
       </section>`;
   }
 
@@ -493,25 +612,14 @@ button { cursor: pointer; }
 
   /* ---------- 화면: 일정 (앞으로 30일) ---------- */
   function renderAgenda() {
-    const t = today(), now = nowHM(), end = addDays(t, 30);
-    const late = S.events.filter((e) => statusOf(e, t, now) === 'late').sort(byTime);
-    const groups = {};
-    for (const e of S.events) if (e.date >= t && e.date <= end) (groups[e.date] ||= []).push(e);
-    const days = Object.keys(groups).sort();
-    let html = `<header class="page-head"><h1 class="page-title">일정</h1><span class="page-sub">30일</span></header>${noticeHTML()}`;
-    if (late.length) {
-      html += `<div class="day-head"><span class="late-t">지연</span><span class="sec-count">${late.length}</span></div>`;
-      html += late.map((e) => rowHTML(e, 'late', t)).join('');
-    }
-    for (const day of days) {
-      const dd = parse(day), n = diffDays(day, t);
-      const items = groups[day].map((e) => ({ e, st: statusOf(e, t, now) }))
-        .sort((a, b) => RANK[a.st] - RANK[b.st] || byTime(a.e, b.e));
-      html += `<div class="day-head"><span><span class="d">${md(day)}</span><span class="w">${WD_LONG[dd.getDay()]}</span></span><span class="sec-count">${n === 0 ? '오늘' : 'D-' + n}</span></div>`;
-      html += items.map((r) => rowHTML(r.e, r.st, t)).join('');
-    }
-    if (!late.length && !days.length) html += '<p class="empty" style="margin-top:20px">앞으로 30일 동안 잡힌 일정이 없습니다.</p>';
-    return html;
+    const t = today(), now = nowHM();
+    return `<header class="page-head"><h1 class="page-title">일정</h1><span class="page-sub">30일</span></header>
+      ${noticeHTML()}
+      <section class="sec" aria-label="할 일">${checklistHTML(t, now, 30)}</section>
+      <section class="sec" aria-labelledby="h-tl30">
+        <div class="sec-head"><h2 class="sec-title" id="h-tl30">일정 · 마감</h2></div>
+        ${timelineHTML(t, now, 30, false)}
+      </section>`;
   }
 
   /* ---------- 화면: 설정 ---------- */
@@ -688,12 +796,12 @@ button { cursor: pointer; }
   function render() {
     const view = $('#view');
     const keepFocus = document.activeElement && view.contains(document.activeElement) && document.activeElement.id;
-    if (S.tab === 'prefs' && view.dataset.tab === 'prefs' && keepFocus) {
+    if (S.tab === 'prefs' && view.dataset.view === 'prefs' && keepFocus) {
       // 설정 입력 중에는 다시 그리지 않는다
       return;
     }
     view.innerHTML = VIEWS[S.tab]();
-    view.dataset.tab = S.tab;
+    view.dataset.view = S.tab;
     document.querySelectorAll('.tabbar [data-tab]').forEach((b) => {
       if (b.dataset.tab === S.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -740,6 +848,14 @@ button { cursor: pointer; }
     try {
       if (act === 'add') openAdd(S.tab === 'calendar' ? S.sel : today());
       else if (act === 'open') openDetail(el.dataset.id);
+      else if (act === 'check') {
+        const e = S.events.find((x) => x.id === el.dataset.id);
+        if (!e) return;
+        const wasDone = e.done;
+        el.disabled = true;
+        await mutate('patch', { id: e.id, done: !wasDone });
+        toast(wasDone ? '완료를 취소했습니다' : '완료했습니다');
+      }
       else if (act === 'close') closeSheet();
       else if (act === 'goday') { S.sel = el.dataset.date; S.month = S.sel.slice(0, 7); go('calendar'); }
       else if (act === 'sel') { S.sel = el.dataset.date; if (S.sel.slice(0, 7) !== S.month) S.month = S.sel.slice(0, 7); render(); }
@@ -789,7 +905,7 @@ button { cursor: pointer; }
       store.set('base', $('#f-base').value.trim());
       store.set('token', $('#f-token').value.trim());
       document.activeElement && document.activeElement.blur();
-      $('#view').dataset.tab = '';
+      $('#view').dataset.view = '';
       await load();
       toast(S.mode === 'live' ? '연결했습니다' : '연결하지 못했습니다');
     }

@@ -1,6 +1,6 @@
 // Sabathia 일정 서비스 워커 — 앱 껍데기와 글꼴을 캐시해 오프라인에서도 열리게 한다.
 // 일정 데이터(/api/)는 캐시하지 않는다. 앱이 마지막으로 받은 일정을 기기에 따로 보관한다.
-const VERSION = 'sabathia-v1';
+const VERSION = 'sabathia-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
