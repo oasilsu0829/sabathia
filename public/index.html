@@ -259,6 +259,50 @@ a { color: inherit; text-decoration: none; }
 .alist .pin { flex: none; min-height: 44px; background: none; border: 0; padding: 0; font-weight: 800; font-size: 12px; letter-spacing: 0.06em; color: var(--muted); }
 .alist .pin.on { color: var(--accent); }
 
+/* 움직임 (디자인 언어 14장). transform · opacity · filter · clip-path 만 움직인다.
+   홈은 하루에 수십 번 열리니 짧게: 첫 화면은 1초 안에 끝나고, 30초마다 다시 그릴 때는 움직이지 않는다 */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --rise: 8px; --blur: 4px;
+}
+/* 들어오기: #app.enter 동안만. --dl 은 각자 지연, --el 은 다시 그렸을 때 이미 지난 시간(이어서 재생) */
+.enter > :not(.apps-sec), .enter .apps-sec > .sec-head { animation: rise 420ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) - var(--el, 0ms)); }
+.enter .lane .track, .enter .bar { animation: wipe 720ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) - var(--el, 0ms)); }
+.enter .now-line, .enter .now-tag { animation: fade 240ms var(--ease-out) both; animation-delay: calc(640ms - var(--el, 0ms)); }
+.enter .tile, .enter .cell { animation: rise 420ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) - var(--el, 0ms)); }
+.enter .cmap .f { animation: fade 200ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) + 120ms + var(--k, 0) * 20ms - var(--el, 0ms)); }
+.enter .badge { animation: pop 260ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) + 380ms - var(--el, 0ms)); }
+@keyframes rise { from { opacity: 0; transform: translateY(var(--rise)); filter: blur(var(--blur)); } }
+@keyframes wipe { from { clip-path: inset(-12px 100% -12px 0); } to { clip-path: inset(-12px 0 -12px 0); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.6); } }
+/* 시계: 바뀐 숫자만 아래에서 올라온다 */
+.dg { display: inline-block; }
+.dg.tick { animation: tick 360ms var(--ease-out) both; }
+@keyframes tick { from { opacity: 0; transform: translateY(0.25em); filter: blur(var(--blur)); } }
+/* 누르기: 0.97 로 살짝 눌린다 */
+.tile, .cell, .pa, .btn, .sec-link, .close, .sheet-acts button, .alist .go, .alist .pin { transition: transform 160ms var(--ease-out); }
+.tile:active, .cell:active, .pa:active, .btn:active, .sec-link:active, .close:active, .sheet-acts button:active, .alist .go:active, .alist .pin:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .cell .cmap { transition: transform 200ms var(--ease-out); }
+  .cell:hover .cmap { transform: translateY(-2px); }
+}
+/* 시트: 아래에서 올라오고(Vaul 곡선) 닫을 때는 더 빨리. 머리를 끌어내려도 닫힌다 */
+.sheet { transform: translateY(100%); transition: transform 280ms var(--ease-drawer); will-change: transform; }
+.sheet.open { transform: none; transition-duration: 460ms; }
+.sheet.drag { transition: none; }
+.sheet-head { touch-action: none; }
+.sheet .in.swap { animation: rise 240ms var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  :root { --rise: 0px; --blur: 0px; }
+  @keyframes wipe { from { opacity: 0; } }
+  @keyframes pop { from { opacity: 0; } }
+  .sheet { transform: none; opacity: 0; transition: opacity 200ms ease; }
+  .sheet.open { opacity: 1; }
+  .tile:active, .cell:active, .pa:active, .btn:active, .sec-link:active, .close:active, .sheet-acts button:active, .alist .go:active, .alist .pin:active, .cell:hover .cmap { transform: none; }
+}
+
 @media (max-width: 359px) {
   .clock-xl { font-size: 92px; line-height: 76px; }
   .tiles { gap: 4px; }
@@ -327,7 +371,9 @@ a { color: inherit; text-decoration: none; }
     let r = '';
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       const k = i + ',' + j;
-      r += `<rect class="${filled.has(k) ? 'f' : set.has(k) ? 'p' : 'e'}" x="${j * (cell + g)}" y="${i * (cell + g)}" width="${cell}" height="${cell}"/>`;
+      const at = `x="${j * (cell + g)}" y="${i * (cell + g)}" width="${cell}" height="${cell}"`;
+      // 채워진 칸은 옅은 칸 위에 겹쳐 그린다. 들어올 때 왼쪽 위부터 대각선 순서(--k)로 채워진다
+      r += filled.has(k) ? `<rect class="p" ${at}/><rect class="f" style="--k:${i + j}" ${at}/>` : `<rect class="${set.has(k) ? 'p' : 'e'}" ${at}/>`;
     }
     return `<svg class="cmap" viewBox="0 0 ${w} ${w}" width="${w}" height="${w}" aria-hidden="true">${r}</svg>`;
   }
@@ -452,16 +498,37 @@ a { color: inherit; text-decoration: none; }
       <nav class="${phone ? 'tiles' : 'cells'}" aria-label="앱">${items}</nav></section>`;
   }
 
+  /* ---------- 움직임 (디자인 언어 14장) ---------- */
+  // 처음 연 뒤 ENTER_MS 동안만 들어오기를 재생한다. 그 사이 데이터가 와서 다시 그리면 지난 시간(--el)만큼 앞당겨 이어 간다
+  const ENTER_MS = 1000, t0 = performance.now();
+  let lastClock = '', enterT;
+  const clockHTML = (c) => [...c].map((ch, i) =>
+    ch === ':' ? ch : `<span class="dg${lastClock && lastClock[i] !== ch ? ' tick' : ''}">${ch}</span>`).join('');
+  function stage(app) {
+    const el = performance.now() - t0;
+    if (el >= ENTER_MS) { app.classList.remove('enter'); return; }
+    app.classList.add('enter');
+    app.style.setProperty('--el', Math.round(el) + 'ms');
+    const set = (x, ms) => x.style.setProperty('--dl', ms + 'ms');
+    let i = 0;
+    for (const c of app.children) set(c.classList.contains('apps-sec') ? c.firstElementChild : c, i++ * 50);
+    app.querySelectorAll('.lane .track, .bar').forEach((x, k) => set(x, 140 + k * 60));
+    app.querySelectorAll('.tile, .cell').forEach((x, k) => set(x, 200 + k * 40));
+    clearTimeout(enterT);
+    enterT = setTimeout(() => app.classList.remove('enter'), ENTER_MS - el);
+  }
+
   /* ---------- 화면 ---------- */
   function render() {
     const n = new Date();
     const dd = pad(n.getDate()), mon = (n.getMonth() + 1) + '월', wd = WD[n.getDay()], clock = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    const clk = clockHTML(clock);
     const h1 = `<h1 class="sr-only">${n.getMonth() + 1}월 ${n.getDate()}일 ${wd} ${clock}</h1>`;
     const dday = D && D.dday;
     const dayCount = D ? `${D.doneN} / ${D.todo.length}` : '';
     let html;
     if (mode === 'phone') {
-      html = `<header>${h1}<div class="clock-xl" aria-hidden="true">${clock}</div>
+      html = `<header>${h1}<div class="clock-xl" aria-hidden="true">${clk}</div>
           <div class="p-date"><span><span class="md">${mon} ${n.getDate()}일</span> <span class="wd">${wd}</span></span>${dday ? `<span class="dd">${esc(dday.title)} ${ddLabel(dday)}</span>` : ''}</div></header>
         <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">06–24</span></div>${barHTML()}</section>
         <section aria-label="지금과 다음">${focusHTML()}</section>
@@ -469,7 +536,7 @@ a { color: inherit; text-decoration: none; }
     } else if (mode === 'tall') {
       html = `<header class="t-head">${h1}
           <div class="c-date"><div class="hero-num" aria-hidden="true">${dd}</div><div><div class="month">${mon}</div><div class="weekday">${wd}</div></div></div>
-          <div class="right">${dday ? `<div class="label">${esc(dday.title)} · ${md(dday.date)} · <span class="num" style="color:var(--ink)">${ddLabel(dday)}</span></div>` : ''}<div class="stat">${clock}</div></div></header>
+          <div class="right">${dday ? `<div class="label">${esc(dday.title)} · ${md(dday.date)} · <span class="num" style="color:var(--ink)">${ddLabel(dday)}</span></div>` : ''}<div class="stat" aria-hidden="true">${clk}</div></div></header>
         <p class="meta t-line">${nextLine()}</p>
         <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div>${lanesHTML()}</section>
         <div class="sec split2">${todoHTML()}${aheadHTML()}</div>
@@ -477,12 +544,14 @@ a { color: inherit; text-decoration: none; }
     } else {
       html = `<header class="c-head">${h1}
           <div class="c-date"><div class="hero-num" aria-hidden="true">${dd}</div><div><div class="month">${mon}</div><div class="weekday">${wd}</div></div></div>
-          <div class="c-mid"><div class="stat">${clock}</div><p class="meta">${nextLine()}</p></div>
+          <div class="c-mid"><div class="stat" aria-hidden="true">${clk}</div><p class="meta">${nextLine()}</p></div>
           ${dday ? `<div class="c-dday"><div class="label">${esc(dday.title)} · ${md(dday.date)}${dday.note ? ' · ' + esc(dday.note) : ''}</div><div class="stat">${ddLabel(dday)}</div></div>` : '<div></div>'}</header>
         <section class="sec" aria-labelledby="h-day" style="margin-top:28px"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div>${lanesHTML()}</section>
         ${appsHTML()}`;
     }
     $('#app').innerHTML = html;
+    stage($('#app'));
+    lastClock = clock;
   }
 
   /* ---------- 폰 앱 (예전 자비스 런처에서 옮김. 저장 키 'apps' 그대로) ---------- */
@@ -529,23 +598,60 @@ a { color: inherit; text-decoration: none; }
 
   /* ---------- 시트 ---------- */
   const sheet = $('#sheet');
-  let sheetKind = '', lastFocus = null;
+  let sheetKind = '', lastFocus = null, closeT;
+  // 열기: 아래에서 올라온다. 이미 열려 있으면(폰 앱 → 고치기) 내용만 바꿔 살짝 올린다. 닫히는 중이면 그 자리에서 다시 올라온다
   function openSheet(kind, html) {
-    if (sheet.hidden) lastFocus = document.activeElement;
+    const swap = !!sheetKind;
+    if (sheet.hidden) { lastFocus = document.activeElement; sheet.hidden = false; sheet.scrollTop = 0; void sheet.offsetHeight; }
+    clearTimeout(closeT);
     sheetKind = kind;
-    sheet.innerHTML = `<div class="in">${html}</div>`;
-    sheet.hidden = false;
+    sheet.innerHTML = `<div class="in${swap ? ' swap' : ''}">${html}</div>`;
+    sheet.style.transform = '';
+    sheet.classList.add('open');
     document.body.style.overflow = 'hidden';
     const f = sheet.querySelector('input, button');
-    if (f) f.focus();
+    if (f) f.focus({ preventScroll: true });
   }
   function closeSheet() {
-    if (sheet.hidden) return false;
-    sheet.hidden = true; sheet.innerHTML = ''; sheetKind = '';
+    if (!sheetKind) return false;
+    sheetKind = '';
+    sheet.style.transform = '';
+    sheet.classList.remove('open', 'drag');
     document.body.style.overflow = '';
-    if (lastFocus && lastFocus.isConnected) lastFocus.focus();
+    if (lastFocus && lastFocus.isConnected) lastFocus.focus({ preventScroll: true });
+    closeT = setTimeout(() => { sheet.hidden = true; sheet.innerHTML = ''; }, 300);
     return true;
   }
+  // 끌어내려 닫기: 머리를 잡고 내린다. 화면 4분의 1 넘게 내리거나 빠르게 튕기면 닫고, 아니면 제자리로
+  let drag = null, dragged = false;
+  sheet.addEventListener('pointerdown', (e) => {
+    if (!sheetKind || !e.target.closest('.sheet-head') || e.button !== 0) return;
+    drag = { id: e.pointerId, y: e.clientY, t: e.timeStamp, dy: 0, on: false };
+  });
+  sheet.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dy = e.clientY - drag.y;
+    if (!drag.on) {
+      if (dy < 6) return;
+      drag.on = true; sheet.classList.add('drag');
+      try { sheet.setPointerCapture(e.pointerId); } catch {}
+    }
+    drag.dy = Math.max(0, dy);
+    sheet.style.transform = `translateY(${drag.dy}px)`;
+  });
+  const dragEnd = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag; drag = null;
+    if (!d.on) return;
+    dragged = true; setTimeout(() => { dragged = false; }, 0);
+    sheet.classList.remove('drag');
+    const v = d.dy / Math.max(1, e.timeStamp - d.t);
+    if (e.type === 'pointerup' && (d.dy > innerHeight / 4 || v > 0.5)) closeSheet();
+    else sheet.style.transform = '';
+  };
+  sheet.addEventListener('pointerup', dragEnd);
+  sheet.addEventListener('pointercancel', dragEnd);
+  sheet.addEventListener('click', (e) => { if (dragged) { e.preventDefault(); e.stopPropagation(); } }, true);
   // 뒤로가기: 고치기 · 모든 앱 → 폰 앱 목록 → 닫기
   function back() {
     if (sheetKind === 'edit' || sheetKind === 'all') { openPhone(); return true; }
