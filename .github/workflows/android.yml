@@ -33,5 +33,5 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk jarvis.apk
           gh release delete launcher --yes --cleanup-tag || true
           gh release create launcher jarvis.apk --target "$GITHUB_SHA" \
-            --title "자비스 런처 (빌드 ${{ github.run_number }})" \
+            --title "Sabathia 런처 (빌드 ${{ github.run_number }})" \
             --notes "폰에서 jarvis.apk를 눌러 설치하세요."
