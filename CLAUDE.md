@@ -15,7 +15,16 @@
 - 사용자는 **지금 PC가 없음** → 배포는 **GitHub 연동(Workers Builds)** 방식. 로컬 `wrangler` 명령어를 전제로 하지 말 것
 - 이 저장소에 있던 이전 텔레그램/OpenClaw 알리미 코드는 삭제함 (커밋 62ce707에 남아 있음)
 - 기본 브랜치: `ccr-a6652a14-opge2l`
-- Cloudflare Workers Builds 설정: Build command는 비우거나 `npm run build`(echo만 함), Deploy command `npx wrangler deploy`. 이 칸에 브랜치 이름을 넣으면 `ccr-a6652a14-opge2l: not found`로 실패한다(2026-10-29 PR 미리보기에서 발생). 설정을 고친 뒤 'Retry build'는 예전 설정으로 도는 듯하니 새 커밋으로 확인할 것
+- Cloudflare Workers Builds 설정: Build command `npm run build`(echo만 함), Deploy command `npx wrangler deploy`. 이 칸에 브랜치 이름이 들어가면 `ccr-a6652a14-opge2l: not found`로 실패한다. 예전 빌드의 'Retry build'는 예전 설정으로 다시 도니, 설정을 고친 뒤에는 새 커밋으로 확인할 것
+
+## 진행 중 (2026-10-29 세션에서 넘어옴)
+- **PR #1 열려 있음**: https://github.com/oasilsu0829/sabathia/pull/1 (브랜치 `claude/sweet-sagan-srvqei` → 기본 브랜치). 학습앱 통합 + 새 홈 전부 여기 있고 아직 병합 전. 지금 사이트는 예전 CMD 자비스 그대로
+- **막힌 것: Cloudflare 미리보기 빌드 실패.** 로그는 매번 `Executing user build command: ccr-a6652a14-opge2l` → `not found`. 코드 문제 아님(`npx wrangler deploy --dry-run`, `versions upload --dry-run` 모두 통과). 대시보드 Settings → Builds의 Build command 칸이 화면엔 "None"(빈 칸)으로 보이는데 실제 저장값은 브랜치 이름인 것으로 보임. 오늘 02:54 UTC 정식 빌드는 `npm run build`로 성공했음
+  - 다음 할 일: 사용자가 Build command에 `npm run build`를 직접 입력·저장(새로고침해서 남는지 확인) → Claude가 PR 브랜치에 실제 변경이 있는 새 커밋을 올려 확인(빈 커밋 금지) → 초록이면 사용자가 병합
+  - 이 설정 그대로 병합하면 정식 배포도 같은 이유로 실패할 수 있음(사이트는 이전 버전 유지)
+- 홈 시안 캔버스: https://claude.ai/artifact/Ggzhjjn3T6q6ZE5ZyXoro2 (가로 A–F, 세로 P1–P6). 사용자 선택: 가로 C(독 없음), 폰 P5, 패드 세로 P6 → 코드에 반영함(`public/index.html`, `public/today.js`)
+- 병합 후 사용자가 할 일: 폰·패드 크롬에서 Sabathia 설치, 15577·어원 단어 온라인 저장에 예전 ID로 연결, 예전에 따로 설치한 '일정' 앱은 지워도 됨
+- 원본 저장소(Block-planner, llm-wiki-private, fff-dashboard)는 건드리지 않음. 예전 주소는 그대로 열림
 
 ## 현재 상태
 - [x] 코드 작성, 로컬 검증 완료 (API, cron, 푸시 암호화는 http_ece로 복호화 확인, VAPID JWT 서명 검증)
@@ -26,7 +35,7 @@
 
 ## 구조
 ```
-public/index.html   Sabathia 홈: 날짜·시계, 앱 아이콘(컨택트 맵, 홈에서만 앱 고유색), 폰 앱(런처 브리지), 독
+public/index.html   Sabathia 홈: 화면별 배치 3개(폰 <640 · 세로 화면 · 가로 화면), 오늘 하루 줄, 앱 아이콘(컨택트 맵, 홈에서만 앱 고유색), 폰 앱 시트(런처 브리지). 독 없음
 public/apps.js      앱 목록(코드·이름·주소·고유색·홈 아이콘 진행률 계산). 새 앱은 여기에
 public/today.js     홈의 "오늘 하루": 15577 보고(블록 위치·상태·수업·D-day) + /api/events + 어원 단어 보고를 한 줄로 모음
 public/sabathia.js  공통: 런처 뒤로가기/홈 버튼, 앱 상태 보고(localStorage sabathia.status.<id>), /sw.js 등록
@@ -60,4 +69,5 @@ test/               ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립�
 
 ## 사용자 선호
 - 답변은 짧고 직접적으로. 이모지 쓰지 않기
-- 모바일(안드로이드) 기준으로 안내
+- 모바일(안드로이드) 기준으로 안내. 다만 아이패드·컴퓨터도 많이 씀(가로 화면 중요)
+- 디자인은 디자인 언어 v1.0(`docs/design-language.md`)을 따른다. 시안을 여러 개 보여 주고 고르게 하는 방식을 좋아함. 질문은 적극적으로
