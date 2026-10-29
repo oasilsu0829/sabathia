@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sabathia 아이콘: 웹 아이콘(public/icon-512.png)의 컨택트 맵을 흰 바탕에 -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/white" />
+    <foreground android:drawable="@drawable/ic_launcher_fg" />
+    <monochrome android:drawable="@drawable/ic_launcher_mono" />
+</adaptive-icon>
