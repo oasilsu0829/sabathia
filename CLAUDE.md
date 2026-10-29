@@ -21,6 +21,7 @@
 - **PR #1 열려 있음**: https://github.com/oasilsu0829/sabathia/pull/1 (브랜치 `claude/sweet-sagan-srvqei` → 기본 브랜치). 학습앱 통합 + 새 홈 전부 여기 있고 아직 병합 전. 지금 사이트는 예전 CMD 자비스 그대로
 - **막힌 것: Cloudflare 미리보기 빌드 실패.** 로그는 매번 `Executing user build command: ccr-a6652a14-opge2l` → `not found`. 코드 문제 아님(`npx wrangler deploy --dry-run`, `versions upload --dry-run` 모두 통과). 대시보드 Settings → Builds의 Build command 칸이 화면엔 "None"(빈 칸)으로 보이는데 실제 저장값은 브랜치 이름인 것으로 보임. 오늘 02:54 UTC 정식 빌드는 `npm run build`로 성공했음
   - 다음 할 일: 사용자가 Build command에 `npm run build`를 직접 입력·저장(새로고침해서 남는지 확인) → Claude가 PR 브랜치에 실제 변경이 있는 새 커밋을 올려 확인(빈 커밋 금지) → 초록이면 사용자가 병합
+  - 2026-10-29 13:1x UTC: 사용자가 Build command에 `npm run build` 입력·저장함. 이 메모 수정 커밋으로 미리보기 빌드 재확인
   - 이 설정 그대로 병합하면 정식 배포도 같은 이유로 실패할 수 있음(사이트는 이전 버전 유지)
 - 홈 시안 캔버스: https://claude.ai/artifact/Ggzhjjn3T6q6ZE5ZyXoro2 (가로 A–F, 세로 P1–P6). 사용자 선택: 가로 C(독 없음), 폰 P5, 패드 세로 P6 → 코드에 반영함(`public/index.html`, `public/today.js`)
 - 병합 후 사용자가 할 일: 폰·패드 크롬에서 Sabathia 설치, 15577·어원 단어 온라인 저장에 예전 ID로 연결, 예전에 따로 설치한 '일정' 앱은 지워도 됨
