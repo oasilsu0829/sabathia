@@ -280,11 +280,13 @@ button { cursor: pointer; }
 .form-err { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 18px; }
 
 .toast {
+  display: flex; align-items: center; gap: 16px;
   position: fixed; z-index: 40; left: 50%; transform: translateX(-50%);
   bottom: calc(var(--tab-h) + 3px + 88px + env(safe-area-inset-bottom, 0px));
   background: var(--ink); color: var(--bg); padding: 10px 14px; font-weight: 800; font-size: 14px; max-width: calc(100vw - 40px);
 }
 
+.toast button { min-height: 32px; padding: 0; background: none; border: 0; color: var(--bg); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 @media (max-width: 359px) {
   .hero-num { font-size: 136px; line-height: 108px; }
   .page-title { font-size: 36px; line-height: 40px; }
@@ -457,8 +459,9 @@ button { cursor: pointer; }
   }
   function checklistHTML(t, now, aheadDays) {
     const tasks = S.events.filter((e) => e.kind === 'task');
+    const doneToday = (e) => e.done && e.updated && ymd(new Date(e.updated)) === t;
     const rows = tasks
-      .filter((e) => e.date === t || (e.date < t && !e.done))
+      .filter((e) => e.date === t || (e.date < t && (!e.done || doneToday(e))))
       .map((e) => ({ e, st: statusOf(e, t, now) }));
     const waiting = rows.filter((r) => r.st === 'wait').sort((a, b) => byTime(a.e, b.e));
     const nx = waiting.find((r) => r.e.time && r.e.time >= now) || waiting.find((r) => !r.e.time);
@@ -466,12 +469,12 @@ button { cursor: pointer; }
     rows.sort((a, b) => RANK[a.st] - RANK[b.st] || byTime(a.e, b.e));
     const todays = rows.filter((r) => r.e.date === t);
     const doneN = todays.filter((r) => r.st === 'done').length;
-    const ahead = aheadDays ? tasks.filter((e) => e.date > t && e.date <= addDays(t, aheadDays) && !e.done).sort(byTime) : [];
+    const ahead = aheadDays ? tasks.filter((e) => e.date > t && e.date <= addDays(t, aheadDays) && (!e.done || doneToday(e))).sort(byTime) : [];
     let html = `<div class="sec-head"><h2 class="sec-title" id="h-tasks">할 일</h2><span class="sec-count">${doneN} / ${todays.length}</span></div>`;
     html += rows.length ? rows.map((r) => checkRowHTML(r.e, r.st, t)).join('') : '<p class="empty">오늘 할 일이 없습니다.</p>';
     if (ahead.length) {
       html += `<div class="sub-head">이후 ${aheadDays}일</div>`;
-      html += ahead.map((e) => checkRowHTML(e, 'wait', t, { dateCol: true })).join('');
+      html += ahead.map((e) => checkRowHTML(e, e.done ? 'done' : 'wait', t, { dateCol: true })).join('');
     }
     return html;
   }
@@ -761,7 +764,7 @@ button { cursor: pointer; }
   async function mutate(kind, payload) {
     if (S.mode === 'demo') {
       if (kind === 'add') S.events.push({ id: 'ex' + Date.now().toString(36), source: '', updated: '', ...payload });
-      if (kind === 'patch') Object.assign(S.events.find((e) => e.id === payload.id) || {}, payload);
+      if (kind === 'patch') Object.assign(S.events.find((e) => e.id === payload.id) || {}, payload, { updated: new Date().toISOString() });
       if (kind === 'delete') S.events = S.events.filter((e) => e.id !== payload.id);
       return render();
     }
@@ -815,12 +818,14 @@ button { cursor: pointer; }
     window.scrollTo(0, 0);
   }
 
-  let toastTimer = 0;
-  function toast(msg) {
+  let toastTimer = 0, toastUndo = null;
+  function toast(msg, undo) {
     const el = $('#toast');
-    el.textContent = msg; el.hidden = false;
+    toastUndo = undo || null;
+    el.innerHTML = `<span>${esc(msg)}</span>${undo ? '<button type="button" data-act="undo">되돌리기</button>' : ''}`;
+    el.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.hidden = true; }, 2200);
+    toastTimer = setTimeout(() => { el.hidden = true; toastUndo = null; }, undo ? 5000 : 2200);
   }
 
   /* ---------- 테마 ---------- */
@@ -854,7 +859,12 @@ button { cursor: pointer; }
         const wasDone = e.done;
         el.disabled = true;
         await mutate('patch', { id: e.id, done: !wasDone });
-        toast(wasDone ? '완료를 취소했습니다' : '완료했습니다');
+        toast(wasDone ? '완료를 취소했습니다' : '완료했습니다', () => mutate('patch', { id: e.id, done: wasDone }));
+      }
+      else if (act === 'undo') {
+        const fn = toastUndo;
+        $('#toast').hidden = true; toastUndo = null;
+        if (fn) await fn();
       }
       else if (act === 'close') closeSheet();
       else if (act === 'goday') { S.sel = el.dataset.date; S.month = S.sel.slice(0, 7); go('calendar'); }
