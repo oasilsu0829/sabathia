@@ -7,8 +7,8 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="오늘 할 일과 다가올 일정을 보여 주는 개인 일정 앱">
 <meta name="theme-color" content="#ffffff">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icon-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;800&family=Hahmlet:wght@500;800&family=Space+Grotesk:wght@500;700&display=swap">
 <style>
 /* 디자인 언어 v1.0 — 흑백 표처럼 정렬하고, 파랑은 "평소", 빨강은 "문제"에만.
@@ -268,7 +268,10 @@ button { cursor: pointer; }
   background: var(--ink); color: var(--bg); display: grid; place-items: center;
 }
 .fab svg { width: 24px; height: 24px; }
-.kiosk .tabbar, .kiosk .fab { display: none; }
+.kiosk .tabbar, .kiosk .fab, .kiosk .sab { display: none; }
+/* Sabathia 홈으로 돌아가는 줄 (모든 앱 공통) */
+.sab { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin-top: -12px; font-family: var(--font-num); font-weight: 700; font-size: 12px; letter-spacing: 0.06em; color: var(--ink); text-decoration: none; }
+.sab span { color: var(--muted); }
 
 /* 시트: 반투명 없이 화면 전체를 덮는다 */
 .sheet { position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto; }
@@ -299,6 +302,7 @@ button { cursor: pointer; }
 </head>
 <body>
 <div class="app">
+  <a class="sab" href="/" aria-label="Sabathia 홈으로">SABATHIA<span>CAL-03</span></a>
   <main id="view"></main>
 </div>
 <button class="fab" id="fab" type="button" aria-label="일정 추가" data-act="add">
@@ -306,7 +310,7 @@ button { cursor: pointer; }
 </button>
 <nav class="tabbar" aria-label="주 메뉴">
   <div class="tabbar-in">
-    <button type="button" data-tab="home">홈</button>
+    <button type="button" data-tab="home">오늘</button>
     <button type="button" data-tab="calendar">캘린더</button>
     <button type="button" data-tab="agenda">일정</button>
     <button type="button" data-tab="prefs">설정</button>
@@ -315,6 +319,7 @@ button { cursor: pointer; }
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
+<script src="/sabathia.js"></script>
 <script>
 (() => {
   'use strict';
@@ -950,9 +955,13 @@ button { cursor: pointer; }
   render();
   load();
 
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+  // 예전 /schedule/ 전용 서비스 워커를 정리한다. 이제 /sw.js 하나가 Sabathia 전체를 맡는다 (sabathia.js 가 등록)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => {
+      if (new URL(r.scope).pathname.startsWith('/schedule/')) r.unregister();
+    })).catch(() => {});
   }
+  if (window.Sabathia) Sabathia.back = () => { if (sheet.hidden) return false; closeSheet(); return true; };
 })();
 </script>
 </body>

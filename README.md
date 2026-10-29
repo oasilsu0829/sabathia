@@ -1,10 +1,22 @@
-# 자비스 (Cloudflare PWA)
+# Sabathia (Cloudflare PWA)
 
-Cloudflare Workers 하나로 PWA, API, DB(D1), 예약 푸시(Cron)를 전부 처리합니다. 무료이고 카드가 필요 없습니다.
+학습앱을 한곳에 모은 개인 PWA. Cloudflare Workers 하나로 화면, API, DB(D1), 예약 푸시(Cron)를 전부 처리합니다. 무료이고 카드가 필요 없습니다.
+
+| 주소 | 앱 |
+| --- | --- |
+| `/` | Sabathia 홈 (앱 아이콘, 폰 앱 실행) |
+| `/plan/` | 15577 공부 블록 플래너 |
+| `/vocab/` | 어원 단어 (능률보카 어원편 간격 반복) |
+| `/schedule/` | 일정 (OpenClaw가 넣는 할 일·일정·마감) |
+| `/pdf/` | 사진 PDF 묶음기 |
+
+디자인 규칙은 [`docs/design-language.md`](docs/design-language.md). 새 앱은 `public/<폴더>/`에 넣고 `public/apps.js`에 한 항목을 더하면 홈에 나옵니다.
+
+15577과 어원 단어 기록은 기기 브라우저에 저장되므로 주소가 바뀌면 따라오지 않습니다. 앱의 **온라인 저장**에서 예전과 같은 ID로 연결하면 그대로 이어집니다.
 
 ## 구조
 ```
-public/         PWA (index.html, sw.js, manifest, 아이콘)
+public/         PWA (홈 index.html, apps.js, sabathia.js, sw.js, manifest, 아이콘, 앱 폴더)
 src/index.js    API + 1분 간격 cron (리마인더 발송)
 src/webpush.js  웹 푸시 암호화/VAPID (외부 라이브러리 없음)
 schema.sql      DB 테이블
@@ -45,9 +57,8 @@ scripts/gen-keys.mjs  VAPID 키 + 앱 토큰 생성
 
 ## 폰 설정 (안드로이드 크롬)
 1. `https://sabathia.<서브도메인>.workers.dev` 접속
-2. 메뉴(⋮) → **앱 설치** 또는 **홈 화면에 추가**
-3. 설치한 앱을 열고 APP_TOKEN 입력
-4. **알림 켜기** → **테스트**를 눌러 알림이 오면 성공
+2. 메뉴(⋮) → **앱 설치** 또는 **홈 화면에 추가** (Sabathia 하나만 설치하면 됩니다. 예전에 따로 설치한 '일정' 앱은 지워도 됩니다)
+3. 15577, 어원 단어는 각 앱의 온라인 저장에서 예전 ID로 연결
 
 ## 로컬 개발
 ```

@@ -1,0 +1,2676 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>어원 단어</title>
+<meta name="description" content="능률보카 어원편 1,474단어를 간격 반복으로 외우는 앱">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;800&family=Hahmlet:wght@500;800&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* 어원 단어 · 디자인 언어 v1.0
+   흑백 표처럼 정렬하고, 파랑은 "평소"(오늘·진행·다음·정답), 빨강은 "문제"(오답·지연)에만.
+   둥근 모서리·그림자·그라데이션·반투명 없음. 진행률 그래픽은 컨택트 맵 하나.
+   Layout: 480px 단일 열. 화면 제목 → 탭 내용 → 하단 글자 탭바(오늘 · 시험 · 단어장 · 설정). 학습·시험·설정은 화면 전체를 덮는다 */
+:root{
+  --bg:#ffffff; --ink:#000000; --muted:#5c5c5c;
+  --accent:#026395; --on-accent:#ffffff;
+  --warn:#d1001f; --on-warn:#ffffff; --warn-text:#d1001f;
+  --map-pending:#c4c4c4; --map-empty:#f0f0f0;
+  --line-bold:3px; --line-thin:1px; --body-size:16px;
+  --pad-x:20px; --gap-section:24px; --tab-h:56px;
+  --font-title:'Hahmlet','Noto Serif KR',serif;
+  --font-body:'Gothic A1','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  --font-num:'Space Grotesk','Gothic A1',sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#000000; --ink:#ffffff; --muted:#a3a3a3;
+    --accent:#4fb3e0; --on-accent:#000000;
+    --warn:#e4002b; --on-warn:#ffffff; --warn-text:#ff6b6b;
+    --map-pending:#5a5a5a; --map-empty:#1c1c1c;
+    --line-thin:2px; --body-size:17px;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"],:root[data-theme="projector"]{
+  --bg:#000000; --ink:#ffffff; --muted:#a3a3a3;
+  --accent:#4fb3e0; --on-accent:#000000;
+  --warn:#e4002b; --on-warn:#ffffff; --warn-text:#ff6b6b;
+  --map-pending:#5a5a5a; --map-empty:#1c1c1c;
+  --line-thin:2px; --body-size:17px;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-weight:500;font-size:var(--body-size);line-height:22px;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;word-break:keep-all}
+body.lock{overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;border-radius:0;padding:0}
+input,select,textarea{font:inherit;color:inherit;border-radius:0}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.app{max-width:480px;margin:0 auto;
+  padding-left:max(var(--pad-x),env(safe-area-inset-left,0px));padding-right:max(var(--pad-x),env(safe-area-inset-right,0px));
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(var(--tab-h) + 3px + 40px + env(safe-area-inset-bottom,0px))}
+#view{display:flex;flex-direction:column}
+
+/* Sabathia 홈으로 돌아가는 줄 (모든 앱 공통) */
+.sab{display:flex;align-items:center;justify-content:space-between;min-height:44px;font:700 12px/1 var(--font-num);letter-spacing:.06em;color:var(--ink);text-decoration:none}
+.sab span{color:var(--muted)}
+
+/* 화면 머리: 제목 · 연속 일수 | 시험 D-day 또는 암기 완료 수 */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:4px}
+.page-title{font:800 44px/48px var(--font-title);margin:0;white-space:nowrap}
+.streak{display:block;margin-top:4px;font:800 11px/14px var(--font-body);letter-spacing:.06em;color:var(--muted);min-height:14px}
+.pill{display:flex;flex-direction:column;align-items:flex-end;text-align:right;padding-bottom:2px}
+.pill small{font:800 11px/14px var(--font-body);letter-spacing:.06em;color:var(--muted);white-space:nowrap}
+.pill b{margin-top:4px;font:700 36px/36px var(--font-num);letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill.soon b{color:var(--accent)}
+
+/* 섹션 (예전 패널) */
+.panel,.sec{margin-top:var(--gap-section)}
+.panel h2,.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-top:var(--line-bold) solid var(--ink);padding:10px 0 6px;margin:0;
+  font:800 24px/30px var(--font-title)}
+.panel h2 small,.sec-head small{font:700 13px/18px var(--font-num);font-variant-numeric:tabular-nums;text-align:right}
+.hint2,.note{font-size:13px;line-height:18px;color:var(--muted);margin:10px 0 0}
+.empty{color:var(--muted);font-size:13px;line-height:18px;padding:14px 0;margin:0;border-bottom:var(--line-thin) solid var(--ink)}
+
+/* 버튼: 검정 면 · 3px 선 */
+.primary,.btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:56px;padding:0 16px;background:var(--ink);color:var(--bg);font-weight:800;font-size:16px}
+.primary:disabled{background:var(--muted)}
+.ghost{display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:0 14px;border:var(--line-bold) solid var(--ink);font-weight:800;font-size:15px}
+.ghost:disabled{color:var(--muted);border-color:var(--muted)}
+.danger{min-height:48px;padding:0 16px;border:var(--line-bold) solid var(--ink);font-weight:800;font-size:15px}
+.danger.arm{background:var(--warn);color:var(--on-warn);border-color:var(--warn)}
+.textbtn{min-height:44px;font-weight:800;font-size:13px;text-decoration:underline;text-underline-offset:3px}
+.row{display:flex;gap:12px}
+.row>*{flex:1}
+.kb{display:none;font:500 11px/1 var(--font-num)}
+@media (hover:hover) and (pointer:fine){.kb{display:inline}}
+
+/* 선택 칩: 파랑은 테두리만 */
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding-top:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border:var(--line-thin) solid var(--ink);font-weight:500;font-size:14px}
+.chip small{font:700 12px/1 var(--font-num);color:var(--muted)}
+.chip[aria-pressed="true"]{border:2px solid var(--accent);color:var(--accent);font-weight:800;padding:0 11px}
+.chip[aria-pressed="true"] small{color:var(--accent)}
+.in{width:100%;min-height:44px;padding:10px;border:var(--line-thin) solid var(--ink);background:var(--bg);font-size:16px;line-height:22px}
+.in::placeholder{color:var(--muted)}
+select.in{appearance:none;-webkit-appearance:none;padding-right:32px;
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:calc(100% - 17px) 50%,calc(100% - 11px) 50%;background-size:6px 6px;background-repeat:no-repeat}
+.range{display:flex;align-items:center;gap:8px;margin-top:12px}
+.range span{color:var(--muted);flex:none;font-family:var(--font-num)}
+.range select{flex:1}
+.pos{font-style:normal;font:800 11px/1 var(--font-body);letter-spacing:.06em;color:var(--muted);margin:0 4px 0 2px;vertical-align:1px}
+
+/* 어근 */
+.mo{display:inline-flex;flex-direction:column;align-items:center;line-height:1.15}
+.mo b{font:800 20px/26px var(--font-title)}
+.mo em{font-style:normal;font-size:12px;line-height:16px;color:var(--muted)}
+.plus{color:var(--muted);font:500 16px/26px var(--font-num);margin:0 8px;align-self:flex-start}
+.roots{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:4px 0}
+.roots.sm .mo{flex-direction:row;align-items:baseline;gap:4px}
+.roots.sm .mo b{font-size:15px;line-height:20px}
+.roots.sm .plus{font-size:13px;line-height:20px;margin:0 6px;align-self:center}
+
+/* 컨택트 맵 */
+.cmap{display:block;flex:none;shape-rendering:crispEdges}
+.cmap .f{fill:var(--accent)}
+.cmap .p{fill:var(--map-pending)}
+.cmap .e{fill:var(--map-empty)}
+
+/* 오늘 */
+.todo{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-top:8px}
+.stat{font:700 52px/44px var(--font-num);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.stat small{font:800 13px/18px var(--font-body);letter-spacing:0;margin-left:4px}
+.split{display:flex;gap:20px;margin-top:14px}
+.split div{display:flex;flex-direction:column}
+.split b{font:700 28px/28px var(--font-num);font-variant-numeric:tabular-nums}
+.split span{font:800 11px/14px var(--font-body);letter-spacing:.06em;color:var(--muted);margin-top:4px}
+.hero .primary,.hero .row{margin-top:16px}
+.prog{display:flex;align-items:flex-start;gap:20px;padding-top:12px}
+.nums{flex:1;margin:0}
+.nums div{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:var(--line-thin) solid var(--ink)}
+.nums dt{font-weight:800;font-size:13px}
+.nums dd{margin:0;font:700 15px/22px var(--font-num);font-variant-numeric:tabular-nums}
+.nums .is-done dd{color:var(--accent)}
+/* Day 칸: 60개를 10열로. 파랑 = 절반 이상 암기, 회색 = 익히는 중, 연한 칸 = 아직 안 봄 */
+.days{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:2px;margin-top:16px}
+.days button{aspect-ratio:1;min-height:30px;display:grid;place-items:center;background:var(--map-empty);font:700 11px/1 var(--font-num);font-variant-numeric:tabular-nums;color:var(--muted)}
+.days .p{background:var(--map-pending);color:var(--ink)}
+.days .f{background:var(--accent);color:var(--on-accent)}
+.days button[aria-pressed="true"]{box-shadow:inset 0 0 0 var(--line-bold) var(--ink)}
+.days .f[aria-pressed="true"]{box-shadow:inset 0 0 0 var(--line-bold) var(--ink),inset 0 0 0 5px var(--bg)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px;font-size:12px;line-height:16px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;display:inline-block;background:var(--map-empty)}
+.sw.p{background:var(--map-pending)}
+.sw.f{background:var(--accent)}
+/* 다가오는 복습: 주간 줄. 오늘 칸만 파랑 면 */
+.fcast{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));margin-top:6px}
+.fcast div{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0}
+.fcast span{font:800 11px/14px var(--font-body);letter-spacing:.06em;color:var(--muted)}
+.fcast b{font:700 19px/22px var(--font-num);font-variant-numeric:tabular-nums}
+.fcast div:first-child{background:var(--accent);color:var(--on-accent)}
+.fcast div:first-child span{color:var(--on-accent)}
+.foot{display:flex;justify-content:center;margin-top:16px}
+
+/* 시험 */
+.tdesc{font-size:13px;line-height:18px;color:var(--muted);margin:10px 0 0}
+.hist{display:flex;flex-direction:column}
+.hist div{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:12px 0;border-bottom:var(--line-thin) solid var(--ink);font-size:13px;line-height:18px}
+.hist b{font:700 19px/22px var(--font-num);font-variant-numeric:tabular-nums}
+.hist span{font-weight:800;min-width:0}
+.hist em{font:500 13px/18px var(--font-num);font-style:normal;color:var(--muted);white-space:nowrap}
+.startbar{margin-top:var(--gap-section)}
+
+/* 단어장 */
+.dhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-top:var(--line-bold) solid var(--ink);padding-top:10px}
+.dhead .nixie{font:700 36px/36px var(--font-num);letter-spacing:-.03em}
+.lbl{font:800 11px/14px var(--font-body);letter-spacing:.06em;color:var(--muted)}
+.droots{font-size:13px;line-height:18px;color:var(--muted);margin:8px 0 12px}
+.wlist{display:flex;flex-direction:column}
+.wrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:12px 0;border-bottom:var(--line-thin) solid var(--ink)}
+.wtop{display:flex;align-items:baseline;gap:8px;min-width:0}
+.ww{font:800 22px/28px var(--font-title);text-align:left;overflow-wrap:anywhere}
+.wn{font:500 12px/16px var(--font-num);color:var(--muted);font-variant-numeric:tabular-nums}
+.wm{grid-column:1/-1;font-size:15px;line-height:22px}
+.wr{grid-column:1/-1;margin-top:4px}
+.wr .roots{justify-content:flex-start}
+.sdot{width:12px;height:12px;align-self:center;background:var(--map-empty)}
+.sdot.s1{background:var(--map-pending)}
+.sdot.s2{background:var(--accent)}
+.search{margin-top:var(--gap-section)}
+
+/* 학습 · 시험 화면 */
+.stage{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;background:var(--bg)}
+.st-top,.st-body{width:100%;max-width:480px;margin:0 auto;padding-left:max(var(--pad-x),env(safe-area-inset-left,0px));padding-right:max(var(--pad-x),env(safe-area-inset-right,0px))}
+.st-top{display:flex;align-items:center;gap:12px;padding-top:calc(env(safe-area-inset-top,0px) + 6px)}
+.st-top>*{padding-bottom:10px}
+.st-top{border-bottom:var(--line-bold) solid var(--ink)}
+.st-close{min-height:44px;font-weight:800;font-size:14px;padding-bottom:10px}
+.st-prog{flex:1;display:flex;justify-content:center;align-items:center;min-height:44px}
+.st-count{min-width:72px;text-align:right;font:700 19px/22px var(--font-num);font-variant-numeric:tabular-nums}
+.st-body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding-top:16px;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
+.fc{flex:1;min-height:280px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
+.fc-meta{display:flex;gap:6px;align-self:stretch;justify-content:space-between;align-items:center;min-height:44px}
+.fc-meta .tags{display:flex;gap:10px;align-items:center}
+.tag{font:700 12px/16px var(--font-num);letter-spacing:.04em}
+.tag.plain{color:var(--muted)}
+.tag.new{font:800 11px/16px var(--font-body);letter-spacing:.06em;border:2px solid var(--accent);color:var(--accent);padding:0 3px}
+.spk{width:44px;height:44px;display:grid;place-items:center;color:var(--ink)}
+.fc-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;width:100%}
+.word{font:800 clamp(40px,12vw,64px)/1.05 var(--font-title);overflow-wrap:anywhere}
+.word.sm{font-size:clamp(30px,9vw,44px)}
+.mean{font-size:18px;line-height:27px;font-weight:500;max-width:34em}
+.mean.lg{font-size:20px;line-height:30px;font-weight:800}
+.pattern{display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted)}
+.pattern b{font:700 clamp(22px,7vw,30px)/1.2 var(--font-num);letter-spacing:.2em;white-space:nowrap;padding-left:.2em;color:var(--ink)}
+.pattern small{font-size:12px}
+.reveal{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%}
+.divider{width:44px;height:var(--line-bold);background:var(--ink)}
+.acts{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+.acts.three{grid-template-columns:repeat(3,1fr)}
+.acts.one{grid-template-columns:1fr}
+.acts .primary,.acts .ghost,.gbtn{min-height:56px;width:100%}
+.gbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;border:var(--line-bold) solid var(--ink);font-weight:800;font-size:15px;line-height:20px}
+.gbtn small{font:500 11px/14px var(--font-num)}
+.gbtn.g2{background:var(--ink);color:var(--bg)}
+.spell-in{min-height:56px;font-size:22px;text-align:center;font-family:var(--font-num)}
+.verdict{font:800 12px/20px var(--font-body);letter-spacing:.06em;padding:0 6px}
+.verdict.ok{border:2px solid var(--accent);color:var(--accent);line-height:16px;padding:0 5px}
+.verdict.no{background:var(--warn);color:var(--on-warn)}
+.verdict.near{border:2px solid var(--ink);line-height:16px;padding:0 5px}
+.yours{font-size:14px;color:var(--muted)}
+.yours s{color:var(--ink)}
+.opts{display:flex;flex-direction:column;border-top:var(--line-bold) solid var(--ink)}
+.opt{display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 0;text-align:left;border-bottom:var(--line-thin) solid var(--ink);font-size:15px;line-height:21px}
+.opt .k{flex:none;width:26px;height:26px;display:grid;place-items:center;border:var(--line-thin) solid var(--ink);font:700 13px/1 var(--font-num)}
+.opt .w{font:800 22px/28px var(--font-title)}
+.opt.right{font-weight:800}
+.opt.right .k{border:2px solid var(--accent);color:var(--accent)}
+.opt.wrong .k{background:var(--warn);border-color:var(--warn);color:var(--on-warn)}
+.opt.fade{color:var(--muted)}
+.opt:disabled{cursor:default}
+.end{display:flex;flex-direction:column;gap:20px}
+.end .panel{margin-top:0}
+.score{display:flex;align-items:baseline;gap:8px;padding-top:8px}
+.dval{font:700 52px/44px var(--font-num);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.dval small{font:800 13px/18px var(--font-body);letter-spacing:0;margin-left:4px}
+.score .dval{font-size:96px;line-height:80px}
+.score .of{font:700 28px/28px var(--font-num);color:var(--muted)}
+.sumline{display:flex;gap:24px;margin-top:16px;flex-wrap:wrap}
+.sumline div{display:flex;flex-direction:column}
+.sumline b{font:700 28px/28px var(--font-num);font-variant-numeric:tabular-nums}
+.sumline span{font:800 11px/14px var(--font-body);letter-spacing:.06em;color:var(--muted);margin-top:4px}
+
+/* 시트: 화면 전체를 덮는다 */
+.sheet-wrap{position:fixed;inset:0;z-index:30;background:var(--bg);overflow-y:auto}
+.scrim{display:none}
+.sheet{max-width:480px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top,0px)) max(var(--pad-x),env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(var(--pad-x),env(safe-area-inset-left,0px))}
+.sh-head{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:var(--line-bold) solid var(--ink);padding-bottom:10px}
+.sh-head h2{font:800 24px/30px var(--font-title);margin:0}
+.close{min-height:44px;font-weight:800;font-size:14px}
+.sheet .f{display:block;margin:20px 0}
+.sheet .f>span{display:block;font:800 12px/16px var(--font-body);letter-spacing:.06em;margin-bottom:8px}
+.sheet .f small{display:block;font-size:13px;line-height:18px;color:var(--muted);margin-top:8px}
+.sheet .f.tg{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:12px;border-bottom:var(--line-thin) solid var(--ink)}
+.sheet .f.tg>span{margin:0;font:800 15px/22px var(--font-body);letter-spacing:0}
+.sheet .f.tg>span small{margin-top:2px;font-weight:500}
+.tog{position:relative;width:52px;height:30px;flex:none;border:var(--line-bold) solid var(--ink)}
+.tog::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;background:var(--ink)}
+.tog[aria-pressed="true"]{background:var(--ink)}
+.tog[aria-pressed="true"]::after{left:auto;right:3px;background:var(--bg)}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper button{width:56px;height:56px;border:var(--line-bold) solid var(--ink);font:700 24px/1 var(--font-num)}
+.stepper output{flex:1;text-align:center;font:700 52px/44px var(--font-num);letter-spacing:-.04em}
+.sh-foot{display:flex;gap:12px;margin-top:24px}
+.sh-foot .primary{flex:1}
+.method{margin:6px 0 0;padding:0;list-style:none;counter-reset:m}
+.method li{position:relative;padding:12px 0 12px 36px;border-bottom:var(--line-thin) solid var(--ink);font-size:15px;line-height:22px;counter-increment:m}
+.method li::before{content:counter(m,decimal-leading-zero);position:absolute;left:0;top:12px;font:700 15px/22px var(--font-num)}
+.method b{font-weight:800}
+.method span{display:block;color:var(--muted);font-size:13px;line-height:18px;margin-top:2px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);z-index:40;bottom:calc(var(--tab-h) + 3px + 24px + env(safe-area-inset-bottom,0px));
+  background:var(--ink);color:var(--bg);padding:10px 14px;font-weight:800;font-size:14px;max-width:calc(100vw - 40px);text-align:center;pointer-events:none}
+.xta{min-height:110px;resize:vertical;font:500 13px/18px var(--font-num)}
+.xrow{margin-top:12px}
+.xfile{display:flex;align-items:center;justify-content:center;cursor:pointer}
+.cid{font-weight:800;color:var(--accent)}
+.cst{font:500 13px/18px var(--font-num);color:var(--muted);margin:8px 0 0}
+.ctext{font-size:14px;line-height:20px;margin:0 0 12px}
+
+/* 탭바 */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--bg);padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(var(--pad-x),env(safe-area-inset-left,0px));padding-right:max(var(--pad-x),env(safe-area-inset-right,0px))}
+.tabbar-in{max-width:440px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:var(--line-bold) solid var(--ink)}
+.tabbar button{min-height:var(--tab-h);font-size:13px;text-align:center}
+.tabbar button[aria-current="page"]{color:var(--accent);font-weight:800}
+@media (max-width:359px){.page-title{font-size:36px;line-height:40px}.days button{font-size:10px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <a class="sab" href="/" aria-label="Sabathia 홈으로">SABATHIA<span>VOC-02</span></a>
+  <header class="top">
+    <div><h1 class="page-title">어원 단어</h1><span class="streak" id="streak"></span></div>
+    <div class="pill" id="pill"><small id="pillL">암기 완료</small><b id="pillN">0</b></div>
+  </header>
+  <main id="view"></main>
+</div>
+<nav class="tabbar" aria-label="주 메뉴">
+  <div class="tabbar-in">
+    <button type="button" data-act="tab" data-v="today">오늘</button>
+    <button type="button" data-act="tab" data-v="test">시험</button>
+    <button type="button" data-act="tab" data-v="book">단어장</button>
+    <button type="button" data-act="settings">설정</button>
+  </div>
+</nav>
+
+<div class="stage" id="stage" hidden>
+  <div class="st-top">
+    <button type="button" class="st-close" data-act="stClose" id="stClose">닫기</button>
+    <div class="st-prog" id="stBar"></div>
+    <span class="st-count" id="stCount"></span>
+  </div>
+  <div class="st-body" id="stBody"></div>
+</div>
+
+<div class="sheet-wrap" id="sheetWrap" hidden>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script type="text/plain" id="words">
+@D01 pro-/pre- 앞, in- 안, out-/ut- 밖
+progress|n. 진보, 진행 v. 나아가다|pro 앞 + gress 가다
+propose|v. 제안하다; 청혼하다|pro 앞 + pose 놓다
+produce|v. 생산하다 n. 농산물|pro 앞 + duce 이끌다
+protect|v. 보호하다|pro 앞 + tect 덮다
+profile|n. 옆얼굴, 윤곽; 개요|pro 앞 + file 실(선)
+purchase|v. 구입하다 n. 구매|pur(=pro) 앞 + chase 쫓다
+predict|v. 예측하다|pre 미리 + dict 말하다
+precaution|n. 예방 조치, 조심|pre 미리 + caution 주의
+premature|a. 너무 이른, 시기상조의|pre 미리 + mature 익은
+preview|n. 시사회, 예고편 v. 미리 보다|pre 미리 + view 보다
+income|n. 소득, 수입|in 안 + come 오다
+intake|n. 섭취(량); 흡입|in 안 + take 취하다
+infection|n. 감염; 전염병|in 안 + fect 만들다(넣다)
+insight|n. 통찰(력)|in 안 + sight 봄
+inherent|a. 고유한, 타고난|in 안 + here 붙다
+investment|n. 투자|in 안 + vest 옷(입히다)
+investigate|v. 조사하다|in 안 + vestig 발자국(따라가다)
+illustrate|v. 설명하다; 삽화를 넣다|il(=in) 안 + lustr 빛나게 하다
+outcome|n. 결과|out 밖 + come 오다
+outline|n. 윤곽; 개요 v. 개요를 말하다|out 밖 + line 선
+outstanding|a. 뛰어난; 미해결의|out 밖 + stand 서다
+outbreak|n. (전쟁·질병 등의) 발발|out 밖 + break 깨다
+outlet|n. 배출구; 할인점; 콘센트|out 밖 + let 내보내다
+utter|v. (소리를) 내다, 말하다 a. 완전한|ut(=out) 밖 + ter 비교급
+utmost|a. 최대한의 n. 최대한도|ut(=out) 밖 + most 가장
+@D02 re- 다시/뒤로, de- 아래/떨어져/강조
+recall|v. 기억해 내다; 회수하다 n. 회상; 리콜|re 다시 + call 부르다
+record|v. 기록하다; 녹음하다 n. 기록; 음반|re 다시 + cord 마음
+recover|v. 회복하다; 되찾다|re 다시 + cover 취하다
+recycle|v. 재활용하다|re 다시 + cycle 순환
+research|n. 연구, 조사 v. 연구하다|re 강조 + search 찾다
+replace|v. 대신하다, 교체하다|re 다시 + place 놓다
+reproduce|v. 번식하다; 복제하다|re 다시 + produce 생산하다
+reveal|v. 드러내다, 밝히다|re 뒤로 + veal 베일
+revenue|n. 수입, 세입|re 다시 + venue 오다
+revive|v. 되살리다, 부활시키다|re 다시 + vive 살다
+remove|v. 제거하다, 치우다|re 뒤로 + move 움직이다
+retire|v. 은퇴하다; 물러나다|re 뒤로 + tire 끌다
+remain|v. 남아 있다; 여전히 ~이다|re 뒤에 + main 머무르다
+represent|v. 대표하다; 나타내다|re 다시 + present 제시하다
+depress|v. 우울하게 하다; 불경기로 만들다|de 아래로 + press 누르다
+depart|v. 출발하다, 떠나다|de 떨어져 + part 나누다
+derive|v. 끌어내다; 유래하다(from)|de 떨어져 + rive 강
+detect|v. 발견하다, 감지하다|de 반대 + tect 덮다
+detach|v. 떼어내다, 분리하다|de 반대 + tach 붙이다
+develop|v. 발달시키다; 개발하다|de 반대 + velop 싸다
+declare|v. 선언하다; (세관에) 신고하다|de 강조 + clare 분명한
+debate|n. 토론 v. 토론하다|de 아래로 + bate 치다
+demonstrate|v. 입증하다; 시위하다|de 강조 + monstr 보여주다
+depict|v. 묘사하다|de 아래로 + pict 그리다
+@D03 fore- 앞/미리, over- 위/넘어, extra- 밖, under- 아래
+forehead|n. 이마|fore 앞 + head 머리
+forefather|n. 조상, 선조|fore 앞 + father 아버지
+foresee|v. 예견하다|fore 미리 + see 보다
+foremost|a. 가장 중요한, 맨 앞의|fore 앞 + most 가장
+former|a. 이전의; 전자의|fore 앞 + mer 비교급
+overcome|v. 극복하다|over 넘어 + come 오다
+overlook|v. 간과하다; 내려다보다|over 넘어 + look 보다
+overseas|a. 해외의 ad. 해외로|over 넘어 + seas 바다
+overwhelm|v. 압도하다|over 위 + whelm 뒤엎다
+overall|a. 전반적인 ad. 전부|over 위 + all 모두
+overhead|a. 머리 위의 n. 간접비|over 위 + head 머리
+overtake|v. 추월하다; 엄습하다|over 넘어 + take 잡다
+overlap|v. 겹치다 n. 중복|over 위 + lap 감싸다
+overflow|v. 넘치다 n. 범람|over 넘어 + flow 흐르다
+extraordinary|a. 비범한, 특별한|extra 밖 + ordinary 평범한
+extracurricular|a. 과외의, 교과 외의|extra 밖 + curricular 교육과정의
+extraterrestrial|a. 외계의 n. 외계인|extra 밖 + terrestrial 지구의
+extrovert|n. 외향적인 사람|extro 밖 + vert 돌리다
+external|a. 외부의|exter 밖 + al 형용사
+undergo|v. 겪다, 경험하다|under 아래 + go 가다
+undertake|v. 착수하다; 떠맡다|under 아래 + take 잡다
+undergraduate|n. 대학생, 학부생|under 아래 + graduate 졸업생
+underlying|a. 근본적인, 밑에 있는|under 아래 + lie 놓여 있다
+@D04 inter- 사이, trans- 가로질러, ex- 밖, dia- 가로질러, mis- 잘못
+international|a. 국제적인|inter 사이 + nation 국가
+interpret|v. 해석하다; 통역하다|inter 사이 + pret 값 매기다
+interval|n. 간격; 휴식 시간|inter 사이 + val 성벽
+interfere|v. 간섭하다; 방해하다|inter 사이 + fere 치다
+interaction|n. 상호작용|inter 사이 + action 행동
+transfer|v. 옮기다; 환승하다 n. 이동|trans 가로질러 + fer 나르다
+transform|v. 변형시키다|trans 가로질러 + form 형태
+transplant|v. 이식하다 n. 이식|trans 가로질러 + plant 심다
+expand|v. 확장하다, 팽창하다|ex 밖 + pand 펼치다
+explore|v. 탐험하다; 탐구하다|ex 밖 + plore 외치다
+explain|v. 설명하다|ex 밖 + plain 평평한(명백한)
+explicit|a. 명시적인, 분명한|ex 밖 + plic 접다(펼치다)
+exhaust|v. 지치게 하다; 다 써 버리다 n. 배기가스|ex 밖 + haust 끌어내다
+expose|v. 노출시키다; 폭로하다|ex 밖 + pose 놓다
+examine|v. 조사하다; 진찰하다|ex 밖 + amine 무게를 달다
+exaggerate|v. 과장하다|ex 강조 + agger 쌓다
+exchange|v. 교환하다 n. 교환; 환전|ex 밖 + change 바꾸다
+escape|v. 탈출하다 n. 탈출|es(=ex) 밖 + cape 망토
+evaporate|v. 증발하다|e(=ex) 밖 + vapor 증기
+dialogue|n. 대화|dia 가로질러 + logue 말
+dialect|n. 방언, 사투리|dia 가로질러 + lect 말하다
+diameter|n. 지름|dia 가로질러 + meter 재다
+mistake|n. 실수 v. 오해하다|mis 잘못 + take 잡다
+misleading|a. 오해의 소지가 있는|mis 잘못 + lead 이끌다
+misfortune|n. 불운|mis 잘못 + fortune 운
+@D05 un-/dis-/in-(il-, im-, ir-) 부정/반대
+uneasy|a. 불안한; 불편한|un 부정 + easy 편한
+unfair|a. 불공평한|un 부정 + fair 공정한
+unfortunate|a. 불운한; 유감스러운|un 부정 + fortunate 운 좋은
+unlikely|a. ~할 것 같지 않은|un 부정 + likely ~할 것 같은
+unusual|a. 특이한, 드문|un 부정 + usual 보통의
+unknown|a. 알려지지 않은|un 부정 + known 알려진
+unbearable|a. 견딜 수 없는|un 부정 + bearable 견딜 수 있는
+unlock|v. 자물쇠를 열다; 드러내다|un 반대 + lock 잠그다
+disagree|v. 의견이 다르다|dis 반대 + agree 동의하다
+disorder|n. 무질서; 장애, 질환|dis 반대 + order 질서
+disappear|v. 사라지다|dis 반대 + appear 나타나다
+discount|n. 할인 v. 할인하다; 무시하다|dis 반대 + count 세다
+discourage|v. 낙담시키다; 단념시키다|dis 반대 + courage 용기
+dismiss|v. 묵살하다; 해고하다|dis 떨어져 + miss 보내다
+dispose|v. 처리하다, 없애다(of)|dis 떨어져 + pose 놓다
+display|v. 전시하다 n. 전시; 화면|dis 반대 + play 접다
+discard|v. 버리다|dis 떨어져 + card 카드
+disability|n. (신체적) 장애|dis 부정 + ability 능력
+differ|v. 다르다|dif(=dis) 떨어져 + fer 나르다
+independent|a. 독립적인|in 부정 + dependent 의존하는
+inevitable|a. 불가피한|in 부정 + evitable 피할 수 있는
+inexpensive|a. 비싸지 않은|in 부정 + expensive 비싼
+illegal|a. 불법의|il 부정 + legal 합법의
+immoral|a. 비도덕적인|im 부정 + moral 도덕적인
+immune|a. 면역의; 면제된|im 부정 + mune 의무
+irrelevant|a. 무관한|ir 부정 + relevant 관련된
+irrational|a. 비이성적인|ir 부정 + rational 이성적인
+@D06 super-(sur-, sove-)/up- 위, sub-(suf-, sug-, sup-) 아래, anti- 반대, ante-(an-, ad-) 앞
+superior|a. 우수한, 상급의 n. 상급자|super 위 + ior 비교급
+superb|a. 최고의, 훌륭한|super 위
+superficial|a. 피상적인, 표면의|super 위 + fic 얼굴(표면)
+surface|n. 표면 v. 드러나다|sur 위 + face 얼굴
+sovereign|n. 군주 a. 주권이 있는|sove(=super) 위 + reign 통치
+uphold|v. 유지하다, 지지하다|up 위 + hold 잡다
+upright|a. 똑바른; 정직한|up 위 + right 곧은
+upset|v. 속상하게 하다; 뒤엎다 a. 속상한|up 위 + set 놓다
+upside|n. 위쪽; 좋은 면|up 위 + side 면
+submarine|n. 잠수함 a. 해저의|sub 아래 + marine 바다의
+suffer|v. 고통받다, (병을) 앓다|suf 아래 + fer 나르다(견디다)
+suggest|v. 제안하다; 암시하다|sug 아래 + gest 나르다
+support|v. 지지하다; 부양하다 n. 지지|sup 아래 + port 나르다
+suppress|v. 억압하다; 참다|sup 아래 + press 누르다
+antibiotic|n. 항생제|anti 반대 + bio 생명
+antibody|n. 항체|anti 반대 + body 몸
+Antarctic|a. 남극의 n. 남극|ant 반대 + arctic 북극의
+anticipate|v. 예상하다, 기대하다|anti(=ante) 앞 + cip 잡다
+antique|a. 골동품의 n. 골동품|anti(=ante) 앞
+advantage|n. 이점, 유리한 점|ad(=ante) 앞 + vant 앞
+ancestor|n. 조상|an(=ante) 앞 + ces 가다
+ancient|a. 고대의|an(=ante) 앞
+advance|v. 전진하다 n. 발전 a. 사전의|ad(=ante) 앞 + vance 앞
+@D07 com-(con-, cor-, col-)/syn-(sym-) 함께, ab- 떨어져, se- 분리
+combine|v. 결합하다|com 함께 + bine 둘
+company|n. 회사; 동료; 함께 있음|com 함께 + pan 빵
+complain|v. 불평하다|com 강조 + plain 슬퍼하다
+compile|v. 편집하다, 엮다|com 함께 + pile 쌓다
+compress|v. 압축하다|com 함께 + press 누르다
+compose|v. 구성하다; 작곡하다|com 함께 + pose 놓다
+compromise|n. 타협 v. 타협하다; 손상시키다|com 함께 + promise 약속
+confirm|v. 확인하다|con 강조 + firm 굳은
+connect|v. 연결하다|con 함께 + nect 묶다
+conform|v. 따르다, 순응하다|con 함께 + form 형태
+confront|v. 직면하다, 맞서다|con 함께 + front 이마(앞)
+correspond|v. 일치하다; 서신을 주고받다|cor 함께 + respond 응답하다
+collapse|v. 붕괴하다 n. 붕괴|col 함께 + lapse 미끄러지다
+symphony|n. 교향곡|sym 함께 + phon 소리
+synthetic|a. 합성의, 인조의|syn 함께 + thet 놓다
+absorb|v. 흡수하다; 몰두시키다|ab 떨어져 + sorb 빨아들이다
+abnormal|a. 비정상적인|ab 떨어져 + normal 정상의
+absolute|a. 절대적인, 완전한|ab 떨어져 + solute 풀다
+absurd|a. 불합리한, 터무니없는|ab 떨어져 + surd 귀먹은
+separate|v. 분리하다 a. 분리된|se 분리 + par 준비하다
+secure|a. 안전한 v. 확보하다|se 분리(없는) + cure 걱정
+select|v. 선택하다 a. 엄선된|se 분리 + lect 고르다
+segregation|n. 분리, 차별|se 분리 + greg 무리
+@D08 en-(em-) 만들다/안에, per- 완전히/통해, a- 강조/~에
+enable|v. ~할 수 있게 하다|en 만들다 + able 할 수 있는
+enforce|v. 시행하다; 강요하다|en 만들다 + force 힘
+enhance|v. 향상시키다|en 만들다 + hance 높은
+enrich|v. 풍부하게 하다|en 만들다 + rich 부유한
+enlarge|v. 확대하다|en 만들다 + large 큰
+entitle|v. 자격을 주다; 제목을 붙이다|en 만들다 + title 칭호
+ensure|v. 보장하다, 확실하게 하다|en 만들다 + sure 확실한
+enclose|v. 둘러싸다; 동봉하다|en 안에 + close 닫다
+encounter|v. 마주치다 n. 만남|en 안에 + counter 반대로
+engage|v. 참여하다; 약속하다; 고용하다|en 만들다 + gage 담보
+embrace|v. 껴안다; 받아들이다|em 안에 + brace 팔
+perfect|a. 완벽한 v. 완벽하게 하다|per 완전히 + fect 만들다
+permanent|a. 영구적인|per 통해 + man 머무르다
+persist|v. 지속되다; 고집하다|per 끝까지 + sist 서다
+persevere|v. 인내하다|per 완전히 + severe 엄한
+persuade|v. 설득하다|per 완전히 + suade 권하다
+perspective|n. 관점; 원근법|per 통해 + spect 보다
+aboard|ad. 탑승하여|a ~에 + board 배
+abroad|ad. 해외로|a ~에 + broad 넓은
+alike|a. 비슷한 ad. 똑같이|a 강조 + like 같은
+arise|v. 발생하다, 일어나다|a 강조 + rise 일어나다
+arouse|v. 불러일으키다, 깨우다|a 강조 + rouse 깨우다
+ashamed|a. 부끄러운|a 강조 + shame 수치
+amaze|v. 놀라게 하다|a 강조 + maze 당황하게 하다
+afford|v. ~할 여유가 있다|af 강조 + ford 나아가다
+atom|n. 원자|a 부정 + tom 자르다
+@D09 contra-(counter-) 반대, with- 반대/뒤로, ad-(ac-, ap-, a-, ar-) ~쪽으로, tele- 먼, auto- 스스로
+contrary|a. 반대의 n. 반대|contra 반대
+contrast|n. 대조 v. 대조하다|contra 반대 + st 서다
+controversy|n. 논란|contro 반대 + vers 돌리다
+counterattack|n. 반격 v. 반격하다|counter 반대 + attack 공격
+counterfeit|a. 위조의 n. 위조품 v. 위조하다|counter 반대 + feit 만들다
+counterpart|n. 상대, 대응 관계에 있는 사람(것)|counter 반대 + part 부분
+withdraw|v. 철회하다; 인출하다; 물러나다|with 뒤로 + draw 끌다
+withhold|v. 보류하다, 주지 않다|with 뒤로 + hold 잡다
+withstand|v. 견뎌 내다|with 반대 + stand 서다
+adjust|v. 조정하다; 적응하다|ad ~쪽으로 + just 올바른
+accompany|v. 동반하다; 반주하다|ac ~에 + company 동료
+accustomed|a. 익숙한|ac ~에 + custom 관습
+account|n. 설명; 계좌 v. 설명하다(for); 차지하다|ac ~에 + count 세다
+accumulate|v. 축적하다|ac ~에 + cumul 쌓다
+appoint|v. 임명하다; (시간·장소를) 정하다|ap ~에 + point 가리키다
+approach|v. 다가가다 n. 접근(법)|ap ~쪽으로 + proach 가까이
+await|v. 기다리다|a ~에 + wait 기다리다
+abandon|v. 버리다; 포기하다|a ~에 + bandon 통제
+arrogant|a. 거만한|ar ~에 + rog 요구하다
+telescope|n. 망원경|tele 먼 + scope 보다
+telegraph|n. 전신, 전보|tele 먼 + graph 쓰다
+telecommute|v. 재택근무하다|tele 먼 + commute 통근하다
+autograph|n. (유명인의) 사인|auto 스스로 + graph 쓰다
+autobiography|n. 자서전|auto 스스로 + bio 생명 + graphy 기록
+automobile|n. 자동차|auto 스스로 + mobile 움직이는
+@D10 geo 땅, multi 많은, mono/uni 하나, bi(ba, du, twi) 둘, tri 셋
+geography|n. 지리(학)|geo 땅 + graphy 기록
+geology|n. 지질학|geo 땅 + logy 학문
+geometry|n. 기하학|geo 땅 + metry 측정
+multiple|a. 다수의, 다양한|multi 많은 + ple 접다
+multimedia|n. 멀티미디어|multi 많은 + media 매체
+multitude|n. 다수; 군중|multi 많은 + tude 명사
+monologue|n. 독백|mono 하나 + logue 말
+monoculture|n. 단일 경작|mono 하나 + culture 경작
+union|n. 결합; 조합|uni 하나 + on 명사
+unique|a. 독특한, 유일한|uni 하나 + que 형용사
+unify|v. 통합하다|uni 하나 + fy 만들다
+unite|v. 연합하다, 결합시키다|uni 하나 + te 동사
+unit|n. 단위; 구성 단위|uni 하나
+universe|n. 우주|uni 하나 + verse 돌다
+uniform|n. 제복 a. 균일한|uni 하나 + form 형태
+bilingual|a. 2개 국어를 하는|bi 둘 + lingu 혀(언어)
+balance|n. 균형; 잔액 v. 균형을 잡다|ba 둘 + lance 접시
+duplicate|v. 복제하다 n. 사본|du 둘 + plic 접다
+dual|a. 이중의|du 둘 + al 형용사
+twilight|n. 황혼, 땅거미|twi 둘(사이) + light 빛
+twist|v. 비틀다, 꼬다 n. 뒤틀림|twi 둘 + st
+triangle|n. 삼각형|tri 셋 + angle 각
+tribe|n. 부족, 종족|tri 셋(고대 로마의 3부족)
+trivial|a. 사소한|tri 셋 + via 길(세 길이 만나는 곳)
+@D11 fac(fec, fic, fit, fy, fair) 만들다, port 나르다
+manufacture|v. 제조하다 n. 제조|manu 손 + fact 만들다
+facility|n. 시설; 재능, 쉬움|fac 만들다(하다)
+faculty|n. 능력; 교수진|fac 하다
+factor|n. 요인, 요소|fact 만들다 + or 것
+factual|a. 사실의|fact 만들어진 일 + ual
+effect|n. 영향; 결과; 효과|ef(=ex) 밖 + fect 만들다
+affect|v. 영향을 미치다; ~인 척하다|af(=ad) ~에 + fect 만들다
+defect|n. 결함|de 떨어져 + fect 만들다
+efficient|a. 효율적인|ef 밖 + fic 만들다
+deficient|a. 부족한, 결핍된|de 떨어져 + fic 만들다
+sufficient|a. 충분한|suf 아래 + fic 만들다
+proficient|a. 능숙한|pro 앞 + fic 만들다
+fiction|n. 소설; 허구|fic 만들다
+figure|n. 수치; 인물; 모양 v. 생각하다|fig 만들다(형태)
+profit|n. 이익, 수익 v. 이익을 얻다|pro 앞 + fit 만들다
+benefit|n. 이익, 혜택 v. 이익을 얻다|bene 좋은 + fit 만들다
+qualify|v. 자격을 주다(얻다)|quali 질 + fy 만들다
+satisfy|v. 만족시키다; 충족시키다|satis 충분한 + fy 만들다
+affair|n. 일, 사건; 업무|af ~에 + fair 하다
+export|v. 수출하다 n. 수출|ex 밖 + port 나르다
+import|v. 수입하다 n. 수입|im 안 + port 나르다
+transport|v. 수송하다 n. 수송|trans 가로질러 + port 나르다
+portable|a. 휴대용의|port 나르다 + able ~할 수 있는
+opportunity|n. 기회|op ~쪽으로 + port 항구
+@D12 cap(cept, ceive, cup) 잡다, sta(st) 서다
+capable|a. 할 수 있는, 유능한|cap 잡다 + able
+capture|v. 포획하다; 사로잡다 n. 포획|capt 잡다
+participate|v. 참여하다|parti 부분 + cip 잡다
+accept|v. 받아들이다|ac ~쪽으로 + cept 잡다
+except|prep. ~을 제외하고|ex 밖 + cept 잡다
+conceive|v. 생각해 내다; 임신하다|con 완전히 + ceive 잡다
+perceive|v. 인지하다|per 완전히 + ceive 잡다
+deceive|v. 속이다|de 떨어져 + ceive 잡다
+receive|v. 받다|re 뒤로 + ceive 잡다
+occupy|v. 차지하다; 점령하다|oc ~에 + cup 잡다
+stand|v. 서다; 견디다 n. 가판대; 입장|sta 서다
+standard|n. 기준, 표준 a. 표준의|stand 서다
+state|n. 상태; 국가; 주 v. 진술하다|sta 서다
+statistics|n. 통계(학)|stat 국가(상태)
+statue|n. 조각상|stat 서다
+status|n. 지위; 상태|stat 서다
+stable|a. 안정된 n. 마구간|sta 서다 + ble
+establish|v. 설립하다; 확립하다|e + stabl 안정된
+constant|a. 끊임없는; 일정한|con 함께 + stant 서다
+estate|n. 토지, 재산|e + state 상태
+instance|n. 사례, 경우|in 가까이 + stance 서다
+instant|a. 즉각적인 n. 순간|in 가까이 + stant 서다
+install|v. 설치하다|in 안 + stall 자리
+obstacle|n. 장애(물)|ob 반대 + sta 서다
+substance|n. 물질; 실체; 요지|sub 아래 + stance 서다
+@D13 sist(st, stitute) 서다, tain(ten, tin) 잡다/유지하다
+assist|v. 돕다|as ~옆에 + sist 서다
+consist|v. 구성되다(of); ~에 있다(in)|con 함께 + sist 서다
+exist|v. 존재하다|ex 밖 + ist 서다
+insist|v. 주장하다; 고집하다|in 위에 + sist 서다
+resist|v. 저항하다; 참다|re 반대 + sist 서다
+restore|v. 복원하다, 회복시키다|re 다시 + store 세우다
+arrest|v. 체포하다 n. 체포|ar ~에 + rest 멈추다(서다)
+cost|n. 비용 v. 비용이 들다|co 함께 + st 서다
+steady|a. 꾸준한; 안정된|stead 서 있는 곳
+system|n. 체계, 제도|sy 함께 + st 서다
+constitute|v. 구성하다; 설립하다|con 함께 + stitute 세우다
+institute|n. 협회, 연구소 v. 도입하다|in 안 + stitute 세우다
+substitute|v. 대체하다 n. 대체물|sub 아래 + stitute 세우다
+destination|n. 목적지|de 강조 + stin 세우다
+superstition|n. 미신|super 위 + stit 서다
+contain|v. 포함하다; 억제하다|con 함께 + tain 잡다
+entertain|v. 즐겁게 하다; 대접하다|enter 사이 + tain 잡다
+obtain|v. 얻다|ob 강조 + tain 잡다
+retain|v. 유지하다, 보유하다|re 뒤에 + tain 잡다
+sustain|v. 유지하다; 떠받치다|sus 아래 + tain 잡다
+content|n. 내용(물) a. 만족하는|con 함께 + tent 잡다
+continent|n. 대륙|con 함께 + tin 잡다(이어진 땅)
+continue|v. 계속하다|con 함께 + tinue 잡다
+@D14 mov(mot, mob, mom) 움직이다, serv 지키다, spect(spec, spi) 보다
+move|v. 움직이다; 감동시키다; 이사하다|mov 움직이다
+motive|n. 동기|mot 움직이다 + ive
+motion|n. 움직임; 동작; 동의|mot 움직이다 + ion
+emotion|n. 감정|e 밖 + mot 움직이다
+promote|v. 촉진하다; 승진시키다; 홍보하다|pro 앞 + mote 움직이다
+remote|a. 먼, 외딴 n. 리모컨|re 뒤로 + mote 움직이다
+moment|n. 순간; 중요성|mom 움직이다
+mobile|a. 이동하는 n. 휴대전화|mob 움직이다 + ile
+conserve|v. 보존하다; 절약하다|con 강조 + serve 지키다
+deserve|v. ~을 받을 만하다|de 완전히 + serve 봉사하다
+preserve|v. 보존하다, 지키다|pre 미리 + serve 지키다
+reserve|v. 예약하다; 비축하다 n. 비축(물)|re 뒤에 + serve 지키다
+observe|v. 관찰하다; 준수하다|ob ~에 + serve 지키다
+spectacle|n. 장관; (pl.) 안경|spect 보다
+aspect|n. 측면, 양상|a ~에 + spect 보다
+expect|v. 기대하다, 예상하다|ex 밖 + (s)pect 보다
+inspect|v. 검사하다, 점검하다|in 안 + spect 보다
+prospect|n. 전망, 가능성|pro 앞 + spect 보다
+respect|n. 존경; 측면 v. 존경하다|re 다시 + spect 보다
+suspect|v. 의심하다 n. 용의자|su 아래 + spect 보다
+species|n. (생물의) 종|spec 보다(모양)
+specific|a. 구체적인; 특정한|spec 보다(종류) + fic 만들다
+special|a. 특별한|spec 종류 + ial
+despite|prep. ~에도 불구하고|de 아래로 + spite 보다(깔보다)
+@D15 tract(treat, trac, trai, tray) 끌다, gen(gn) 낳다/종류
+abstract|a. 추상적인 n. 요약|abs 떨어져 + tract 끌다
+attract|v. 끌다, 매혹하다|at ~쪽으로 + tract 끌다
+contract|n. 계약 v. 계약하다; 수축하다|con 함께 + tract 끌다
+distract|v. 주의를 흐트러뜨리다|dis 떨어져 + tract 끌다
+extract|v. 추출하다 n. 추출물|ex 밖 + tract 끌다
+treat|v. 대하다; 치료하다 n. 대접|treat 끌다(다루다)
+treaty|n. 조약|treat 다루다 + y
+retreat|v. 후퇴하다 n. 후퇴|re 뒤로 + treat 끌다
+trace|v. 추적하다 n. 흔적|trac 끌다
+track|n. 길; 선로 v. 추적하다|trac 끌다
+trail|n. 오솔길; 자국 v. 끌다|trai 끌다
+trait|n. 특성|trai 끌다(그은 선)
+portray|v. 묘사하다|por(=pro) 앞 + tray 끌다
+generate|v. 발생시키다, 만들어 내다|gen 낳다 + ate
+generous|a. 관대한; 넉넉한|gen 태생(좋은 집안) + ous
+general|a. 일반적인 n. 장군|gen 종류 + al
+gender|n. 성(별)|gen 종류
+gene|n. 유전자|gen 낳다
+genetic|a. 유전의|gen 낳다 + ic
+genius|n. 천재; 천재성|gen 낳다(타고난)
+gentle|a. 온화한, 부드러운|gen 태생(좋은 가문)
+genuine|a. 진짜의; 진실한|gen 태생
+congenital|a. 선천적인|con 함께 + gen 낳다
+pregnant|a. 임신한|pre 전 + gn 낳다
+@D16 cre(cru, crete) 자라다/만들다, ven(vent) 오다, medi(mid) 중간
+create|v. 창조하다, 만들어 내다|cre 만들다 + ate
+recreate|v. 재현하다; 휴양하다|re 다시 + create 만들다
+increase|v. 증가하다 n. 증가|in 안 + crease 자라다
+decrease|v. 감소하다 n. 감소|de 아래로 + crease 자라다
+concrete|a. 구체적인 n. 콘크리트|con 함께 + crete 자라다(굳다)
+recruit|v. 모집하다 n. 신입 사원|re 다시 + cruit 자라다
+advent|n. 도래, 출현|ad ~쪽으로 + vent 오다
+adventure|n. 모험|ad ~쪽으로 + vent 오다
+venture|n. (벤처) 사업; 모험 v. 위험을 무릅쓰다|(ad)venture 모험
+convention|n. 관습; 협약; 대회|con 함께 + vent 오다
+event|n. 사건; 행사|e 밖 + vent 오다
+invent|v. 발명하다; 지어내다|in 위에 + vent 오다
+prevent|v. 막다, 예방하다|pre 앞 + vent 오다
+intervention|n. 개입, 중재|inter 사이 + vent 오다
+avenue|n. 길, 대로; 방안|a ~쪽으로 + venue 오다
+convenient|a. 편리한|con 함께 + ven 오다
+souvenir|n. 기념품|sou 아래 + venir 오다(떠오르다)
+medium|n. 매체; 수단 a. 중간의|medi 중간
+medieval|a. 중세의|medi 중간 + ev 시대
+mediate|v. 중재하다|medi 중간 + ate
+immediate|a. 즉각적인; 직접적인|im 부정 + medi 중간(사이에 낀 것 없는)
+intermediate|a. 중간의, 중급의|inter 사이 + medi 중간
+mean|v. 의미하다 a. 비열한 n. 평균, (pl.) 수단|mean 중간
+meanwhile|ad. 그동안에; 한편|mean 중간 + while 동안
+midst|n. 한가운데|mid 중간
+@D17 vis(vid, vi, vey, view) 보다, quir(quer, quest, quis) 구하다, duc(duct) 이끌다
+vision|n. 시력; 비전, 선견지명|vis 보다 + ion
+revise|v. 수정하다, 개정하다|re 다시 + vise 보다
+advise|v. 조언하다, 충고하다|ad ~쪽으로 + vise 보다
+supervise|v. 감독하다|super 위 + vise 보다
+evidence|n. 증거|e 밖 + vid 보다
+provide|v. 제공하다|pro 미리 + vide 보다
+view|n. 견해; 전망 v. 보다; 여기다|view 보다
+interview|n. 면접; 인터뷰 v. 면접하다|inter 사이 + view 보다
+review|n. 검토; 논평 v. 복습하다; 검토하다|re 다시 + view 보다
+envy|n. 부러움 v. 부러워하다|en 위에 + vy 보다
+survey|n. (설문) 조사 v. 조사하다; 둘러보다|sur 위 + vey 보다
+acquire|v. 습득하다, 얻다|ac ~에 + quire 구하다
+require|v. 요구하다, 필요로 하다|re 다시 + quire 구하다
+inquire|v. 문의하다|in 안 + quire 구하다
+conquer|v. 정복하다|con 강조 + quer 구하다
+request|n. 요청 v. 요청하다|re 다시 + quest 구하다
+exquisite|a. 매우 아름다운, 정교한|ex 밖 + quis 구하다
+conduct|v. 수행하다; 지휘하다 n. 행동|con 함께 + duct 이끌다
+deduct|v. 공제하다, 빼다|de 떨어져 + duct 이끌다
+educate|v. 교육하다|e 밖 + duc 이끌다
+deduce|v. 추론하다|de 아래로 + duce 이끌다
+induce|v. 유도하다; 설득하다|in 안 + duce 이끌다
+reduce|v. 줄이다|re 뒤로 + duce 이끌다
+introduce|v. 소개하다; 도입하다|intro 안으로 + duce 이끌다
+@D18 pos(pon, pound) 놓다, hab(hib) 가지다/살다, val(vail) 가치/강한
+pose|v. (문제를) 제기하다; 포즈를 취하다 n. 자세|pos 놓다
+position|n. 위치; 입장; 자리|pos 놓다 + ition
+positive|a. 긍정적인; 확신하는|pos 놓다(정해진)
+post|n. 우편; 직책; 기둥 v. 게시하다|pos 놓다
+deposit|n. 예금; 보증금; 퇴적물 v. 맡기다|de 아래 + pos 놓다
+impose|v. 부과하다; 강요하다|im 위에 + pose 놓다
+purpose|n. 목적|pur(=pro) 앞 + pose 놓다
+oppose|v. 반대하다|op 반대 + pose 놓다
+suppose|v. 가정하다, 생각하다|sup 아래 + pose 놓다
+postpone|v. 연기하다|post 뒤 + pone 놓다
+component|n. 구성 요소|com 함께 + pon 놓다
+opponent|n. 상대, 반대자|op 반대 + pon 놓다
+compound|n. 화합물 v. 악화시키다 a. 합성의|com 함께 + pound 놓다
+habit|n. 습관|hab 가지다
+inhabit|v. 살다, 거주하다|in 안 + hab 살다
+habitat|n. 서식지|hab 살다 + at
+exhibit|v. 전시하다; 보이다 n. 전시품|ex 밖 + hib 가지다
+prohibit|v. 금지하다|pro 앞 + hib 가지다(막다)
+inhibit|v. 억제하다|in 안 + hib 가지다
+behave|v. 행동하다|be 강조 + have 가지다
+value|n. 가치 v. 소중히 여기다; 평가하다|val 가치
+evaluate|v. 평가하다|e 밖 + valu 가치 + ate
+valid|a. 유효한, 타당한|val 강한
+available|a. 이용 가능한; 시간이 있는|a ~에 + vail 가치 + able
+prevail|v. 우세하다; 널리 퍼지다|pre 앞 + vail 강한
+@D19 sign(seal) 표시, rect(reg, roy, rul) 바른/다스리다, form 형태, techn 기술
+sign|n. 징후; 표지판 v. 서명하다|sign 표시
+signal|n. 신호 v. 신호를 보내다|sign 표시 + al
+significant|a. 중요한, 상당한|sign 표시 + fic 만들다
+assign|v. 할당하다; 임명하다|as ~에 + sign 표시
+design|n. 디자인, 설계 v. 설계하다|de 아래 + sign 표시
+designate|v. 지정하다, 지명하다|de 아래 + sign 표시 + ate
+resign|v. 사임하다; 체념하다|re 뒤로 + sign 서명하다
+seal|n. 도장; 물개 v. 봉인하다|seal 표시
+correct|a. 올바른 v. 바로잡다|cor 강조 + rect 바른
+direct|a. 직접적인 v. 지시하다; 감독하다|di 떨어져 + rect 바르게 이끌다
+erect|v. 세우다 a. 똑바로 선|e 위로 + rect 바른
+rectangular|a. 직사각형의|rect 바른 + angle 각
+region|n. 지역|reg 다스리다
+regular|a. 규칙적인; 정기적인|reg 규칙 + ular
+regulate|v. 규제하다; 조절하다|reg 다스리다 + ate
+royal|a. 왕의, 왕실의|roy 왕(다스리다)
+rule|n. 규칙; 지배 v. 지배하다|rul 다스리다
+form|n. 형태; 양식 v. 형성하다|form 형태
+inform|v. 알리다|in 안 + form 형태
+reform|n. 개혁 v. 개혁하다|re 다시 + form 형태
+formula|n. 공식; 제조법|form 형태 + ula 작은
+technique|n. 기술, 기법|techn 기술
+technology|n. (과학) 기술|techno 기술 + logy 학문
+@D20 struct(stroy) 세우다, vari 다양한, simil(sembl, sem, simul) 같은, prim(prin, pri) 첫째, opt(opin) 선택
+structure|n. 구조 v. 구조화하다|struct 세우다 + ure
+infrastructure|n. 사회 기반 시설|infra 아래 + structure 구조
+construct|v. 건설하다; 구성하다|con 함께 + struct 세우다
+instruct|v. 지시하다; 가르치다|in 안 + struct 세우다
+instrument|n. 기구; 악기|in 안 + stru 세우다
+industry|n. 산업; 근면|indu 안 + stry 세우다
+destroy|v. 파괴하다|de 반대 + stroy 세우다
+vary|v. 다르다; 바꾸다|vari 다양한
+various|a. 다양한|vari 다양한 + ous
+variable|a. 변하기 쉬운 n. 변수|vari 다양한 + able
+variation|n. 변화, 변형|vari 다양한 + ation
+similar|a. 비슷한|simil 같은 + ar
+resemble|v. 닮다|re 강조 + semble 같은
+assemble|v. 모으다; 조립하다|as ~에 + semble 같은(함께)
+seemingly|ad. 겉보기에는|seem 같다(~인 것 같다) + ingly
+simulation|n. 모의실험|simul 같은(흉내) + ation
+simultaneously|ad. 동시에|simul 같은(시간) + taneously
+prime|a. 주요한; 최상의|prim 첫째
+primary|a. 주요한; 초기의; 초등의|prim 첫째 + ary
+primitive|a. 원시적인|prim 첫째 + itive
+principal|a. 주요한 n. 교장|prin 첫째 + cip 잡다
+principle|n. 원리, 원칙|prin 첫째 + cip 잡다
+prior|a. 이전의; 우선하는|pri 첫째 + or 비교급
+option|n. 선택(권)|opt 선택 + ion
+adopt|v. 채택하다; 입양하다|ad ~에 + opt 선택하다
+opinion|n. 의견|opin 생각하다(선택)
+@D21 plic(plex, ply, ploy, plo) 접다, ject 던지다, rat(reas) 계산하다, fort(forc) 강한
+complicate|v. 복잡하게 하다|com 함께 + plic 접다
+simplicity|n. 단순함|sim 하나 + plic 접다
+complex|a. 복잡한 n. 복합 건물; 콤플렉스|com 함께 + plex 접다
+perplex|v. 당황하게 하다|per 완전히 + plex 접다(얽다)
+imply|v. 암시하다|im 안 + ply 접다
+apply|v. 지원하다; 적용하다; 바르다|ap ~에 + ply 접다
+employ|v. 고용하다; 사용하다|em 안 + ploy 접다
+diplomatic|a. 외교의; 외교적인|di 둘 + plo 접다(접힌 문서)
+exploit|v. 착취하다; 이용하다 n. 위업|ex 밖 + ploit 접다(펼치다)
+inject|v. 주사하다; 주입하다|in 안 + ject 던지다
+object|n. 물체; 목적 v. 반대하다|ob 반대 + ject 던지다
+reject|v. 거절하다|re 뒤로 + ject 던지다
+subject|n. 주제; 과목 a. ~되기 쉬운(to)|sub 아래 + ject 던지다
+project|n. 계획, 과제 v. 예상하다; 투영하다|pro 앞 + ject 던지다
+rate|n. 비율; 속도; 요금 v. 평가하다|rat 계산하다
+ratio|n. 비율|rat 계산하다
+rational|a. 이성적인, 합리적인|rat 계산하다(이성) + al
+reason|n. 이유; 이성 v. 추론하다|reas 계산하다
+fort|n. 요새|fort 강한
+effort|n. 노력|ef 밖 + fort 강한
+comfort|n. 편안함; 위로 v. 위로하다|com 강조 + fort 강한
+force|n. 힘; 군대 v. 강요하다|forc 강한
+reinforce|v. 강화하다|re 다시 + in + force 힘
+@D22 strict(strain, stress, stig) 팽팽히 당기다, fund(found) 바닥, press 누르다, clud(clos) 닫다, bio 생명
+strict|a. 엄격한|strict 팽팽히 당기다
+restrict|v. 제한하다|re 뒤로 + strict 당기다
+district|n. 지역, 구역|di 떨어져 + strict 당기다(구분)
+strain|n. 부담, 압박 v. 무리하게 쓰다|strain 당기다
+restrain|v. 억제하다, 제지하다|re 뒤로 + strain 당기다
+constrain|v. 제약하다; 강요하다|con 함께 + strain 당기다
+strait|n. 해협; (pl.) 곤경|strait 팽팽한(좁은)
+distress|n. 고통; 곤경 v. 괴롭히다|di 떨어져 + stress 당기다
+stress|n. 스트레스; 강조 v. 강조하다|stress 당기다(압박)
+prestige|n. 위신, 명성|pre 앞 + stig 묶다(홀리다)
+fund|n. 자금, 기금 v. 자금을 대다|fund 바닥
+fundamental|a. 근본적인|fund 바닥 + mental
+found|v. 설립하다|found 바닥(기초)
+profound|a. 깊은, 심오한|pro 앞 + found 바닥
+pressure|n. 압력|press 누르다 + ure
+express|v. 표현하다 a. 급행의|ex 밖 + press 누르다
+impress|v. 감명을 주다|im 안 + press 누르다
+oppress|v. 억압하다|op 반대 + press 누르다
+conclude|v. 결론을 내리다; 끝내다|con 완전히 + clude 닫다
+include|v. 포함하다|in 안 + clude 닫다
+exclude|v. 제외하다|ex 밖 + clude 닫다
+closet|n. 벽장|clos 닫다 + et 작은
+disclose|v. 폭로하다, 드러내다|dis 반대 + close 닫다
+biography|n. 전기|bio 생명 + graphy 기록
+biology|n. 생물학|bio 생명 + logy 학문
+microbe|n. 미생물|micro 작은 + be(bio) 생명
+@D23 cur(curs) 달리다, cur 돌보다, vid(vis) 나누다, terr 땅, tend(tens) 뻗다, poss(pot) 할 수 있다
+current|a. 현재의 n. 흐름; 경향|cur 달리다 + ent
+curriculum|n. 교육과정|cur 달리다(경주로)
+occur|v. 일어나다, 발생하다; 떠오르다|oc ~쪽으로 + cur 달리다
+excursion|n. 소풍, 여행|ex 밖 + curs 달리다
+cure|v. 치료하다 n. 치료법|cur 돌보다
+curious|a. 호기심이 많은|cur 돌보다(관심) + ous
+accurate|a. 정확한|ac ~에 + cur 돌보다
+divide|v. 나누다|di 떨어져 + vid 나누다
+individual|a. 개개의 n. 개인|in 부정 + divid 나누다
+devise|v. 고안하다|de 떨어져 + vise 나누다
+widow|n. 과부|wid 나누다(떨어진)
+territory|n. 영토; 영역|terr 땅 + tory 장소
+terrestrial|a. 지구의; 육지의|terr 땅 + estrial
+mediterranean|a. 지중해의|medi 중간 + terr 땅
+attend|v. 참석하다; 주의를 기울이다(to)|at ~에 + tend 뻗다
+pretend|v. ~인 척하다|pre 앞 + tend 뻗다
+extend|v. 연장하다; 확장하다|ex 밖 + tend 뻗다
+intend|v. 의도하다|in 안 + tend 뻗다
+tend|v. ~하는 경향이 있다; 돌보다|tend 뻗다
+tender|a. 부드러운; 다정한|tend 뻗다(연한)
+tense|a. 긴장한 n. 시제|tens 뻗다(팽팽한)
+intense|a. 강렬한|in 안 + tense 뻗다
+possible|a. 가능한|poss 할 수 있다 + ible
+possess|v. 소유하다|pos 할 수 있다 + sess 앉다
+potential|a. 잠재적인 n. 잠재력|pot 할 수 있다 + ential
+@D24 ple(pli, ply) 채우다, cult(col) 경작하다, sult(sal, sault) 뛰다, cid(cis) 자르다/죽이다, ced(ceed, cess) 가다
+complete|a. 완전한 v. 완성하다|com 강조 + plete 채우다
+complement|n. 보완물 v. 보완하다|com 강조 + ple 채우다
+implement|v. 시행하다 n. 도구|im 안 + ple 채우다
+compliment|n. 칭찬 v. 칭찬하다|com 강조 + pli 채우다
+accomplish|v. 성취하다|ac ~에 + com + pli 채우다
+supply|n. 공급 v. 공급하다|sup 아래 + ply 채우다
+plenty|n. 많음, 풍부함|plen 가득 찬
+cultivate|v. 경작하다; 기르다|cult 경작하다 + ivate
+culture|n. 문화; 배양|cult 경작하다 + ure
+agriculture|n. 농업|agri 밭 + culture 경작
+colony|n. 식민지; 군집|col 경작하다(정착)
+insult|v. 모욕하다 n. 모욕|in 위에 + sult 뛰다
+result|n. 결과 v. 결과로 생기다|re 뒤로 + sult 뛰다
+assault|n. 폭행; 공격 v. 폭행하다|as ~에 + sault 뛰다
+salient|a. 가장 두드러진|sal 뛰다(튀어나온)
+suicide|n. 자살|sui 자신 + cide 죽이다
+pesticide|n. 살충제|pest 해충 + cide 죽이다
+decision|n. 결정|de 떨어져 + cis 자르다
+precise|a. 정확한|pre 미리 + cise 자르다
+precede|v. ~에 앞서다|pre 앞 + cede 가다
+exceed|v. 초과하다|ex 밖 + ceed 가다
+proceed|v. 진행하다; 나아가다|pro 앞 + ceed 가다
+succeed|v. 성공하다; 뒤를 잇다|suc 아래 + ceed 가다
+predecessor|n. 전임자; 이전 것|pre 앞 + de + cess 가다
+access|n. 접근(권) v. 접근하다|ac ~쪽으로 + cess 가다
+cease|v. 그치다, 중단하다|ceas 가다(물러가다)
+@D25 vert(vers, vorce) 돌리다, nat 태어나다, rot(rol) 바퀴/굴리다, part(port) 부분, flect(flex) 구부리다
+advertise|v. 광고하다|ad ~쪽으로 + vert 돌리다
+convert|v. 전환하다; 개종시키다|con 완전히 + vert 돌리다
+vertical|a. 수직의|vert 돌리다(정점)
+converse|v. 대화하다 a. 정반대의|con 함께 + verse 돌리다
+diverse|a. 다양한|di 떨어져 + verse 돌리다
+reverse|v. 뒤집다 a. 반대의 n. 반대|re 뒤로 + verse 돌리다
+adversity|n. 역경|ad ~쪽으로 + vers 돌리다(맞서다)
+verse|n. 운문, 시; 절|vers 돌리다(행을 바꾸다)
+version|n. 판; 설명|vers 돌리다 + ion
+divorce|n. 이혼 v. 이혼하다|di 떨어져 + vorce 돌리다
+native|a. 태어난 곳의; 토박이의 n. 원주민|nat 태어나다
+nation|n. 국가; 국민|nat 태어나다
+nature|n. 자연; 본성|nat 태어나다
+innate|a. 타고난|in 안 + nate 태어나다
+rotate|v. 회전하다; 교대하다|rot 바퀴 + ate
+control|v. 통제하다 n. 통제|contra 반대 + rol 두루마리(대조 장부)
+enroll|v. 등록하다|en 안 + roll 명부
+partial|a. 부분적인; 편파적인|part 부분 + ial
+particle|n. 입자|part 부분 + icle 작은
+particular|a. 특정한; 까다로운|part 부분 + icular
+apart|ad. 떨어져, 따로|a ~으로 + part 부분
+portion|n. 부분, 몫|port 부분 + ion
+proportion|n. 비율; 균형|pro 앞 + portion 몫
+reflect|v. 반사하다; 반영하다; 숙고하다|re 뒤로 + flect 구부리다
+flexible|a. 유연한; 융통성 있는|flex 구부리다 + ible
+@D26 man(mani, main) 손, gno(no, kno, qua) 알다, grad(gress, gred) 단계/가다, lax(lys, leas, lay) 느슨하게 하다
+manual|a. 손으로 하는 n. 설명서|man 손 + ual
+manuscript|n. 원고|manu 손 + script 쓰다
+maintain|v. 유지하다; 주장하다|main 손 + tain 잡다
+manipulate|v. 조작하다|mani 손 + pul 채우다
+manage|v. 관리하다; 가까스로 해내다|man 손 + age
+recognize|v. 알아보다; 인정하다|re 다시 + cogn 알다
+diagnose|v. 진단하다|dia 가로질러 + gno 알다
+ignore|v. 무시하다|i(=in) 부정 + gno 알다
+noble|a. 고귀한; 귀족의 n. 귀족|no 알다(널리 알려진)
+acknowledge|v. 인정하다; 감사를 표하다|ac ~에 + know 알다
+acquaint|v. 익히다, 알리다|ac ~에 + quaint 알다
+grade|n. 등급; 학년; 성적 v. 등급을 매기다|grad 단계
+gradual|a. 점진적인|grad 단계 + ual
+graduate|v. 졸업하다 n. 졸업생|grad 단계 + uate
+aggressive|a. 공격적인; 적극적인|ag ~쪽으로 + gress 가다
+congress|n. 회의; 의회|con 함께 + gress 가다
+degree|n. 정도; 학위; (온도) 도|de 아래 + gree 단계
+ingredient|n. 재료, 성분|in 안 + gred 가다
+relax|v. 휴식을 취하다; 완화하다|re 다시 + lax 느슨하게 하다
+analysis|n. 분석|ana 위로(완전히) + lys 풀다
+paralysis|n. 마비|para 옆 + lys 풀다
+release|v. 풀어 주다; 발표하다 n. 석방; 발표|re 다시 + lease 느슨하게 하다
+delay|v. 미루다 n. 지연|de 떨어져 + lay 느슨하게 하다
+relay|n. 릴레이; 중계 v. 전달하다|re 다시 + lay 풀어놓다
+@D27 volv(vol) 말다/돌다, fer 나르다, van(vain, void, vac) 빈, ess(sent) 존재하다, war(ward) 주의하다, art 기술
+evolve|v. 진화하다; 발전하다|e 밖 + volve 말다(펼치다)
+revolve|v. 회전하다|re 다시 + volve 돌다
+involve|v. 포함하다; 관련시키다|in 안 + volve 말다
+volume|n. 양; 권; 음량|vol 말다(두루마리)
+prefer|v. 선호하다|pre 앞 + fer 나르다
+refer|v. 언급하다(to); 참고하다|re 뒤로 + fer 나르다
+confer|v. 상의하다; 수여하다|con 함께 + fer 나르다
+infer|v. 추론하다|in 안 + fer 나르다
+indifferent|a. 무관심한|in 부정 + different 다른
+fertile|a. 비옥한; 생식력 있는|fer 나르다(낳다) + tile
+vanish|v. 사라지다|van 빈 + ish
+vain|a. 헛된; 허영심이 강한|vain 빈
+avoid|v. 피하다|a 밖 + void 빈
+vacant|a. 비어 있는|vac 빈 + ant
+vacuum|n. 진공; 공백 v. 진공청소기로 청소하다|vac 빈
+essence|n. 본질; 정수|ess 존재하다
+absent|a. 결석한; 없는|ab 떨어져 + sent 존재하다
+present|a. 현재의; 참석한 n. 선물 v. 주다; 제시하다|pre 앞 + sent 존재하다
+award|n. 상 v. 수여하다|a 밖 + ward 주의하다(판정)
+reward|n. 보상 v. 보상하다|re 다시 + ward 주의하다
+aware|a. 알고 있는|a 강조 + ware 주의하다
+warn|v. 경고하다|war 주의하다
+artificial|a. 인공의; 인위적인|arti 기술 + fic 만들다
+artistic|a. 예술의; 예술적인|art 기술(예술) + istic
+@D28 magn(mast, maj, max) 큰, flu 흐르다, it(i) 가다, cern(cri) 구별하다
+magnitude|n. 규모; 중요성; 진도|magn 큰 + itude
+magnify|v. 확대하다; 과장하다|magn 큰 + ify 만들다
+master|n. 주인; 대가 v. 숙달하다|mast 큰
+masterpiece|n. 걸작|master 대가 + piece 작품
+major|a. 주요한 n. 전공 v. 전공하다(in)|maj 큰 + or 비교급
+mayor|n. 시장|may(=maj) 큰
+majestic|a. 장엄한|maj 큰 + estic
+maximum|n. 최대 a. 최대의|max 큰 + imum 최상급
+fluid|n. 유체, 액체 a. 유동적인|flu 흐르다 + id
+fluent|a. 유창한|flu 흐르다 + ent
+influence|n. 영향 v. 영향을 주다|in 안 + flu 흐르다
+influenza|n. 독감|in 안 + flu 흐르다
+exit|n. 출구 v. 나가다|ex 밖 + it 가다
+initial|a. 처음의 n. 머리글자|in 안 + it 가다
+initiate|v. 시작하다; 입문시키다|in 안 + it 가다 + iate
+transit|n. 수송; 통과|trans 가로질러 + it 가다
+perish|v. 죽다; 소멸하다|per 완전히 + ish 가다
+issue|n. 쟁점; 발행(물) v. 발표하다; 발행하다|iss 밖으로 가다
+concern|n. 걱정; 관심사 v. 걱정시키다; 관련되다|con 함께 + cern 구별하다
+discern|v. 식별하다|dis 떨어져 + cern 구별하다
+crisis|n. 위기|cri 구별하다(결정적 순간)
+criticize|v. 비판하다|crit 판단하다 + icize
+discriminate|v. 차별하다; 구별하다|dis 떨어져 + crimin 구별하다
+@D29 not 알다/표시, car(char) 나르다/수레, ag(act) 행하다/몰다, tact(teg, tain, tir) 만지다
+notable|a. 주목할 만한|not 표시 + able
+notice|v. 알아차리다 n. 주목; 공지|not 알다 + ice
+notify|v. 통지하다|not 알다 + ify 만들다
+notion|n. 개념, 생각|not 알다 + ion
+career|n. 경력; 직업|car 수레(달리는 길)
+carpenter|n. 목수|car 수레(를 만드는 사람)
+carriage|n. 마차; 객차|carr 나르다 + iage
+carrier|n. 운반인; 항공사; 보균자|carr 나르다 + ier
+charge|n. 요금; 책임; 혐의 v. 청구하다; 충전하다|char 수레(짐을 싣다)
+discharge|v. 방출하다; 퇴원시키다 n. 방출|dis 반대 + charge 싣다
+agent|n. 대리인; 요원; 동인|ag 행하다 + ent
+agenda|n. 의제, 안건|ag 행하다 + enda 해야 할 것
+active|a. 활동적인; 적극적인|act 행하다 + ive
+actual|a. 실제의|act 행하다 + ual
+exact|a. 정확한|ex 밖 + act 몰다
+react|v. 반응하다|re 다시 + act 행하다
+ambiguous|a. 모호한|ambi 양쪽 + gu 몰다
+navigate|v. 항해하다; 길을 찾다|nav 배 + ig 몰다
+intact|a. 손상되지 않은|in 부정 + tact 만지다
+contact|n. 접촉; 연락 v. 연락하다|con 함께 + tact 만지다
+integrate|v. 통합하다|in 부정 + teg 만지다(손대지 않은 전체)
+attain|v. 달성하다|at ~에 + tain 만지다
+entire|a. 전체의|en 부정 + tire 만지다
+@D30 clin(cli) 기울다, fin 끝/경계, mand(mend) 명령하다/맡기다, loc 장소, path(pati, pass) 느끼다/고통
+decline|v. 감소하다; 거절하다 n. 감소|de 아래로 + cline 기울다
+incline|v. ~하고 싶게 하다; 기울다 n. 경사|in ~쪽으로 + cline 기울다
+climate|n. 기후; 분위기|cli 기울다(위도)
+final|a. 마지막의 n. 결승전|fin 끝 + al
+finance|n. 재정, 금융 v. 자금을 대다|fin 끝(빚을 끝내다)
+confine|v. 가두다; 한정하다|con 함께 + fine 경계
+refine|v. 정제하다; 개선하다|re 다시 + fine 끝(순수한)
+define|v. 정의하다|de 강조 + fine 경계
+infinite|a. 무한한|in 부정 + finite 유한한
+demand|n. 요구; 수요 v. 요구하다|de 강조 + mand 명령하다
+command|n. 명령; 지휘 v. 명령하다|com 강조 + mand 명령하다
+mandate|n. 권한; 명령 v. 명령하다|mand 명령하다 + ate
+recommend|v. 추천하다; 권고하다|re 강조 + com + mend 맡기다
+local|a. 지역의, 현지의 n. 주민|loc 장소 + al
+locate|v. 위치시키다; 찾아내다|loc 장소 + ate
+allocate|v. 할당하다|al ~에 + loc 장소 + ate
+pathetic|a. 불쌍한; 한심한|path 고통 + etic
+empathy|n. 공감, 감정 이입|em 안 + path 느끼다
+sympathy|n. 동정; 공감|sym 함께 + path 느끼다
+antipathy|n. 반감|anti 반대 + path 느끼다
+patient|a. 참을성 있는 n. 환자|pati 고통 + ent
+passive|a. 수동적인|pass 고통받다(받아들이다) + ive
+passion|n. 열정|pass 고통(격한 감정) + ion
+compassion|n. 연민, 동정심|com 함께 + pass 고통
+@D31 cap(chief, chiev) 머리, sum 취하다, equ(ide) 같은, solv 풀다, neg(ny, neut) 부정, log 말/학문, memor(member) 기억
+capital|n. 수도; 자본; 대문자 a. 주요한|cap 머리 + ital
+chief|a. 주요한 n. 우두머리|chief 머리
+achieve|v. 성취하다|a ~에 + chieve 머리(끝)
+assume|v. 가정하다; (책임을) 떠맡다|as ~에 + sume 취하다
+consume|v. 소비하다; 먹다|con 완전히 + sume 취하다
+presume|v. 추정하다|pre 미리 + sume 취하다
+resume|v. 재개하다 n. 이력서|re 다시 + sume 취하다
+equal|a. 동등한 v. ~와 같다|equ 같은 + al
+equivalent|a. 동등한 n. 등가물|equi 같은 + val 가치
+adequate|a. 충분한; 적절한|ad ~에 + equ 같은 + ate
+identify|v. 확인하다, 식별하다; 동일시하다|ide 같은 + ify 만들다
+solve|v. 해결하다; 풀다|solv 풀다
+resolve|v. 해결하다; 결심하다|re 강조 + solve 풀다
+dissolve|v. 녹이다; 해산하다|dis 떨어져 + solve 풀다
+negative|a. 부정적인; 음성의|neg 부정 + ative
+deny|v. 부인하다; 거부하다|de 강조 + ny 부정하다
+neutral|a. 중립의|ne 아닌 + utr 둘 중 하나
+logic|n. 논리|log 말(이성) + ic
+analogy|n. 유추; 비유|ana ~에 따라 + logy 말
+apology|n. 사과|apo 떨어져 + logy 말(변명)
+catalogue|n. 목록, 카탈로그|cata 완전히 + logue 말(열거)
+ecology|n. 생태(학)|eco 집(환경) + logy 학문
+psychology|n. 심리학; 심리|psycho 정신 + logy 학문
+memory|n. 기억(력); 추억|memor 기억 + y
+remember|v. 기억하다|re 다시 + member 기억하다
+@D32 caus(cus) 이유/소송, via(vi, vey, voy) 길, rang(rank) 줄, pend(pens, pond) 매달다/무게를 달다, apt(att) 적합한, spond(spons) 약속하다
+cause|n. 원인; 대의 v. 일으키다|caus 이유
+accuse|v. 고발하다; 비난하다|ac ~에 + cuse 소송
+excuse|n. 변명 v. 용서하다; 변명하다|ex 밖 + cuse 소송(벗어나다)
+via|prep. ~을 경유하여; ~을 통해|via 길
+obvious|a. 명백한|ob ~에 + vi 길(길에 놓인)
+previous|a. 이전의|pre 앞 + vi 길
+convey|v. 전달하다; 운반하다|con 함께 + vey 길
+voyage|n. 항해, 여행|voy 길 + age
+range|n. 범위; 산맥 v. (범위가) 이르다|rang 줄
+arrange|v. 정리하다; 준비하다|ar ~에 + range 줄
+rank|n. 계급; 지위 v. 순위를 매기다|rank 줄
+depend|v. 의존하다; ~에 달려 있다(on)|de 아래로 + pend 매달다
+suspend|v. 매달다; 중단하다; 정학시키다|sus 아래 + pend 매달다
+expend|v. (시간·돈을) 쓰다|ex 밖 + pend 무게를 달다(지불)
+compensate|v. 보상하다; 보완하다|com 함께 + pens 무게를 달다
+pension|n. 연금|pens 지불하다 + ion
+ponder|v. 숙고하다|pond 무게를 달다
+apt|a. ~하는 경향이 있는; 적절한|apt 적합한
+adapt|v. 적응하다; 각색하다|ad ~에 + apt 적합한
+attitude|n. 태도|att(=apt) 적합한 + itude
+respond|v. 응답하다; 반응하다|re 다시 + spond 약속하다
+responsible|a. 책임 있는|respons 응답하다 + ible
+sponsor|n. 후원자 v. 후원하다|spons 약속하다 + or
+@D33 tribut 나누어 주다, grat(grac, gree) 기쁨/감사, oper 일, stingu(stinct, stim) 찌르다, gard(guar) 지켜보다, flo(fle) 흐르다/뜨다
+attribute|v. ~의 탓으로 돌리다(to) n. 속성|at ~에 + tribute 나누어 주다
+contribute|v. 기여하다; 기부하다|con 함께 + tribute 나누어 주다
+distribute|v. 분배하다|dis 떨어져 + tribute 나누어 주다
+congratulate|v. 축하하다|con 함께 + grat 기쁨
+gratify|v. 기쁘게 하다|grat 기쁨 + ify
+gratitude|n. 감사|grat 감사 + itude
+grace|n. 우아함; 은혜|grac 기쁨(호의)
+agree|v. 동의하다|a ~에 + gree 기쁨
+operate|v. 작동하다; 수술하다; 운영하다|oper 일 + ate
+cooperate|v. 협력하다|co 함께 + operate 일하다
+distinguish|v. 구별하다|di 떨어져 + stingu 찌르다
+extinguish|v. (불을) 끄다; 소멸시키다|ex 밖 + stingu 찌르다
+extinct|a. 멸종된|ex 밖 + stinct 찌르다(꺼진)
+distinct|a. 뚜렷한; 별개의|di 떨어져 + stinct 찌르다
+instinct|n. 본능|in 안 + stinct 찌르다
+stimulate|v. 자극하다|stim 찌르다 + ulate
+regard|v. 여기다; 주목하다 n. 관심; 안부|re 다시 + gard 지켜보다
+garment|n. 의복|gar 보호하다 + ment
+guard|n. 경비원 v. 지키다|guar 지켜보다
+guarantee|v. 보장하다 n. 보증|guar 지켜보다 + antee
+float|v. 뜨다, 떠다니다|flo 뜨다
+flood|n. 홍수 v. 범람하다|flo 흐르다
+flow|n. 흐름 v. 흐르다|flo 흐르다
+flee|v. 달아나다|fle 흐르다(빠져나가다)
+@D34 lect(leg, lig) 고르다/모으다, claim(cil) 외치다, rupt(rout) 깨다, alter(ali) 다른, scrib 쓰다
+collect|v. 모으다, 수집하다|col 함께 + lect 모으다
+recollect|v. 회상하다|re 다시 + collect 모으다
+elect|v. 선출하다|e 밖 + lect 고르다
+neglect|v. 방치하다; 소홀히 하다 n. 방치|neg 부정 + lect 고르다
+intellect|n. 지성|intel(=inter) 사이 + lect 고르다
+elegant|a. 우아한|e 밖 + leg 고르다
+claim|v. 주장하다; 요구하다 n. 주장; 청구|claim 외치다
+proclaim|v. 선언하다|pro 앞 + claim 외치다
+exclaim|v. 외치다|ex 밖 + claim 외치다
+council|n. 의회; 위원회|coun 함께 + cil 외치다(소집)
+bankrupt|a. 파산한|bank 은행(책상) + rupt 깨다
+corrupt|a. 부패한 v. 타락시키다|cor 강조 + rupt 깨다
+disrupt|v. 방해하다; 붕괴시키다|dis 떨어져 + rupt 깨다
+erupt|v. 분출하다; 발발하다|e 밖 + rupt 깨다
+interrupt|v. 방해하다, 가로막다|inter 사이 + rupt 깨다
+route|n. 길, 경로|rout 깨다(뚫린 길)
+routine|n. 일과, 판에 박힌 일 a. 일상적인|rout 길 + ine
+alter|v. 바꾸다, 변경하다|alter 다른
+alternative|n. 대안 a. 대안의|alter 다른 + native
+alien|a. 외국의; 이질적인 n. 외계인|ali 다른 + en
+describe|v. 묘사하다, 설명하다|de 아래로 + scribe 쓰다
+prescribe|v. 처방하다; 규정하다|pre 미리 + scribe 쓰다
+subscribe|v. 구독하다; 동의하다(to)|sub 아래 + scribe 쓰다(서명)
+@D35 dict(dic, dex) 말하다, vad 가다, mod 척도/방식, ord 순서, cid(cas, cay) 떨어지다
+dictate|v. 받아쓰게 하다; 지시하다|dict 말하다 + ate
+addiction|n. 중독|ad ~에 + dict 말하다(넘겨주다)
+contradict|v. 반박하다; 모순되다|contra 반대 + dict 말하다
+dedicate|v. 바치다, 헌신하다|de 아래 + dic 말하다(선언하다)
+indicate|v. 나타내다; 가리키다|in ~에 + dic 말하다(가리키다)
+index|n. 색인; 지수|in ~에 + dex 가리키다
+invade|v. 침략하다|in 안 + vade 가다
+pervade|v. 스며들다, 퍼지다|per 통해 + vade 가다
+evade|v. 피하다, 회피하다|e 밖 + vade 가다
+moderate|a. 적당한, 온건한 v. 완화하다|mod 척도 + erate
+modernize|v. 현대화하다|modern 현대의 + ize
+modest|a. 겸손한; 적당한|mod 척도 + est
+modify|v. 수정하다|mod 척도 + ify
+accommodate|v. 수용하다; 숙박시키다; 맞추다|ac ~에 + com + mod 척도
+commodity|n. 상품; 원자재|com 함께 + mod 척도(적합한 것)
+mold|n. 틀; 곰팡이 v. 형성하다|mold(=mod) 척도(틀)
+ordinary|a. 보통의, 평범한|ord 순서 + inary
+subordinate|a. 종속된 n. 부하|sub 아래 + ord 순서
+coordinate|v. 조정하다; 조화시키다|co 함께 + ord 순서
+accident|n. 사고; 우연|ac ~에 + cid 떨어지다
+incident|n. 사건|in 위에 + cid 떨어지다
+coincidence|n. 우연의 일치|co 함께 + in + cid 떨어지다
+casual|a. 평상시의; 무심한; 우연한|cas 떨어지다(우연)
+occasion|n. 때, 경우; 행사|oc ~에 + cas 떨어지다
+decay|v. 부패하다; 쇠퇴하다 n. 부패|de 아래로 + cay 떨어지다
+@D36 mechan 기계, min 작은, min 돌출하다, dom 집/지배, od(ed) 노래, pen(pun) 벌, pel(peal, pol, puls) 몰다
+mechanism|n. 기계 장치; 메커니즘|mechan 기계 + ism
+mechanic|n. 정비사|mechan 기계 + ic
+machinery|n. 기계류|machine 기계 + ry
+minor|a. 작은; 미성년의 n. 미성년자; 부전공|min 작은 + or 비교급
+minimum|n. 최소 a. 최소의|min 작은 + imum 최상급
+minister|n. 장관; 성직자|min 작은(봉사하는 자)
+administer|v. 관리하다; (약을) 투여하다|ad ~에 + minister 봉사하다
+diminish|v. 줄어들다; 줄이다|di 떨어져 + min 작은
+eminent|a. 저명한|e 밖 + min 돌출하다
+imminent|a. 임박한|im 위에 + min 돌출하다
+prominent|a. 저명한; 두드러진|pro 앞 + min 돌출하다
+domain|n. 영역; 분야|dom 지배
+domestic|a. 가정의; 국내의|dom 집 + estic
+dominate|v. 지배하다|dom 지배 + inate
+predominant|a. 우세한, 두드러진|pre 앞 + dominant 지배적인
+melody|n. 선율, 멜로디|mel 노래 + ody 노래
+tragedy|n. 비극|trag 염소 + edy 노래
+penalty|n. 처벌; 벌금; 페널티|pen 벌 + alty
+punish|v. 처벌하다|pun 벌 + ish
+compel|v. 강요하다|com 강조 + pel 몰다
+expel|v. 쫓아내다; 배출하다|ex 밖 + pel 몰다
+appeal|v. 호소하다; 관심을 끌다 n. 호소; 매력|ap ~쪽으로 + peal 몰다
+polish|v. 닦다; 다듬다 n. 광택제|pol 몰다(문지르다)
+impulse|n. 충동|im 안 + pulse 몰다
+@D37 leg(lig, loy) 법/위임하다, lab 노동, cast 던지다, terr 두려워하다, ton(tun) 소리, sol 혼자
+legal|a. 법률의; 합법적인|leg 법 + al
+legislate|v. 법률을 제정하다|legis 법 + late 가져오다
+privilege|n. 특권|privi 개인의 + lege 법
+delegate|n. 대표 v. 위임하다|de 떨어져 + leg 위임하다
+legacy|n. 유산|leg 위임하다(유증)
+colleague|n. 동료|col 함께 + league 선택된 사람
+loyal|a. 충실한|loy 법(을 지키는)
+labor|n. 노동; 분만 v. 노동하다|lab 노동
+laboratory|n. 실험실|labor 노동 + atory 장소
+elaborate|a. 정교한 v. 자세히 설명하다|e 밖 + labor 노동
+collaborate|v. 협력하다|col 함께 + labor 노동
+cast|v. 던지다; 배역을 정하다 n. 출연진; 깁스|cast 던지다
+broadcast|v. 방송하다 n. 방송|broad 넓게 + cast 던지다
+forecast|n. 예측; 예보 v. 예측하다|fore 미리 + cast 던지다
+terrible|a. 끔찍한|terr 두려워하다 + ible
+terror|n. 공포; 테러|terr 두려워하다 + or
+terrify|v. 겁나게 하다|terr 두려워하다 + ify
+tone|n. 어조; 음색; 색조|ton 소리
+intonation|n. 억양|in 안 + ton 소리
+monotonous|a. 단조로운|mono 하나 + ton 소리
+tune|n. 곡조 v. (악기를) 조율하다|tun 소리
+sole|a. 유일한 n. 발바닥|sol 혼자
+solitary|a. 혼자의, 고독한|sol 혼자 + itary
+solitude|n. 고독|sol 혼자 + itude
+@D38 pass(pace) 걸음/지나가다, ped 발, us(ut) 사용하다, jus(jud, jur) 법/정의, per 시도하다, soci 동료
+passage|n. 통로; (글의) 구절; 통과|pass 지나가다 + age
+passenger|n. 승객|passage 통과 + er
+passerby|n. 행인|passer 지나가는 사람 + by 옆
+pastime|n. 취미, 기분 전환|pass 지나가다 + time 시간
+surpass|v. 능가하다|sur 넘어 + pass 지나가다
+bypass|n. 우회로 v. 우회하다|by 옆 + pass 지나가다
+pace|n. 속도; 걸음 v. 서성거리다|pace 걸음
+pedal|n. 페달 v. 페달을 밟다|ped 발 + al
+expedition|n. 탐험(대), 원정|ex 밖 + ped 발
+pedestrian|n. 보행자 a. 보행자의|ped 발 + estrian
+use|v. 사용하다 n. 사용|us 사용하다
+abuse|n. 남용; 학대 v. 남용하다; 학대하다|ab 떨어져 + use 사용하다
+utilize|v. 이용하다|ut 사용하다 + ilize
+utensil|n. (주방) 도구|ut 사용하다 + ensil
+just|a. 공정한 ad. 딱; 단지|jus 정의
+justify|v. 정당화하다|jus 정의 + tify
+judge|v. 판단하다 n. 판사; 심판|jud 법 + ge 말하다
+prejudice|n. 편견|pre 미리 + jud 판단하다
+injure|v. 부상을 입히다|in 부정 + jure 법(부당하게 하다)
+experience|n. 경험 v. 경험하다|ex 밖 + per 시도하다
+experiment|n. 실험 v. 실험하다|ex 밖 + per 시도하다
+expert|n. 전문가 a. 전문적인|ex 밖 + per 시도하다
+peril|n. 위험|per 시도하다(모험)
+social|a. 사회의; 사교적인|soci 동료 + al
+associate|v. 연상하다; 교제하다 n. 동료|as ~에 + soci 동료 + ate
+@D39 voc(vok) 부르다/목소리, long(ling) 긴, commun(popul, publ) 공공/사람들, frag(frac) 깨다, grav(grief) 무거운
+vocal|a. 목소리의 n. 보컬|voc 목소리 + al
+vocabulary|n. 어휘|voc 부르다(이름) + abulary
+vocation|n. 천직; 직업|voc 부르다(소명) + ation
+advocate|v. 옹호하다 n. 옹호자|ad ~에 + voc 부르다
+evoke|v. 불러일으키다|e 밖 + voke 부르다
+provoke|v. 유발하다; 화나게 하다|pro 앞 + voke 부르다
+invoke|v. (법·권리를) 발동하다; 기원하다|in 안 + voke 부르다
+long|a. 긴 v. 열망하다(for)|long 긴
+belong|v. 속하다(to)|be 강조 + long 가다(따르다)
+prolong|v. 연장하다|pro 앞 + long 긴
+length|n. 길이|leng 긴 + th
+linger|v. 오래 머무르다; 계속되다|ling 긴 + er
+community|n. 공동체, 지역 사회|commun 공공 + ity
+common|a. 흔한; 공통의|com 함께 + mon 의무
+communicate|v. 의사소통하다; 전달하다|commun 공공 + icate
+popular|a. 인기 있는; 대중의|popul 사람들 + ar
+population|n. 인구|popul 사람들 + ation
+public|a. 대중의; 공공의 n. 대중|publ 사람들 + ic
+publish|v. 출판하다; 발표하다|publ 공공 + ish
+republic|n. 공화국|re 일(res) + public 공공의
+fragment|n. 조각, 파편|frag 깨다 + ment
+fragile|a. 깨지기 쉬운; 연약한|frag 깨다 + ile
+fraction|n. 부분, 일부; 분수|frac 깨다 + tion
+grave|n. 무덤 a. 심각한|grav 무거운
+grief|n. 슬픔, 비탄|grief 무거운
+@D40 aster(astro) 별, sider 별, surg(sour) 솟다, sens(sent, scent) 느끼다, cord(cour, core) 마음, termin 끝/경계
+disaster|n. 재난|dis 떨어져 + aster 별(불길한 별)
+astronaut|n. 우주비행사|astro 별 + naut 항해자
+astronomy|n. 천문학|astro 별 + nomy 법칙
+astrology|n. 점성술|astro 별 + logy 학문
+desire|n. 욕구 v. 바라다|de 떨어져 + sire(sider) 별
+consider|v. 고려하다; 여기다|con 함께 + sider 별(별을 관찰하다)
+surge|n. 급증; 밀려듦 v. 급증하다|surg 솟다
+source|n. 원천; 출처|sour 솟다(샘)
+resource|n. 자원|re 다시 + source 솟다
+sense|n. 감각; 의미 v. 감지하다|sens 느끼다
+nonsense|n. 터무니없는 말|non 부정 + sense 의미
+sensation|n. 감각; 센세이션, 돌풍|sens 느끼다 + ation
+sentiment|n. 감정, 정서|sent 느끼다 + iment
+consent|n. 동의 v. 동의하다|con 함께 + sent 느끼다
+resent|v. 분개하다|re 강조 + sent 느끼다
+scent|n. 향기|scent 느끼다(냄새)
+discord|n. 불화, 불일치|dis 떨어져 + cord 마음
+accord|n. 일치; 협정 v. 일치하다|ac ~에 + cord 마음
+courage|n. 용기|cour 마음 + age
+encourage|v. 격려하다; 장려하다|en 만들다 + courage 용기
+core|n. 핵심; 속 a. 핵심적인|core 마음(심장)
+terminal|a. 말기의; 종점의 n. 터미널|termin 끝 + al
+terminate|v. 끝내다|termin 끝 + ate
+determine|v. 결정하다; 알아내다|de 강조 + termin 경계
+term|n. 용어; 기간; 학기; (pl.) 조건, 관계|term 끝(경계)
+@D41 ment(mon, min) 마음/생각하다/경고하다, limin 경계, text 짜다, prehend(pris, prey) 잡다, sper(spair) 희망, plea 기쁘게 하다
+mental|a. 정신의|ment 마음 + al
+mention|v. 언급하다 n. 언급|ment 생각하다(떠올리다) + ion
+comment|n. 논평 v. 논평하다|com 강조 + ment 생각하다
+remind|v. 상기시키다|re 다시 + mind 마음
+monument|n. 기념비|mon 상기시키다 + ument
+monitor|v. 감시하다 n. 모니터|mon 경고하다 + itor
+summon|v. 소환하다; 소집하다|sum(=sub) 아래 + mon 경고하다
+eliminate|v. 제거하다|e 밖 + limin 경계(문턱)
+preliminary|a. 예비의 n. 예선|pre 앞 + limin 경계
+limit|n. 한계; 제한 v. 제한하다|limit 경계
+text|n. 본문; 문자 메시지|text 짜다
+context|n. 맥락, 문맥|con 함께 + text 짜다
+textile|n. 직물, 섬유|text 짜다 + ile
+texture|n. 질감|text 짜다 + ure
+comprehend|v. 이해하다|com 완전히 + prehend 잡다
+prison|n. 감옥|pris 잡다 + on
+imprison|v. 투옥하다|im 안 + prison 감옥
+surprise|v. 놀라게 하다 n. 놀라움|sur 위 + prise 잡다
+enterprise|n. 기업; 사업|enter 사이 + prise 잡다
+prey|n. 먹이 v. 잡아먹다(on)|prey 잡다
+prosper|v. 번영하다|pro 앞 + sper 희망
+despair|n. 절망 v. 절망하다|de 떨어져 + spair 희망
+please|v. 기쁘게 하다 ad. 제발|plea 기쁘게 하다
+plead|v. 간청하다; 변호하다|plea 기쁘게 하다(호소)
+@D42 mit(miss, mis, mess) 보내다, dit(der, d, ren) 주다, cert 확실한, spir 숨 쉬다
+admit|v. 인정하다; 입장을 허락하다|ad ~에 + mit 보내다
+commit|v. (죄를) 저지르다; 약속하다; 전념하다|com 함께 + mit 보내다
+committee|n. 위원회|commit 맡기다 + ee
+emit|v. 방출하다|e 밖 + mit 보내다
+omit|v. 생략하다; 빠뜨리다|o(b) 떨어져 + mit 보내다
+permit|v. 허락하다 n. 허가증|per 통해 + mit 보내다
+submit|v. 제출하다; 굴복하다|sub 아래 + mit 보내다
+transmit|v. 전송하다; 전염시키다|trans 가로질러 + mit 보내다
+mission|n. 임무; 사절단|miss 보내다 + ion
+commission|n. 위원회; 수수료; 의뢰|com 함께 + miss 보내다
+promise|n. 약속; 가능성 v. 약속하다|pro 앞 + mise 보내다
+mess|n. 엉망, 혼란|mess 보내다(차려 놓은 음식)
+render|v. ~하게 만들다; 주다|ren(=re) 다시 + der 주다
+surrender|v. 항복하다; 넘겨주다 n. 항복|sur 위 + render 주다
+edit|v. 편집하다|e 밖 + dit 주다(내놓다)
+add|v. 더하다|ad ~에 + d 주다
+rent|n. 집세 v. 임대하다; 임차하다|ren 주다(돌려주다)
+certain|a. 확실한; 특정한|cert 확실한 + ain
+certificate|n. 증명서, 자격증|cert 확실한 + ificate
+spirit|n. 정신; 영혼; 기분|spir 숨 쉬다
+aspire|v. 열망하다|a ~쪽으로 + spire 숨 쉬다
+inspire|v. 영감을 주다; 고무하다|in 안 + spire 숨 쉬다
+expire|v. 만료되다; 숨을 거두다|ex 밖 + (s)pire 숨 쉬다
+@D43 par(pear) 보이다, sequ(secu, su) 따르다, phas(phen, fan) 보이다, cit 부르다/움직이게 하다, tail 자르다, patr(pat) 아버지, plaud(plode) 박수 치다
+transparent|a. 투명한; 명백한|trans 가로질러 + par 보이다
+apparent|a. 명백한; 겉보기의|ap ~에 + par 보이다
+appear|v. 나타나다; ~인 것 같다|ap ~에 + pear 보이다
+sequence|n. 연속; 순서|sequ 따르다 + ence
+consequence|n. 결과; 중요성|con 함께 + sequ 따르다
+subsequent|a. 그 다음의, 이후의|sub 아래 + sequ 따르다
+pursue|v. 추구하다; 뒤쫓다|pur(=pro) 앞 + sue 따르다
+suit|n. 정장; 소송 v. ~에 맞다|su 따르다
+execute|v. 실행하다; 처형하다|ex 밖 + ecute 따르다
+emphasize|v. 강조하다|em 안 + phas 보이다 + ize
+phase|n. 단계; 국면|phas 보이다
+phenomenon|n. 현상 (pl. phenomena)|phen 보이다 + omenon
+fancy|a. 화려한; 고급의 v. 상상하다 n. 공상|fan 보이다(환상)
+cite|v. 인용하다; 언급하다|cit 부르다
+recite|v. 암송하다; 낭독하다|re 다시 + cite 부르다
+excite|v. 흥분시키다|ex 밖 + cite 움직이게 하다
+tailor|n. 재단사 v. 맞추다|tail 자르다 + or
+retail|n. 소매 v. 소매하다|re 다시 + tail 자르다
+detail|n. 세부 사항|de 완전히 + tail 자르다
+patriot|n. 애국자|patr 아버지(조국) + iot
+patron|n. 후원자; 단골 고객|patr 아버지 + on
+pattern|n. 양식, 패턴; 무늬|patt(=patr) 아버지(본보기)
+applaud|v. 박수를 치다; 칭찬하다|ap ~에 + plaud 박수 치다
+explode|v. 폭발하다|ex 밖 + plode 박수 치다(야유해서 쫓아내다)
+@D44 pet(peat) 추구하다, deb(du) 빚지다, par(peer, pair) 동등한, meas(mens) 재다, audi(ey) 듣다, preci(prais, pric) 가치, viv(vit) 살다, veng 복수하다
+compete|v. 경쟁하다|com 함께 + pete 추구하다
+competence|n. 능력, 역량|com 함께 + pet 추구하다
+petition|n. 청원 v. 청원하다|pet 추구하다 + ition
+appetite|n. 식욕; 욕구|ap ~에 + pet 추구하다
+repeat|v. 반복하다|re 다시 + peat 추구하다
+debt|n. 빚, 부채|deb 빚지다
+due|a. ~때문인(to); ~하기로 되어 있는; 만기가 된|du 빚지다
+duty|n. 의무; 관세|du 빚지다 + ty
+compare|v. 비교하다; 비유하다|com 함께 + par 동등한
+peer|n. 또래, 동료 v. 응시하다|peer 동등한
+pair|n. 한 쌍|pair 동등한
+measure|v. 측정하다 n. 조치; 척도|meas 재다 + ure
+dimension|n. 차원; 치수|di 떨어져 + mens 재다
+immense|a. 거대한, 막대한|im 부정 + mense 재다
+audience|n. 청중, 관객|audi 듣다 + ence
+obey|v. 복종하다; 따르다|ob ~에 + ey 듣다
+precious|a. 귀중한|preci 가치 + ous
+appreciate|v. 감사하다; 진가를 알다; 감상하다|ap ~에 + preci 가치 + ate
+praise|n. 칭찬 v. 칭찬하다|prais 가치
+priceless|a. 대단히 귀중한|price 가치 + less 없는(값을 매길 수 없는)
+survive|v. 살아남다|sur 넘어 + vive 살다
+vivid|a. 생생한|viv 살다 + id
+vital|a. 필수적인; 생명의|vit 살다 + al
+avenge|v. 복수하다|a ~에 + venge 복수하다
+revenge|n. 복수 v. 복수하다|re 강조 + venge 복수하다
+@D45 fa(fam, fan, fess) 말하다, pol(polit) 도시, par(pair) 준비하다, imper(emper) 명령하다, test 증언하다, lat 나르다, lev(liev) 가벼운/들어 올리다, the(theo) 신
+fable|n. 우화|fa 말하다 + ble
+fate|n. 운명|fa 말하다(신의 말)
+fame|n. 명성|fam 말하다(평판)
+infant|n. 유아|in 부정 + fant 말하다(말 못 하는)
+confess|v. 고백하다; 인정하다|con 강조 + fess 말하다
+professional|a. 전문적인; 직업의 n. 전문가|pro 앞 + fess 말하다(공언하다)
+political|a. 정치적인|polit 도시(국가) + ical
+policy|n. 정책; 방침|pol 도시(국가) + icy
+metropolis|n. 대도시|metro 어머니 + polis 도시
+prepare|v. 준비하다|pre 미리 + pare 준비하다
+repair|v. 수리하다 n. 수리|re 다시 + pair 준비하다
+emperor|n. 황제|emper 명령하다 + or
+imperative|a. 반드시 해야 하는; 명령적인 n. 긴급한 일|imper 명령하다 + ative
+testify|v. 증언하다|test 증언하다 + ify
+contest|n. 대회; 경쟁 v. 이의를 제기하다|con 함께 + test 증언하다
+protest|n. 항의 v. 항의하다|pro 앞 + test 증언하다
+relate|v. 관련시키다; 이야기하다|re 뒤로 + late 나르다
+correlation|n. 상관관계|cor 함께 + relation 관계
+translate|v. 번역하다|trans 가로질러 + late 나르다
+elevate|v. 들어 올리다; 높이다|e 밖 + lev 들어 올리다
+relevant|a. 관련된; 적절한|re 다시 + lev 들어 올리다
+relieve|v. 덜어 주다; 안심시키다|re 다시 + lieve 가볍게 하다
+theology|n. 신학|theo 신 + logy 학문
+enthusiasm|n. 열정|en 안 + thus(=theo) 신
+@D46 sid(sess, set) 앉다, propr 자기 자신의, temper 조절하다, lack(leak) 부족하다/새다, flict 치다, lig(ly) 묶다, tru 믿다
+reside|v. 거주하다|re 뒤에 + side 앉다
+president|n. 대통령; 회장|pre 앞 + sid 앉다 + ent
+session|n. 회기; 수업 (시간)|sess 앉다 + ion
+assess|v. 평가하다|as ~옆에 + sess 앉다(판사 곁에 앉다)
+obsess|v. 사로잡다, 집착하게 하다|ob 반대 + sess 앉다(포위하다)
+settle|v. 정착하다; 해결하다|set 앉다 + tle
+proper|a. 적절한|proper 자기 자신의
+property|n. 재산; 부동산; 속성|proper 자기 자신의 + ty
+appropriate|a. 적절한 v. 도용하다|ap ~에 + propri 자기 자신의
+temper|n. 성질; 기분|temper 조절하다
+temperament|n. 기질|temper 조절하다 + ament
+temperate|a. (기후가) 온화한; 절제된|temper 조절하다 + ate
+temperature|n. 온도; 체온|temper 조절하다 + ature
+lack|n. 부족 v. ~이 부족하다|lack 부족하다
+leak|v. 새다; 누설하다 n. 누출|leak 새다
+conflict|n. 갈등, 충돌 v. 상충하다|con 함께 + flict 치다
+inflict|v. (고통을) 가하다|in 위에 + flict 치다
+oblige|v. 의무를 지우다; 돕다|ob ~에 + lige 묶다
+religion|n. 종교|re 다시 + lig 묶다
+ally|n. 동맹국 v. 동맹을 맺다|al ~에 + ly 묶다
+rally|n. 집회 v. 다시 모이다; 회복하다|r(e) 다시 + ally 결합하다
+rely|v. 의지하다(on)|re 강조 + ly 묶다
+liable|a. ~하기 쉬운(to); 책임이 있는|li 묶다 + able
+trust|n. 신뢰 v. 신뢰하다|tru 믿다
+entrust|v. 맡기다|en 만들다 + trust 신뢰
+truthful|a. 정직한, 진실한|truth 진실 + ful
+@D47 bar 막대/장애물, nov(new) 새로운, sert(ser) 결합하다/연결하다, tempt 시도하다, spher 구, fus(fund) 붓다, centr 중심, tort(torm) 비틀다
+bar|n. 막대; 술집; 장애 v. 막다; 금지하다|bar 막대
+embarrass|v. 당황하게 하다|em 안 + barrass 막대(장애)
+barrier|n. 장벽, 장애물|bar 장애물 + rier
+novel|n. 소설 a. 새로운|nov 새로운
+innovate|v. 혁신하다|in 안 + nov 새로운 + ate
+renovate|v. 개조하다, 보수하다|re 다시 + nov 새로운
+renew|v. 갱신하다; 재개하다|re 다시 + new 새로운
+desert|n. 사막 v. 버리다|de 반대 + sert 결합하다
+insert|v. 삽입하다|in 안 + sert 결합하다
+assert|v. 주장하다|as ~에 + sert 결합하다
+exert|v. (힘·영향력을) 가하다; 발휘하다|ex 밖 + (s)ert 결합하다
+series|n. 연속; 시리즈|ser 연결하다 + ies
+tempt|v. 유혹하다|tempt 시도하다
+attempt|n. 시도 v. 시도하다|at ~에 + tempt 시도하다
+sphere|n. 구; 영역|spher 구
+atmosphere|n. 대기; 분위기|atmo 증기 + sphere 구
+hemisphere|n. 반구|hemi 반 + sphere 구
+confuse|v. 혼란시키다|con 함께 + fuse 붓다
+refuse|v. 거절하다|re 뒤로 + fuse 붓다
+refund|n. 환불 v. 환불하다|re 뒤로 + fund 붓다
+central|a. 중심의; 중요한|centr 중심 + al
+concentrate|v. 집중하다|con 함께 + centr 중심 + ate
+torture|n. 고문 v. 고문하다|tort 비틀다 + ure
+distort|v. 왜곡하다|dis 떨어져 + tort 비틀다
+torment|n. 고통 v. 괴롭히다|torm 비틀다 + ent
+@D48 cred(grant) 믿다, fals(fail, faul) 속이다/틀린, host(hosp) 손님/주인, fid(fed, fai, fy) 믿다, tradi(tray) 넘겨주다, dam(demn) 손해, punct(point) 점/찌르다, norm 표준, vag 돌아다니다
+credit|n. 신용; 학점; 공로 v. 믿다|cred 믿다 + it
+incredible|a. 믿을 수 없는; 굉장한|in 부정 + cred 믿다 + ible
+grant|v. 주다; 인정하다 n. 보조금|grant 믿다(허락하다)
+false|a. 틀린; 가짜의|fals 속이다
+fail|v. 실패하다; ~하지 못하다|fail 속이다
+fault|n. 잘못; 결점|faul 틀린
+host|n. 주인; 진행자 v. 주최하다|host 주인
+hostile|a. 적대적인|host 적(이방인) + ile
+hospitality|n. 환대|hosp 손님 + itality
+confident|a. 자신 있는; 확신하는|con 강조 + fid 믿다
+fidelity|n. 충실; 정확도|fid 믿다 + elity
+federal|a. 연방의|fed 믿다(동맹)
+faith|n. 믿음; 신앙|fai 믿다 + th
+defy|v. 반항하다; 무시하다|de 떨어져 + fy 믿다
+tradition|n. 전통|tradi 넘겨주다 + tion
+betray|v. 배신하다; 드러내다|be 강조 + tray 넘겨주다
+damage|n. 손상 v. 손상을 주다|dam 손해 + age
+condemn|v. 비난하다; 선고하다|con 강조 + demn 손해(벌)
+punctual|a. 시간을 지키는|punct 점 + ual
+punctuate|v. 구두점을 찍다; 간간이 끼어들다|punct 점 + uate
+disappoint|v. 실망시키다|dis 반대 + appoint 임명하다
+norm|n. 표준; 규범|norm 표준
+enormous|a. 막대한, 거대한|e 밖 + norm 표준 + ous
+vague|a. 모호한|vag 돌아다니다
+extravagant|a. 낭비하는; 과도한|extra 밖 + vag 돌아다니다
+vagrant|n. 부랑자 a. 떠도는|vag 돌아다니다 + rant
+@D49 gest(gist) 나르다, prob(prov) 시험하다/증명하다, urb 도시, thes(them) 놓다, tach(tack, stak) 말뚝/붙이다, estim 평가하다, circ 원, turb(troub) 휘젓다
+gesture|n. 몸짓 v. 손짓하다|gest 나르다 + ure
+digest|v. 소화하다; 이해하다 n. 요약|di 떨어져 + gest 나르다
+register|v. 등록하다 n. 명부|re 뒤로 + gist 나르다
+probable|a. 개연성 있는, 있을 것 같은|prob 증명하다 + able
+probe|v. 조사하다 n. 조사; 탐사선|prob 시험하다
+prove|v. 증명하다; ~으로 판명되다|prov 증명하다
+approve|v. 승인하다; 찬성하다(of)|ap ~에 + prove 증명하다
+urban|a. 도시의|urb 도시 + an
+suburb|n. 교외|sub 아래(근처) + urb 도시
+thesis|n. 논문; 논지|thes 놓다
+hypothesis|n. 가설|hypo 아래 + thesis 놓다
+theme|n. 주제|them 놓다
+attach|v. 붙이다; 첨부하다|at ~에 + tach 말뚝(붙이다)
+attack|n. 공격 v. 공격하다|at ~에 + tack 말뚝(찌르다)
+stake|n. 말뚝; 지분; 이해관계|stak 말뚝
+estimate|v. 추정하다 n. 추정(치)|estim 평가하다 + ate
+overestimate|v. 과대평가하다|over 넘어 + estimate 평가하다
+esteem|n. 존경; 평가 v. 존경하다|esteem 평가하다
+circulate|v. 순환하다; 유포되다|circ 원 + ulate
+circumstance|n. 상황, 환경|circum 둘레 + stance 서다
+circuit|n. 순회; (전기) 회로|circu 둘레 + it 가다
+disturb|v. 방해하다|dis 강조 + turb 휘젓다
+trouble|n. 문제; 곤란 v. 괴롭히다|troub 휘젓다
+@D50 civ(cit) 시민, don(dot, dos) 주다, liber(liver) 자유로운, ann 해/년, electr 전기/호박, ori 떠오르다, sci 알다, merg 가라앉다, sure 확실한/안전한
+civil|a. 시민의; 민간의; 예의 바른|civ 시민 + il
+civilize|v. 문명화하다|civil 시민의 + ize
+citizen|n. 시민|cit 시민 + izen
+donate|v. 기부하다|don 주다 + ate
+anecdote|n. 일화|an 부정 + ec 밖 + dot 주다(발표되지 않은)
+dose|n. (약의) 복용량|dos 주다
+liberal|a. 진보적인; 자유주의의; 후한|liber 자유로운 + al
+liberate|v. 해방시키다|liber 자유로운 + ate
+deliver|v. 배달하다; 연설하다; 출산하다|de 떨어져 + liver 자유롭게 하다
+anniversary|n. 기념일|ann 해 + vers 돌다
+annual|a. 매년의, 연간의|ann 해 + ual
+electric|a. 전기의|electr 전기(호박) + ic
+electronic|a. 전자의|electr 전기 + onic
+origin|n. 기원; 출신|ori 떠오르다 + gin
+orient|v. 방향을 맞추다 n. 동양|ori 떠오르다(해가 뜨는 곳)
+conscious|a. 의식하는; 의식이 있는|con 함께 + sci 알다
+subconscious|a. 잠재의식의 n. 잠재의식|sub 아래 + conscious 의식하는
+conscience|n. 양심|con 함께 + sci 알다
+merge|v. 합병하다; 합치다|merg 가라앉다(잠기다)
+emerge|v. 나타나다|e 밖 + merge 가라앉다
+submerge|v. 잠수하다; 물에 잠기게 하다|sub 아래 + merge 가라앉다
+assure|v. 보장하다; 확신시키다|as ~에 + sure 확실한
+reassure|v. 안심시키다|re 다시 + assure 확신시키다
+insure|v. 보험에 들다|in 만들다 + sure 안전한
+@D51 trud(thrus, threa) 밀다, graph 쓰다/그리다, sect(seg) 자르다, her 상속인, hum 땅/낮은, nutr(nour, nur) 영양을 주다, grab(grasp, grip) 잡다
+intrude|v. 침범하다; 방해하다|in 안 + trude 밀다
+thrust|v. 밀다, 찌르다 n. 추진력; 요지|thrus 밀다
+threat|n. 위협|threa 밀다(압박)
+graphic|a. 그래픽의; 생생한|graph 그리다 + ic
+photograph|n. 사진 v. 사진을 찍다|photo 빛 + graph 그리다
+section|n. 부분; 구역|sect 자르다 + ion
+intersection|n. 교차로|inter 사이 + section 자르다
+sector|n. 부문, 분야|sect 자르다 + or
+segment|n. 부분|seg 자르다 + ment
+heredity|n. 유전|her 상속인 + edity
+heritage|n. 유산|her 상속인 + itage
+inherit|v. 물려받다, 상속받다|in 안 + her 상속인 + it
+heir|n. 상속인|heir 상속인
+humanity|n. 인류; 인간성; (pl.) 인문학|hum 인간 + anity
+humble|a. 겸손한; 초라한|hum 땅(낮은) + ble
+humility|n. 겸손|hum 땅(낮은) + ility
+humiliate|v. 굴욕감을 주다|hum 땅(낮추다) + iliate
+nutrition|n. 영양|nutr 영양을 주다 + ition
+nourish|v. 영양분을 주다; 키우다|nour 영양을 주다 + ish
+nurse|n. 간호사 v. 간호하다|nur 영양을 주다(기르다)
+nurture|v. 양육하다 n. 양육|nur 기르다 + ture
+grab|v. 붙잡다|grab 잡다
+grasp|v. 꽉 잡다; 이해하다 n. 이해|grasp 잡다
+grip|n. 꽉 쥠 v. 꽉 잡다|grip 잡다
+@D52 lect(leg) 읽다, scend(scal) 오르다, liter 글자, vow(vot) 맹세하다, band(bond, bund, bind) 묶다, sacr(saint) 신성한, priv 개인의/분리된, char(cher) 소중한, und 물결치다
+lecture|n. 강의 v. 강의하다|lect 읽다 + ure
+legend|n. 전설|leg 읽다 + end
+descend|v. 내려가다|de 아래로 + scend 오르다
+scale|n. 규모; 저울; 비늘 v. 오르다|scal 오르다(사다리)
+escalate|v. 확대되다, 증가하다|e + scal 오르다 + ate
+literal|a. 문자 그대로의|liter 글자 + al
+literate|a. 읽고 쓸 줄 아는|liter 글자 + ate
+literature|n. 문학|liter 글자 + ature
+vow|n. 맹세 v. 맹세하다|vow 맹세하다
+vote|n. 투표 v. 투표하다|vot 맹세하다(바라다)
+devote|v. 바치다, 헌신하다(to)|de 떨어져 + vote 맹세하다
+bandage|n. 붕대 v. 붕대를 감다|band 묶다 + age
+bond|n. 유대; 채권 v. 유대를 맺다|bond 묶다
+bundle|n. 묶음, 꾸러미|bund 묶다 + le
+bind|v. 묶다; 구속하다|bind 묶다
+sacred|a. 신성한|sacr 신성한 + ed
+sacrifice|n. 희생; 제물 v. 희생하다|sacr 신성한 + fice 만들다
+saint|n. 성인, 성자|saint 신성한
+private|a. 사적인; 사립의|priv 개인의 + ate
+deprive|v. 빼앗다(of)|de 완전히 + prive 분리하다
+charity|n. 자선 (단체)|char 소중한(사랑) + ity
+cherish|v. 소중히 여기다|cher 소중한 + ish
+abundant|a. 풍부한|ab 떨어져 + und 물결치다(넘쳐흐르다)
+surround|v. 둘러싸다|sur 넘어 + round(und) 물결치다
+@D53 vict(vinc) 이기다/정복하다, tempor 시간, mir(marv) 놀라다, nounc 알리다, numer 수, lus 놀다/속이다, mut 바꾸다, corp 몸, merc 거래/보상, vol 의지
+victory|n. 승리|vict 이기다 + ory
+convict|v. 유죄를 선고하다 n. 기결수|con 완전히 + vict 정복하다
+convince|v. 확신시키다; 설득하다|con 완전히 + vince 정복하다
+province|n. 주, 도; 지방|pro 앞 + vince 정복하다
+temporary|a. 일시적인|tempor 시간 + ary
+contemporary|a. 동시대의; 현대의 n. 동시대인|con 함께 + tempor 시간
+miracle|n. 기적|mir 놀라다 + acle
+admire|v. 존경하다; 감탄하다|ad ~에 + mire 놀라다
+marvelous|a. 놀라운, 훌륭한|marv 놀라다 + elous
+announce|v. 발표하다, 알리다|an ~에 + nounce 알리다
+pronounce|v. 발음하다; 선언하다|pro 앞 + nounce 알리다
+numeral|n. 숫자|numer 수 + al
+numerous|a. 수많은|numer 수 + ous
+innumerable|a. 셀 수 없이 많은|in 부정 + numer 수 + able
+illusion|n. 환상, 착각|il 위에 + lus 놀다(속이다)
+delusion|n. 망상, 착각|de 아래로 + lus 속이다
+mutual|a. 상호 간의; 공동의|mut 바꾸다(교환하다) + ual
+commute|v. 통근하다 n. 통근|com 함께 + mute 바꾸다
+mutation|n. 돌연변이; 변화|mut 바꾸다 + ation
+corporate|a. 기업의; 법인의|corp 몸(단체) + orate
+incorporate|v. 포함하다; 법인을 설립하다|in 안 + corpor 몸
+corps|n. 부대, 단체|corp 몸
+commerce|n. 상업, 무역|com 함께 + merc 거래
+merchant|n. 상인|merc 거래 + hant
+mercy|n. 자비|merc 보상(은혜)
+voluntary|a. 자발적인|vol 의지 + untary
+volunteer|n. 자원봉사자 v. 자원하다|vol 의지 + unteer
+@D54 soph 지혜, alt(ol) 높은/자라다, ang(anx) 조이다/고통, fare 가다, fend 치다, mort(mur) 죽음, trem 떨다, migr 이동하다, put 생각하다
+philosophy|n. 철학|philo 사랑 + sophy 지혜
+sophomore|n. (고교·대학의) 2학년생|soph 지혜 + more 어리석은
+sophisticated|a. 세련된; 정교한|soph 지혜 + isticated
+altitude|n. 고도|alt 높은 + itude
+abolish|v. 폐지하다|ab 떨어져 + ol 자라다
+adolescent|n. 청소년 a. 청소년기의|ad ~쪽으로 + ol 자라다 + escent
+anguish|n. 극심한 고통|ang 조이다 + uish
+anxious|a. 불안한; 갈망하는|anx 조이다 + ious
+fare|n. (교통) 요금|fare 가다
+farewell|n. 작별 (인사)|fare 가다 + well 잘
+welfare|n. 복지; 행복|wel 잘 + fare 가다(지내다)
+defend|v. 방어하다; 변호하다|de 떨어져 + fend 치다
+fence|n. 울타리|fence(defence) 막다
+offend|v. 기분을 상하게 하다; 위반하다|of 반대 + fend 치다
+mortal|a. 언젠가는 죽는; 치명적인 n. 인간|mort 죽음 + al
+mortgage|n. (담보) 대출|mort 죽음 + gage 담보
+murder|n. 살인 v. 살해하다|mur 죽음
+tremble|v. 떨다|trem 떨다 + ble
+tremendous|a. 엄청난|trem 떨다 + endous
+migrate|v. 이동하다; 이주하다|migr 이동하다 + ate
+immigrate|v. (외국에서) 이주해 오다|im 안 + migrate 이동하다
+emigrate|v. (외국으로) 이민 가다|e 밖 + migrate 이동하다
+dispute|n. 논쟁 v. 논쟁하다; 이의를 제기하다|dis 떨어져 + pute 생각하다
+reputation|n. 평판, 명성|re 다시 + put 생각하다
+@D55 형용사 접미사 -able(-ible), -ful, -less, -al, -ar, -ary(-ory), -ly
+favorable|a. 호의적인; 유리한|favor 호의 + able
+reliable|a. 믿을 수 있는|rely 의지하다 + able
+visible|a. 보이는|vis 보다 + ible
+hopeful|a. 희망에 찬|hope + ful 가득한
+doubtful|a. 의심스러운|doubt + ful 가득한
+meaningful|a. 의미 있는|meaning + ful 가득한
+regretful|a. 후회하는|regret + ful 가득한
+thoughtful|a. 사려 깊은|thought + ful 가득한
+countless|a. 셀 수 없이 많은|count + less 없는
+endless|a. 끝없는|end + less 없는
+helpless|a. 무력한|help + less 없는
+ideal|a. 이상적인 n. 이상|idea + al
+verbal|a. 말의, 언어의|verb 말 + al
+internal|a. 내부의|intern 안 + al
+racial|a. 인종의|race + ial
+spiritual|a. 정신적인; 종교적인|spirit + ual
+familiar|a. 친숙한; 잘 아는(with)|family + ar
+solar|a. 태양의|sol 태양 + ar
+peculiar|a. 이상한; 특유의|pecul 개인 재산 + iar
+customary|a. 관례적인|custom + ary
+satisfactory|a. 만족스러운|satisfact + ory
+costly|a. 비싼; 대가가 큰|cost + ly
+timely|a. 시기적절한|time + ly
+orderly|a. 정돈된, 질서 있는|order + ly
+@D56 형용사 접미사 -ous, -ate, -ant(-ent), -ish, -ic, -ive, -y
+furious|a. 격노한; 맹렬한|fury 격노 + ous
+ambitious|a. 야심 있는|ambition + ous
+cautious|a. 조심스러운|caution + ous
+continuous|a. 계속되는|continue + ous
+fortunate|a. 운 좋은|fortune + ate
+passionate|a. 열정적인|passion + ate
+intimate|a. 친밀한|intim 가장 안쪽 + ate
+pleasant|a. 즐거운, 쾌적한|please + ant
+reliant|a. 의존하는(on)|rely + ant
+violent|a. 폭력적인; 격렬한|viol 폭력 + ent
+urgent|a. 긴급한|urge 재촉하다 + ent
+foolish|a. 어리석은|fool + ish
+reddish|a. 불그스름한|red + ish ~빛을 띤
+selfish|a. 이기적인|self + ish
+childish|a. 유치한|child + ish
+basic|a. 기본적인|base + ic
+characteristic|a. 특징적인 n. 특징|character + istic
+typical|a. 전형적인|type + ical
+active|a. 활동적인; 적극적인|act + ive
+intuitive|a. 직관적인|intuit + ive
+informative|a. 유익한|inform + ative
+hasty|a. 성급한|haste + y
+sticky|a. 끈적거리는|stick + y
+gloomy|a. 우울한; 어두운|gloom + y
+@D57 혼동하기 쉬운 형용사
+imaginable|a. 상상할 수 있는|imagine + able 할 수 있는
+imaginative|a. 상상력이 풍부한|imagine + ative 성향
+imaginary|a. 상상의, 가상의|imagine + ary 관련된
+successful|a. 성공적인|success + ful
+successive|a. 연속적인|succeed 잇따르다 + ive
+industrial|a. 산업의|industry + al
+industrious|a. 근면한|industry 근면 + ous
+economic|a. 경제의|economy + ic
+economical|a. 절약하는, 경제적인|economy + ical
+historic|a. 역사적으로 중요한|history + ic
+historical|a. 역사(상)의|history + ical
+considerable|a. 상당한|consider + able
+considerate|a. 사려 깊은|consider + ate
+sensible|a. 분별 있는|sense + ible
+sensitive|a. 민감한; 세심한|sense + itive
+respectable|a. 존경할 만한; 상당한|respect + able
+respectful|a. 공손한|respect + ful
+intellectual|a. 지적인 n. 지식인|intellect + ual
+intelligent|a. 지능이 높은, 똑똑한|intellig 이해하다 + ent
+literal|a. 문자 그대로의|liter 글자 + al
+literary|a. 문학의|liter 글자 + ary
+literate|a. 읽고 쓸 줄 아는|liter 글자 + ate
+social|a. 사회의|soci 동료 + al
+sociable|a. 사교적인|soci 동료 + able
+comparable|a. 비교할 만한; 비슷한|compare + able
+comparative|a. 비교의; 상대적인|compare + ative
+@D58 명사 접미사 -er, -ee, -or, -ary, -ity, -ance(-ence), -ure, -acy, -ness, -ment, -ics, -hood, -le
+interviewer|n. 면접관|interview + er 하는 사람
+interviewee|n. 면접 대상자|interview + ee 받는 사람
+inventor|n. 발명가|invent + or 사람
+supervisor|n. 감독관, 관리자|supervise + or 사람
+secretary|n. 비서; 장관|secret 비밀 + ary 사람
+boundary|n. 경계(선)|bound 경계 + ary 장소
+variety|n. 다양성; 종류|vary + ety
+ability|n. 능력|able + ity
+authority|n. 권위; 당국|author + ity
+appearance|n. 외모; 출현|appear + ance
+conference|n. 회의|confer + ence
+creature|n. 생물|create + ure
+failure|n. 실패|fail + ure
+accuracy|n. 정확성|accurate + acy
+privacy|n. 사생활|private + acy
+witness|n. 목격자 v. 목격하다|wit 알다 + ness
+fitness|n. 건강; 적합성|fit + ness
+agreement|n. 동의; 협정|agree + ment
+assessment|n. 평가|assess + ment
+document|n. 문서 v. 기록하다|docu 가르치다 + ment
+supplement|n. 보충(제) v. 보충하다|supply + ment
+economics|n. 경제학|economy + ics 학문
+politics|n. 정치(학)|polit + ics 학문
+physics|n. 물리학|physic 자연 + ics 학문
+childhood|n. 어린 시절|child + hood 시기
+neighborhood|n. 이웃; 근처|neighbor + hood 집단
+angle|n. 각도; 관점|ang 굽다 + le
+label|n. 상표, 라벨 v. 라벨을 붙이다|lab 조각 + el
+@D59 명사 접미사 -ant(-ent), -ist, -ive, -y(-ery), -tion, -th, -al, -ship, -ism, -et(-let, -ette)
+assistant|n. 조수|assist + ant 사람
+attendant|n. 수행원; 안내원|attend + ant 사람
+consultant|n. 상담가, 컨설턴트|consult + ant 사람
+servant|n. 하인|serve + ant 사람
+resident|n. 거주자|reside + ent 사람
+journalist|n. 기자|journal + ist 사람
+psychologist|n. 심리학자|psychology + ist 사람
+relative|n. 친척 a. 상대적인|relate + ive
+representative|n. 대표자 a. 대표하는|represent + ative
+discovery|n. 발견|discover + y
+theory|n. 이론|theor 보다 + y
+surgery|n. 수술|surge(on) + ery
+pollution|n. 오염|pollute + ion
+translation|n. 번역|translate + ion
+introduction|n. 소개; 도입|introduce + tion
+invitation|n. 초대(장)|invite + ation
+wealth|n. 부, 재산|weal 행복 + th
+weight|n. 무게, 체중|weigh + t
+arrival|n. 도착|arrive + al
+proposal|n. 제안|propose + al
+citizenship|n. 시민권|citizen + ship 신분
+leadership|n. 지도력|leader + ship 자질
+realism|n. 현실주의; 사실주의|real + ism 주의
+optimism|n. 낙관주의|optim 최선 + ism 주의
+criticism|n. 비판; 비평|critic + ism
+target|n. 목표; 과녁 v. 목표로 삼다|targ 방패 + et 작은
+booklet|n. 소책자|book + let 작은
+leaflet|n. 전단|leaf + let 작은
+etiquette|n. 예절|etiqu 표 + ette 작은
+@D60 동사 접미사 -ize, -fy, -ate, -en, -le / 부사 접미사 -ly, -ward, -way, -wise
+realize|v. 깨닫다; 실현하다|real + ize ~화하다
+stabilize|v. 안정시키다|stable + ize ~화하다
+categorize|v. 분류하다|category + ize ~화하다
+simplify|v. 단순화하다|simple + ify 만들다
+classify|v. 분류하다|class + ify 만들다
+clarify|v. 명확하게 하다|clear + ify 만들다
+fascinate|v. 매혹하다|fascin 마법 + ate
+frustrate|v. 좌절시키다|frustr 헛된 + ate
+imitate|v. 모방하다|imit 모방 + ate
+irritate|v. 짜증 나게 하다|irrit 자극 + ate
+motivate|v. 동기를 부여하다|motive + ate
+originate|v. 비롯되다, 유래하다|origin + ate
+strengthen|v. 강화하다|strength + en 만들다
+frighten|v. 겁먹게 하다|fright + en 만들다
+fasten|v. 매다, 고정하다|fast 단단한 + en 만들다
+struggle|v. 고군분투하다 n. 투쟁|strug + le 반복
+wrestle|v. 레슬링하다; 씨름하다|wrest 비틀다 + le 반복
+extremely|ad. 극도로|extreme + ly
+rarely|ad. 좀처럼 ~않는|rare + ly
+nearly|ad. 거의|near + ly
+homeward|ad. 집으로|home + ward 방향
+upward|ad. 위쪽으로 a. 상승하는|up + ward 방향
+forward|ad. 앞으로 a. 앞의|fore + ward 방향
+halfway|ad. 중간에 a. 중간의|half + way 길
+likewise|ad. 마찬가지로|like + wise 방식
+otherwise|ad. 그렇지 않으면; 달리|other + wise 방식
+</script>
+<script src="/sabathia.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const IC = {
+  x:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  spk:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>'
+};
+
+/* ---------- 데이터 ---------- */
+const W = [], DAYS = [];
+$('#words').textContent.split('\n').forEach(l => {
+  l = l.trim(); if(!l) return;
+  if(l[0] === '@'){ const sp = l.indexOf(' '); DAYS.push({n: +l.slice(2, sp), roots: l.slice(sp + 1), ids: []}); return; }
+  const p = l.split('|'); const d = DAYS.length - 1;
+  W.push({id: W.length, w: p[0], m: p[1], r: p[2], d}); DAYS[d].ids.push(W.length - 1);
+});
+const NUM = i => String(i + 1).padStart(4, '0');
+const DN = d => 'Day ' + String(d + 1).padStart(2, '0');
+const DD = d => String(d + 1).padStart(2, '0');
+const WEEK = '일월화수목금토';
+const TYPE = {mcq:'뜻 고르기', mcqr:'단어 고르기', self:'뜻 떠올리기', spell:'철자 쓰기'};
+const TYPE_DESC = {
+  mcq:'영어를 보고 뜻 네 개 중에서 고릅니다. 같은 Day 단어가 오답 보기로 나와요.',
+  mcqr:'뜻을 보고 영어 단어 네 개 중에서 고릅니다. 비슷하게 생긴 단어끼리 구별하는 연습이에요.',
+  self:'영어를 보고 뜻을 먼저 떠올린 다음 확인하고, 스스로 맞았는지 누릅니다.',
+  spell:'뜻을 보고 영어 철자를 직접 씁니다. 첫 글자와 글자 수가 힌트로 나와요.'
+};
+const I = [0, 1, 3, 7, 16, 35, 75, 150];
+const MASTER = 4;
+
+/* ---------- 시간 (새벽 4시에 하루가 바뀜) ---------- */
+function today(){ const d = new Date(Date.now() - 4 * 3600e3); return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5); }
+
+/* ---------- 상태 ---------- */
+const LS = 'eowon.vocab.v1', LS_THEME = 'eowon.vocab.theme';
+function fresh(){ return {v:1, updatedAt:0, set:{perDay:20, spell:true, speak:false, start:0, ok:false, test:null, exam:{on:true, date:'2026-10-16', from:30, to:44}}, c:{}, log:{}, tests:[]}; }
+function normalize(s){
+  const f = fresh(); if(!s || typeof s !== 'object') return f;
+  s.set = Object.assign(f.set, s.set || {}); s.c = s.c && typeof s.c === 'object' ? s.c : {};
+  s.log = s.log && typeof s.log === 'object' ? s.log : {}; s.tests = Array.isArray(s.tests) ? s.tests.slice(-30) : [];
+  if(!(s.set.start >= 0 && s.set.start < DAYS.length)) s.set.start = 0;
+  return s;
+}
+function localLoad(){ try{ const r = localStorage.getItem(LS); return r ? JSON.parse(r) : null; }catch(e){ return null; } }
+function localSave(){ try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){} }
+let S = normalize(localLoad());
+function save(){ S.updatedAt = Date.now(); localSave(); cloudQueue(); }
+
+/* ---------- 온라인 저장 (ID) ----------
+   15577과 같은 Firestore 프로젝트의 planners/v-{ID} 문서 하나에 S 전체를 JSON 문자열로 저장.
+   같은 ID로 연결한 기기끼리 updatedAt이 최신인 쪽으로 맞춤 */
+const CLOUD = {projectId:'p15577', apiKey:'AIzaSyCMxJrxsFFEh9A9gDmbT4_rda9XLo8JgPE'};
+const CLOUD_KEY = 'eowon.vocab.cloudId', ID_RE = /^[a-z0-9_-]{3,22}$/;
+let cloudId = null, cloudAt = 0, cloudDirty = false, cloudBusy = false, cloudErr = '', cloudPending = null, cloudT = null;
+try{ cloudId = localStorage.getItem(CLOUD_KEY); }catch(e){}
+const cloudUrl = id => `https://firestore.googleapis.com/v1/projects/${CLOUD.projectId}/databases/(default)/documents/planners/v-${id}?key=${CLOUD.apiKey}`;
+async function cloudGet(id){
+  const r = await fetch(cloudUrl(id), {cache:'no-store'});
+  if(r.status === 404) return null;
+  if(!r.ok) throw new Error('get ' + r.status);
+  const f = (await r.json()).fields || {};
+  return f.data ? JSON.parse(f.data.stringValue) : null;
+}
+async function cloudPut(id, data){
+  const body = {fields:{data:{stringValue:JSON.stringify(data)}, updatedAt:{integerValue:String(data.updatedAt || 0)}}};
+  const r = await fetch(cloudUrl(id), {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if(!r.ok) throw new Error('put ' + r.status);
+}
+function cloudQueue(){ if(!cloudId) return; cloudDirty = true; clearTimeout(cloudT); cloudT = setTimeout(cloudPush, 1500); paintCloud(); }
+async function cloudPush(){
+  if(!cloudId || !cloudDirty || cloudBusy) return;
+  cloudBusy = true; cloudDirty = false; paintCloud();
+  try{ await cloudPut(cloudId, JSON.parse(JSON.stringify(S))); cloudAt = Date.now(); cloudErr = ''; }
+  catch(e){ cloudDirty = true; cloudErr = '온라인 저장 실패'; }
+  cloudBusy = false; paintCloud();
+  if(cloudDirty && !cloudErr){ clearTimeout(cloudT); cloudT = setTimeout(cloudPush, 1500); }
+}
+/* 온라인 쪽이 더 새로우면 받아 오고, 이 기기 쪽이 더 새로우면 올림. 학습·시험 중에는 받아 오지 않음 */
+async function cloudPull(){
+  if(!cloudId || cloudBusy) return;
+  if(cloudDirty) return cloudPush();
+  try{
+    const r = await cloudGet(cloudId); cloudErr = '';
+    if(r && (r.updatedAt || 0) > (S.updatedAt || 0)){
+      if(SES || TS) return;
+      S = normalize(r); localSave(); if($('#sheetWrap').hidden) render(); else { renderHead(); paintCloudBox(); }
+    } else if(!r || (S.updatedAt || 0) > (r.updatedAt || 0)){ cloudDirty = true; return cloudPush(); }
+    cloudAt = Date.now();
+  }catch(e){ cloudErr = '연결 실패'; }
+  paintCloud();
+}
+async function cloudConnect(raw){
+  const id = (raw || '').trim().toLowerCase();
+  if(!ID_RE.test(id)) return toast('ID는 영어 소문자·숫자·-·_ 로 3~22자예요');
+  let r;
+  try{ r = await cloudGet(id); }catch(e){ return toast('연결하지 못했어요. 인터넷을 확인해 주세요'); }
+  if(r){ cloudPending = {id, r}; return paintCloudBox(); }
+  await cloudUse(id, false);
+}
+async function cloudUse(id, useRemote){
+  const r = cloudPending && cloudPending.r; cloudPending = null;
+  cloudId = id; try{ localStorage.setItem(CLOUD_KEY, id); }catch(e){}
+  if(useRemote && r){ S = normalize(r); S.set.ok = true; localSave(); cloudAt = Date.now(); }
+  else { S.updatedAt = Date.now(); localSave(); cloudDirty = true; await cloudPush(); }
+  renderHead(); paintCloudBox();
+  toast(cloudErr ? '연결했지만 저장에 실패했어요. 잠시 후 다시 시도해요' : useRemote ? `'${id}'의 온라인 기록을 가져왔어요` : `'${id}'로 온라인 저장을 시작했어요`);
+}
+function cloudOff(b){
+  if(!b.classList.contains('arm')){ b.classList.add('arm'); b.textContent = '한 번 더 누르면 끊기'; setTimeout(() => { if(b.isConnected){ b.classList.remove('arm'); b.textContent = '연결 끊기'; } }, 3000); return; }
+  cloudId = null; cloudDirty = false; clearTimeout(cloudT);
+  try{ localStorage.removeItem(CLOUD_KEY); }catch(e){}
+  paintCloudBox(); toast('연결을 끊었어요. 이제 이 기기에만 저장돼요');
+}
+function cloudStatus(){
+  if(cloudErr) return cloudErr + '. 인터넷이 연결되면 다시 시도해요';
+  if(cloudBusy) return '저장 중…';
+  if(cloudDirty) return '곧 저장해요';
+  return cloudAt ? `동기화됨 ${new Date(cloudAt).toTimeString().slice(0, 5)}` : '연결됨';
+}
+function paintCloud(){ const el = document.getElementById('cloudSt'); if(el) el.textContent = cloudStatus(); }
+function paintCloudBox(){ const el = document.getElementById('cloudBox'); if(el) el.outerHTML = cloudHTML(); }
+function cloudHTML(){
+  let main;
+  if(cloudPending){
+    const r = cloudPending.r, n = Object.keys(r.c || {}).length;
+    const when = r.updatedAt ? new Date(r.updatedAt).toLocaleString('ko-KR', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+    main = `<p class="ctext">ID <span class="cid">${esc(cloudPending.id)}</span>에 이미 기록이 있어요 (학습한 단어 ${n}개${when ? `, ${when} 수정` : ''}). 어느 쪽을 쓸까요?</p>
+      <button class="primary" data-act="cPull" style="height:48px;font-size:15px">온라인 기록 가져오기</button>
+      <div class="row xrow"><button class="ghost" data-act="cPush">이 기기 기록으로 덮어쓰기</button><button class="ghost" data-act="cCancel">취소</button></div>`;
+  }
+  else if(cloudId) main = `<p class="ctext">ID <span class="cid">${esc(cloudId)}</span>로 온라인에 저장 중이에요. 다른 기기에서 같은 ID로 연결하면 기록이 자동으로 맞춰져요.</p>
+    <div class="row"><button class="ghost" data-act="cSync">지금 동기화</button><button class="ghost" data-act="cOff">연결 끊기</button></div>
+    <p class="cst" id="cloudSt">${cloudStatus()}</p>`;
+  else main = `<p class="ctext">ID를 정해 연결하면 기록이 온라인에 저장되고, 같은 ID로 연결한 기기끼리 자동으로 맞춰져요. 비밀번호가 없어서 ID를 아는 사람은 누구나 보고 고칠 수 있으니 남이 못 맞히는 ID를 쓰세요.</p>
+    <div class="row"><input class="in" id="cloudIn" placeholder="영어 소문자·숫자 3~22자" autocapitalize="off" autocomplete="off" spellcheck="false" style="flex:2"><button class="primary" data-act="cConnect" style="height:48px;font-size:15px">연결</button></div>`;
+  return `<div class="f" id="cloudBox"><span>온라인 저장 (기기 연동)</span>${main}</div>`;
+}
+function cloudBoot(){
+  if(cloudId) cloudPull();
+  setInterval(() => { if(!document.hidden) cloudPull(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if(document.hidden){ if(cloudDirty){ clearTimeout(cloudT); cloudPush(); } } else cloudPull(); });
+  window.addEventListener('online', () => { cloudErr = ''; cloudPull(); });
+}
+
+/* ---------- 카드: [단계, 복습일, 틀린 횟수, 복습 횟수, 마지막 학습일, 시험 오답 수] ---------- */
+const card = id => S.c['k' + id];
+const setCard = (id, c) => { S.c['k' + id] = c; };
+function status(id){ const c = card(id); if(!c || c[0] < 1) return 0; return c[0] >= MASTER ? 2 : 1; }
+function lg(t){ const k = 'd' + t; return S.log[k] || (S.log[k] = {n:0, r:0, ok:0}); }
+function logOf(t){ return S.log['d' + t] || {n:0, r:0, ok:0, nx:0}; }
+/* ---------- 영어 시험 대비 ---------- */
+function examInfo(){
+  const e = S.set.exam; if(!e || !e.on || !e.date) return null;
+  const p = String(e.date).split('-').map(Number); if(p.length !== 3 || p.some(isNaN)) return null;
+  const day = Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5), t = today(); if(t > day) return null;
+  const a = Math.min(e.from, e.to), b = Math.max(e.from, e.to), lo = DAYS[a].ids[0], hi = DAYS[b].ids[DAYS[b].ids.length - 1];
+  return {day, left:day - t, a, b, lo, hi, n:hi - lo + 1, deadline:day - 5, m:p[1], d:p[2]};
+}
+const inEx = (E, id) => !!E && id >= E.lo && id <= E.hi;
+function unseenRange(E){ let n = 0; for(let i = E.lo; i <= E.hi; i++) if(!card(i)) n++; return n; }
+/* 시험 범위 단어는 시험 날까지 남은 기간의 절반을 넘지 않게, 늦어도 시험 전날엔 다시 나오게 */
+function capDue(id, t, due){
+  const E = examInfo(); if(!inEx(E, id) || t >= E.day - 1) return due;
+  return Math.min(due, t + Math.max(1, Math.ceil((E.day - t) / 2)), E.day - 1);
+}
+function examQuota(E, t){
+  const un = unseenRange(E); if(!un) return 0;
+  const L = logOf(t), days = Math.max(1, E.deadline - t + 1);
+  return Math.max(0, Math.ceil((un + (L.nx || 0)) / days) - (L.nx || 0));
+}
+function dueIds(t){ const out = []; for(const k in S.c){ const c = S.c[k]; if(c[0] >= 1 && c[1] <= t) out.push(+k.slice(1)); } return out; }
+function unseen(){ let n = 0; for(let i = 0; i < W.length; i++) if(!card(i)) n++; return n; }
+/* 시험 대비 중엔 범위 단어만 새로 내주고, 범위를 다 봤으면 시험 날까지 새 단어 없이 복습만 */
+function newLeft(t){ const E = examInfo(); if(E && E.left > 0) return unseenRange(E) ? examQuota(E, t) : 0; return Math.max(0, S.set.perDay - logOf(t).n); }
+function newAvail(){ const E = examInfo(); return E && E.left > 0 && unseenRange(E) ? unseenRange(E) : unseen(); }
+function newIds(n, skip){
+  const out = []; if(n <= 0) return out;
+  const ok = i => !card(i) && !(skip && skip.has(i));
+  const E = examInfo();
+  if(E && E.left > 0 && unseenRange(E)){ for(let i = E.lo; i <= E.hi && out.length < n; i++) if(ok(i)) out.push(i); return out; }
+  const start = DAYS[S.set.start].ids[0];
+  for(let i = start; i < W.length && out.length < n; i++) if(ok(i)) out.push(i);
+  for(let i = 0; i < start && out.length < n; i++) if(ok(i)) out.push(i);
+  return out;
+}
+function nextNewDay(){ const x = newIds(1); return x.length ? W[x[0]].d : null; }
+function counts(){ let l = 0, m = 0; for(const k in S.c){ const s = S.c[k][0]; if(s >= MASTER) m++; else if(s >= 1) l++; } return [W.length - l - m, l, m]; }
+function dayStats(d){ let l = 0, m = 0; for(const id of DAYS[d].ids){ const s = status(id); if(s === 2) m++; else if(s === 1) l++; } const n = DAYS[d].ids.length; return {n, l, m, pm: m / n * 100, pl: l / n * 100}; }
+function streak(){ const act = d => { const L = S.log['d' + d]; return L && (L.n + L.r) > 0; }; let k = today(); if(!act(k)) k--; let n = 0; while(act(k)){ n++; k--; } return n; }
+function wrongIds(){
+  return Object.keys(S.c).map(k => [+k.slice(1), S.c[k]]).filter(([, c]) => (c[2] || 0) + (c[5] || 0) > 0)
+    .sort((a, b) => ((b[1][2] || 0) + (b[1][5] || 0)) - ((a[1][2] || 0) + (a[1][5] || 0)) || a[0] - b[0]).map(x => x[0]);
+}
+function fuzz(d){ if(d < 7) return d; const f = Math.round(d * .1); return d - f + Math.floor(Math.random() * (2 * f + 1)); }
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+/* 같은 Day(같은 어근) 단어가 연달아 나오지 않게 흩뜨림 */
+function spread(a){
+  for(let i = 1; i < a.length; i++){
+    if(W[a[i]].d !== W[a[i - 1]].d) continue;
+    for(let j = i + 1; j < a.length; j++) if(W[a[j]].d !== W[a[i - 1]].d){ [a[i], a[j]] = [a[j], a[i]]; break; }
+  }
+  return a;
+}
+
+/* ---------- 표시 도우미 ---------- */
+/* 컨택트 맵 (디자인 언어 5장): 대각선 띠 + 이름 해시로 뽑은 대칭 접촉점. 진행률만큼 대각선부터 채움 */
+function contactMap(seed, n, pct){
+  let h = 7;
+  for(const ch of seed) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  const rnd = () => (h = (h * 1103515245 + 12345) >>> 0) / 4294967296;
+  const set = new Set();
+  for(let i = 0; i < n; i++) for(let j = 0; j < n; j++) if(Math.abs(i - j) <= 1) set.add(i + ',' + j);
+  for(let t = 0; t < n; t++){ const a = Math.floor(rnd() * n), b = Math.floor(rnd() * n); if(Math.abs(a - b) >= 2){ set.add(a + ',' + b); set.add(b + ',' + a); } }
+  const order = [...set].map(k => k.split(',').map(Number)).sort((p, q) => Math.abs(p[0] - p[1]) - Math.abs(q[0] - q[1]) || Math.min(...p) - Math.min(...q) || p[0] - q[0]);
+  const filled = new Set(order.slice(0, Math.round(order.length * pct / 100)).map(c => c.join(',')));
+  return {set, filled};
+}
+function mapSVG(seed, n, pct, cell, label){
+  const {set, filled} = contactMap(seed, n, pct), g = 2, w = n * cell + (n - 1) * g;
+  let r = '';
+  for(let i = 0; i < n; i++) for(let j = 0; j < n; j++){ const k = i + ',' + j; r += `<rect class="${filled.has(k) ? 'f' : set.has(k) ? 'p' : 'e'}" x="${j * (cell + g)}" y="${i * (cell + g)}" width="${cell}" height="${cell}"/>`; }
+  return `<svg class="cmap" viewBox="0 0 ${w} ${w}" width="${w}" height="${w}" role="img" aria-label="${esc(label)}">${r}</svg>`;
+}
+function fmtM(m){ return esc(m).replace(/(^|\s)(n|v|a|ad|prep)\.\s/g, (x, p, pos) => `${p}<i class="pos">${pos}</i>`); }
+function rootHTML(r, sm){
+  return `<div class="roots${sm ? ' sm' : ''}">` + r.split(' + ').map(p => {
+    const s = p.indexOf(' '); const mo = s < 0 ? p : p.slice(0, s), gl = s < 0 ? '' : p.slice(s + 1);
+    return `<span class="mo"><b>${esc(mo)}</b>${gl ? `<em>${esc(gl)}</em>` : ''}</span>`;
+  }).join('<span class="plus">+</span>') + '</div>';
+}
+const canSpeak = 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
+function speak(w){ if(!canSpeak) return; try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(w); u.lang = 'en-US'; u.rate = .9; speechSynthesis.speak(u); }catch(e){} }
+function spkBtn(id){ return canSpeak ? `<button class="spk" data-act="speak" data-id="${id}" aria-label="발음 듣기">${IC.spk}</button>` : ''; }
+let toastT = null;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2200); }
+function norm(s){ return String(s).trim().toLowerCase().replace(/\s+/g, ' '); }
+function lev(a, b){
+  if(Math.abs(a.length - b.length) > 1) return 2;
+  const d = []; for(let i = 0; i <= a.length; i++){ d[i] = [i]; }
+  for(let j = 1; j <= b.length; j++) d[0][j] = j;
+  for(let i = 1; i <= a.length; i++) for(let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function judge(inp, w){ const a = norm(inp), b = norm(w); if(!a) return 0; if(a === b) return 2; return lev(a, b) === 1 ? 1 : 0; }
+function pattern(w){ return `<b>${esc(w[0])}${'_'.repeat(w.length - 1)}</b><small>${w.length}글자</small>`; }
+function theme(v){ const r = document.documentElement; if(v === 'light' || v === 'dark') r.setAttribute('data-theme', v); else r.removeAttribute('data-theme'); }
+function getTheme(){ try{ return localStorage.getItem(LS_THEME) || 'auto'; }catch(e){ return 'auto'; } }
+theme(getTheme());
+
+/* ---------- 화면: 공통 ---------- */
+let TAB = 'today', SEL_DAY = null, QUERY = '';
+function renderHead(){
+  const s = streak();
+  $('#streak').textContent = s ? `${s}일째 연속` : '';
+  const E = examInfo(), pill = $('#pill');
+  if(E){ $('#pillL').textContent = '영어 시험'; $('#pillN').textContent = E.left ? 'D-' + E.left : 'D-DAY'; pill.classList.toggle('soon', E.left <= 3); pill.title = `${E.m}월 ${E.d}일, Day ${DD(E.a)}~${DD(E.b)}`; }
+  else { $('#pillL').textContent = '암기 완료'; $('#pillN').textContent = counts()[2]; pill.classList.remove('soon'); pill.title = '서로 다른 날 세 번 맞힌 단어'; }
+}
+function render(){
+  renderHead();
+  document.querySelectorAll('.tabbar [data-act="tab"]').forEach(b => b.dataset.v === TAB ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  const v = $('#view');
+  v.innerHTML = TAB === 'today' ? vToday() : TAB === 'test' ? vTest() : vBook();
+  if(TAB === 'book'){ const q = $('#q'); if(q){ q.value = QUERY; q.oninput = () => { QUERY = q.value; $('#bookList').innerHTML = bookList(); }; } }
+  reportHome();
+}
+
+/* ---------- 오늘 ---------- */
+/* Day 칸: 절반 이상 암기면 파랑, 하나라도 익히는 중이면 회색 */
+function dayCell(d, s, act){
+  const lv = s.pm >= 50 ? 'f' : s.pm + s.pl > 0 ? 'p' : '';
+  return `<button class="${lv}" data-act="${act}" data-d="${d}" aria-label="${DN(d)}, ${s.n}개 중 암기 ${s.m}, 익히는 중 ${s.l}"${act === 'selDay' ? ` aria-pressed="${SEL_DAY === d}"` : ''}>${DD(d)}</button>`;
+}
+const LEGEND = '<div class="legend"><span><i class="sw f"></i>절반 이상 암기</span><span><i class="sw p"></i>익히는 중</span><span><i class="sw"></i>아직 안 봄</span></div>';
+function numsHTML(m, l, u){
+  return `<dl class="nums"><div class="is-done"><dt>암기 완료</dt><dd>${m}</dd></div><div><dt>익히는 중</dt><dd>${l}</dd></div><div><dt>아직 안 봄</dt><dd>${u}</dd></div></dl>`;
+}
+function vToday(){
+  const t = today(), due = dueIds(t).length, nl = Math.min(newLeft(t), newAvail()), L = logOf(t), E = examInfo();
+  const total = due + nl, done = L.n + L.r, started = done > 0, nd = nextNewDay();
+  const pctToday = done + total ? done / (done + total) * 100 : 100;
+  const [u, l, m] = counts();
+  let hero;
+  if(total > 0){
+    let note = nl > 0 && nd != null ? (E && nd >= E.a && nd <= E.b ? `새 단어는 시험 범위에서 번호순으로, 오늘은 <b>${DN(nd)}</b>부터 나와요. 복습 사이사이에 섞여서 나옵니다.` : `새 단어는 <b>${DN(nd)}</b>부터 번호순으로 나와요. 복습 사이사이에 섞여서 나옵니다.`) : '오늘은 복습만 있어요.';
+    if(due >= 80) note = `밀린 복습이 <b>${due}개</b>예요. 새 단어를 줄이고 복습부터 비우는 게 효율적이에요. 중간에 닫아도 진행한 만큼 저장돼요.`;
+    hero = `<section class="panel hero"><h2>오늘 할 단어<small>${done} / ${done + total}</small></h2>
+      <div class="todo"><div><div class="stat">${total}<small>개 남음</small></div>
+        <div class="split"><div><b>${due}</b><span>복습</span></div><div><b>${nl}</b><span>새 단어</span></div></div></div>
+        ${mapSVG('어원 단어', 7, pctToday, 8, `오늘 ${Math.round(pctToday)}퍼센트 진행`)}</div>
+      <p class="hint2">${note}</p>
+      <button class="primary" data-act="study">${started ? '이어서 하기' : '학습 시작'}</button></section>`;
+  } else {
+    hero = `<section class="panel hero"><h2>오늘 할 일 끝<small>${done} / ${done}</small></h2>
+      <div class="todo"><div><div class="stat">${done}<small>개 했어요</small></div>
+        <div class="split"><div><b>${L.r}</b><span>복습</span></div><div><b>${L.n}</b><span>새 단어</span></div></div></div>
+        ${mapSVG('어원 단어', 7, 100, 8, '오늘 100퍼센트 진행')}</div>
+      <p class="hint2">${unseen() ? '더 하고 싶으면 새 단어를 추가로 익히거나, 틀렸던 단어로 시험을 볼 수 있어요.' : '1,474개를 모두 한 번 이상 익혔어요. 이제는 복습 일정만 따라가면 돼요.'}</p>
+      <div class="row">${unseen() ? '<button class="ghost" data-act="more">새 단어 10개 더</button>' : ''}<button class="ghost" data-act="wrongTest">오답 노트 시험</button></div></section>`;
+  }
+  let days = '';
+  for(let d = 0; d < DAYS.length; d++) days += dayCell(d, dayStats(d), 'gotoDay');
+  const fc = [0, 0, 0, 0, 0, 0, 0];
+  for(const k in S.c){ const c = S.c[k]; if(c[0] < 1) continue; const x = Math.max(0, c[1] - t); if(x < 7) fc[x]++; }
+  const fcHTML = fc.map((n, i) => { const d = new Date((t + i) * 864e5); const lab = i === 0 ? '오늘' : i === 1 ? '내일' : WEEK[d.getUTCDay()]; return `<div><span>${lab}</span><b>${n}</b></div>`; }).join('');
+  return hero + examPanel(t) + `
+  <section class="panel"><h2>진도<small>${m} / ${W.length}</small></h2>
+    <div class="prog">${mapSVG('진도', 7, m / W.length * 100, 8, `암기 완료 ${Math.round(m / W.length * 100)}퍼센트`)}${numsHTML(m, l, u)}</div>
+    <div class="days">${days}</div>${LEGEND}
+    <p class="hint2">칸 하나가 Day 하나예요. 누르면 그 Day 단어장으로 가요.</p>
+  </section>
+  <section class="panel"><h2>다가오는 복습<small>7일</small></h2><div class="fcast">${fcHTML}</div></section>
+  <div class="foot"><button class="textbtn" data-act="method">이 앱이 단어를 외우게 하는 방식</button></div>`;
+}
+
+function examPanel(t){
+  const E = examInfo(); if(!E) return '';
+  let m = 0, l = 0; for(let i = E.lo; i <= E.hi; i++){ const s = status(i); if(s === 2) m++; else if(s === 1) l++; }
+  const u = E.n - m - l;
+  const dl = new Date(E.deadline * 864e5), dlTxt = `${dl.getUTCMonth() + 1}월 ${dl.getUTCDate()}일`;
+  let pace;
+  if(E.left === 0) pace = '오늘이 시험이에요. 시험 탭에서 시험 범위로 뜻 고르기를 한 번 훑어보세요.';
+  else if(u === 0) pace = '범위 단어를 모두 한 번씩 봤어요. 이제 복습 간격이 시험 날에 맞춰 점점 좁아지고, 시험 전날엔 범위 단어가 한 번씩 다시 나와요.';
+  else if(t <= E.deadline){ const per = Math.ceil((u + (logOf(t).nx || 0)) / Math.max(1, E.deadline - t + 1)); pace = `남은 ${u}개를 하루 ${per}개 안팎으로 ${dlTxt}까지 한 번씩 다 보고, 그 뒤 닷새는 복습만 해요. 복습 간격은 시험 날에 맞춰 알아서 좁혀요.`; }
+  else pace = `남은 ${u}개를 오늘 다 봐야 시험 전에 복습할 시간이 생겨요.`;
+  return `<section class="panel"><h2>영어 시험<small>${String(E.m).padStart(2, '0')}.${String(E.d).padStart(2, '0')} · Day ${DD(E.a)}–${DD(E.b)}</small></h2>
+    <div class="prog">${mapSVG('영어 시험', 7, m / E.n * 100, 8, `시험 범위 암기 ${Math.round(m / E.n * 100)}퍼센트`)}${numsHTML(m, l, u)}</div>
+    <p class="hint2">${pace}</p></section>`;
+}
+
+/* ---------- 시험 설정 ---------- */
+function T(){
+  if(!S.set.test){ const d = S.set.start; S.set.test = {scope:examInfo() ? 'exam' : 'range', from:Math.max(0, d - 1), to:d, type:'mcq', n:30, order:'shuffle'}; }
+  if(S.set.test.scope === 'exam' && !examInfo()) S.set.test.scope = 'range';
+  return S.set.test;
+}
+function testIds(c){
+  let ids = [];
+  const E = examInfo();
+  if(c.scope === 'exam' && E){ for(let i = E.lo; i <= E.hi; i++) ids.push(i); }
+  else if(c.scope === 'all') ids = W.map(x => x.id);
+  else if(c.scope === 'studied') ids = Object.keys(S.c).map(k => +k.slice(1)).sort((a, b) => a - b);
+  else if(c.scope === 'wrong') ids = wrongIds();
+  else { const a = Math.min(c.from, c.to), b = Math.max(c.from, c.to); for(let d = a; d <= b; d++) ids.push(...DAYS[d].ids); }
+  return ids;
+}
+function scopeLabel(c){
+  if(c.scope === 'exam') return '시험 범위';
+  if(c.scope === 'all') return '전체';
+  if(c.scope === 'studied') return '학습한 단어';
+  if(c.scope === 'wrong') return '오답 노트';
+  const a = Math.min(c.from, c.to), b = Math.max(c.from, c.to);
+  return a === b ? DN(a) : `Day ${DD(a)}~${DD(b)}`;
+}
+function chip(k, v, label, cur, extra){ return `<button class="chip" data-act="tset" data-k="${k}" data-v="${v}" aria-pressed="${String(cur) === String(v)}">${label}${extra ? ` <small>${extra}</small>` : ''}</button>`; }
+function vTest(){
+  const c = T(), pool = testIds(c).length, nq = c.n === 'all' ? pool : Math.min(c.n, pool);
+  const studied = Object.keys(S.c).length, wrong = wrongIds().length;
+  const opts = DAYS.map((d, i) => `<option value="${i}">${DN(i)}</option>`).join('');
+  const sel = v => opts.replace(`value="${v}"`, `value="${v}" selected`);
+  const hist = S.tests.slice(-6).reverse().map(h => {
+    const d = new Date(h.t); return `<div><b>${h.ok}/${h.n}</b><span>${esc(h.label)}, ${TYPE[h.type] || ''}</span><em>${d.getMonth() + 1}.${d.getDate()}</em></div>`;
+  }).join('');
+  return `
+  <section class="panel"><h2>범위</h2>
+    <div class="chips">${examInfo() ? chip('scope', 'exam', '시험 범위', c.scope, examInfo().n) : ''}${chip('scope', 'range', 'Day 선택', c.scope)}${chip('scope', 'studied', '학습한 단어', c.scope, studied)}${chip('scope', 'wrong', '오답 노트', c.scope, wrong)}${chip('scope', 'all', '전체', c.scope, W.length)}</div>
+    ${c.scope === 'range' ? `<div class="range"><select class="in" id="tFrom" aria-label="시작 Day">${sel(c.from)}</select><span>~</span><select class="in" id="tTo" aria-label="끝 Day">${sel(c.to)}</select></div>` : ''}
+  </section>
+  <section class="panel"><h2>유형</h2>
+    <div class="chips">${Object.keys(TYPE).map(k => chip('type', k, TYPE[k], c.type)).join('')}</div>
+    <p class="tdesc">${TYPE_DESC[c.type]}</p>
+  </section>
+  <section class="panel"><h2>문항 수<small>범위 안 ${pool}개</small></h2>
+    <div class="chips">${[20, 30, 50, 100].map(n => chip('n', n, n + '문항', c.n)).join('')}${chip('n', 'all', '전부', c.n)}</div>
+    <div class="chips" style="margin-top:10px">${chip('order', 'shuffle', '섞어서', c.order)}${chip('order', 'seq', '번호순', c.order)}</div>
+  </section>
+  <button class="primary startbar" data-act="startTest" ${nq ? '' : 'disabled'}>${nq ? `${nq}문항 시험 보기` : (c.scope === 'wrong' ? '아직 틀린 단어가 없어요' : '범위에 단어가 없어요')}</button>
+  <p class="hint2">틀린 단어는 바로 오늘 복습에 들어가고, 처음 보는 단어를 맞히면 복습 일정에 올라가요.</p>
+  ${hist ? `<section class="panel"><h2>최근 시험</h2><div class="hist">${hist}</div></section>` : ''}`;
+}
+
+/* ---------- 단어장 ---------- */
+function vBook(){
+  let grid = '';
+  for(let d = 0; d < DAYS.length; d++) grid += dayCell(d, dayStats(d), 'selDay');
+  return `<div class="search"><input class="in" id="q" type="search" placeholder="단어나 뜻으로 찾기" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="단어 찾기"></div>
+  <section class="panel"><h2>Day<small>${DAYS.length}개</small></h2><div class="days">${grid}</div>${LEGEND}</section>
+  <div id="bookList">${bookList()}</div>`;
+}
+function rowHTML(id){
+  const x = W[id];
+  return `<div class="wrow"><div class="wtop"><button class="ww" data-act="speak" data-id="${id}">${esc(x.w)}</button><span class="wn">${NUM(id)}</span></div><i class="sdot s${status(id)}" title="${['아직 안 봄', '익히는 중', '암기 완료'][status(id)]}"></i>
+    <div class="wm">${fmtM(x.m)}</div><div class="wr">${rootHTML(x.r, true)}</div></div>`;
+}
+function bookList(){
+  const q = norm(QUERY);
+  if(q){
+    const hits = W.filter(x => x.w.toLowerCase().includes(q) || x.m.includes(QUERY.trim())).slice(0, 80);
+    return `<section class="panel"><h2>검색 결과<small>${hits.length}개${hits.length === 80 ? ' 이상' : ''}</small></h2>${hits.length ? `<div class="wlist">${hits.map(x => rowHTML(x.id)).join('')}</div>` : '<p class="empty">맞는 단어가 없어요. 철자나 뜻을 다르게 입력해 보세요.</p>'}</section>`;
+  }
+  if(SEL_DAY == null) return '<p class="hint2">Day를 누르면 단어와 어원이 나와요.</p>';
+  const d = SEL_DAY, s = dayStats(d), D = DAYS[d];
+  return `<section class="panel">
+    <div class="dhead"><span class="nixie">${DN(d)}</span><span class="lbl">${s.n}개 중 암기 ${s.m}, 익히는 중 ${s.l}</span></div>
+    <p class="droots">${esc(D.roots)}</p>
+    <div class="row"><button class="ghost" data-act="dayTest" data-d="${d}">이 Day 시험</button><button class="ghost" data-act="dayStart" data-d="${d}">${S.set.start === d ? '여기부터 진행 중' : '여기부터 새 단어'}</button></div>
+    <div class="wlist" style="margin-top:8px">${D.ids.map(rowHTML).join('')}</div></section>`;
+}
+
+/* ---------- 학습 세션 ---------- */
+let SES = null, TS = null, KEY = null, AUTO = null;
+function openStage(){ $('#stage').hidden = false; document.body.classList.add('lock'); }
+function closeStage(){
+  clearTimeout(AUTO); $('#stage').hidden = true; document.body.classList.remove('lock');
+  SES = null; TS = null; KEY = null; if(canSpeak) try{ speechSynthesis.cancel(); }catch(e){}
+  render();
+}
+function setProg(done, total){ const p = total ? done / total * 100 : 0; $('#stBar').innerHTML = mapSVG('학습', 5, p, 6, `${Math.round(p)}퍼센트 진행`); $('#stCount').textContent = `${done} / ${total}`; }
+function reviewMode(id){ const c = card(id); return S.set.spell && c && c[0] >= 2 && Math.random() < .4 ? 'spell' : 'rec'; }
+function buildQueue(nNew){
+  const t = today(), rev = spread(shuffle(dueIds(t))), nw = newIds(nNew);
+  const q = []; let ri = 0, ni = 0;
+  while(ri < rev.length || ni < nw.length){
+    for(let k = 0; k < 2 && ri < rev.length; k++, ri++){
+      const id = rev[ri], c = card(id);
+      /* 시험에서 틀려서 들어온, 아직 한 번도 익히지 않은 단어는 새 단어처럼 먼저 보여 줌 */
+      q.push(c && !c[3] ? {id, mode:'learn', isNew:true} : {id, mode:reviewMode(id)});
+    }
+    if(ni < nw.length) q.push({id:nw[ni++], mode:'learn', isNew:true});
+  }
+  return q;
+}
+function startStudy(nNew){
+  const q = buildQueue(nNew == null ? Math.min(newLeft(today()), newAvail()) : nNew);
+  if(!q.length){ toast('지금 할 단어가 없어요'); return; }
+  SES = {q, i:0, st:{}, fin:0, total:new Set(q.map(x => x.id)).size, ok1:0, rev:0, nw:0, known:0, inQ:new Set(q.map(x => x.id))};
+  openStage(); showCard();
+}
+function reinsert(item, gap){ SES.q.splice(Math.min(SES.q.length, SES.i + 1 + gap), 0, item); }
+function metaHTML(x, extra){ return `<div class="fc-meta"><div class="tags">${extra || ''}<span class="tag">${DN(x.d)}</span><span class="tag plain">${NUM(x.id)}</span></div>${spkBtn(x.id)}</div>`; }
+function body(html){ const b = $('#stBody'); b.innerHTML = html; b.scrollTop = 0; }
+function showCard(){
+  clearTimeout(AUTO);
+  if(SES.i >= SES.q.length) return endStudy();
+  setProg(SES.fin, SES.total);
+  const it = SES.q[SES.i], x = W[it.id];
+  it.revealed = false; it.hint = false; it.checked = false;
+  if(it.mode === 'learn') return renderLearn(it, x);
+  if(it.mode === 'spell') return renderSpell(it, x, false);
+  renderRec(it, x);
+}
+function renderLearn(it, x){
+  body(`<div class="fc rim">${metaHTML(x, '<span class="tag new">새 단어</span>')}
+    <div class="fc-main"><div class="word">${esc(x.w)}</div>${rootHTML(x.r)}<div class="divider"></div><div class="mean lg">${fmtM(x.m)}</div></div>
+    <p class="hint2" style="margin:0">어근의 뜻을 이어서 단어 뜻을 한 문장으로 만들어 보세요. 몇 장 뒤에 가린 채로 다시 물어봐요.</p></div>
+    <div class="acts"><button class="ghost" data-act="known">이미 알아요 <span class="kb">(K)</span></button><button class="primary" data-act="learned">봤어요 <span class="kb">(Space)</span></button></div>`);
+  if(S.set.speak) speak(x.w);
+  KEY = e => { if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); ACT.learned(); } else if(e.key === 'k' || e.key === 'K') ACT.known(); };
+}
+function renderRec(it, x){
+  const rev = it.revealed;
+  body(`<div class="fc rim">${metaHTML(x, it.isNew ? '<span class="tag new">새 단어</span>' : '')}
+    <div class="fc-main"><div class="word">${esc(x.w)}</div>
+    ${rev ? `<div class="reveal"><div class="mean lg">${fmtM(x.m)}</div><div class="divider"></div>${rootHTML(x.r)}</div>`
+          : (it.hint ? `<div class="reveal">${rootHTML(x.r)}</div>` : '<p class="hint2" style="margin:0">뜻을 먼저 떠올린 다음 확인하세요.</p>')}</div></div>
+    ${rev ? `<div class="acts three"><button class="gbtn g0" data-act="grade" data-g="0">몰랐어<small class="kb">1</small></button><button class="gbtn" data-act="grade" data-g="1">헷갈렸어<small class="kb">2</small></button><button class="gbtn g2" data-act="grade" data-g="2">알았어<small class="kb">3</small></button></div>`
+          : `<div class="acts">${it.hint ? '<button class="ghost" disabled>힌트 봄</button>' : '<button class="ghost" data-act="hint">어원 힌트 <span class="kb">(H)</span></button>'}<button class="primary" data-act="reveal">뜻 확인 <span class="kb">(Space)</span></button></div>`}`);
+  if(S.set.speak && !rev && !it.hint) speak(x.w);
+  KEY = e => {
+    if(!it.revealed){ if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); ACT.reveal(); } else if(e.key === 'h' || e.key === 'H') ACT.hint(); }
+    else if(['1', '2', '3'].includes(e.key)) gradeRec(+e.key - 1);
+  };
+}
+function gradeRec(g){
+  const it = SES.q[SES.i]; if(!it) return;
+  const st = SES.st[it.id] || (SES.st[it.id] = {fail:false, isNew:!!it.isNew});
+  if(g === 0){
+    st.fail = true;
+    reinsert({id:it.id, mode:it.mode, isNew:it.isNew}, 3 + Math.floor(Math.random() * 3));
+    SES.i++; return showCard();
+  }
+  finalize(it.id, it.hint && g === 2 ? 1 : g, st);
+  SES.i++; showCard();
+}
+function finalize(id, g, st){
+  const t = today(), L = lg(t); let c = card(id);
+  if(st.isNew){ setCard(id, [1, t + 1, 0, 1, t, c ? (c[5] || 0) : 0]); L.n++; if(inEx(examInfo(), id)) L.nx = (L.nx || 0) + 1; SES.nw++; }
+  else {
+    if(!c){ c = [1, t, 0, 0, t, 0]; setCard(id, c); }
+    if(st.fail){ c[0] = 1; c[1] = t + 1; c[2] = (c[2] || 0) + 1; }
+    else if(g === 1){ c[1] = capDue(id, t, t + Math.max(1, Math.round(I[Math.max(1, c[0])] * .5))); }
+    else { c[0] = Math.min(I.length - 1, c[0] + 1); c[1] = capDue(id, t, t + fuzz(I[c[0]])); L.ok++; }
+    c[3] = (c[3] || 0) + 1; c[4] = t; L.r++; SES.rev++;
+  }
+  if(!st.fail) SES.ok1++;
+  SES.fin++; save();
+}
+function renderSpell(it, x, inTest){
+  const res = it.checked;
+  let resHTML = '';
+  if(res){
+    const j = it.j, v = j === 2 ? '<span class="verdict ok">정답</span>' : j === 1 ? '<span class="verdict near">한 글자 차이</span>' : '<span class="verdict no">틀림</span>';
+    resHTML = `<div class="reveal">${v}<div class="word sm">${esc(x.w)}</div>${j < 2 && it.ans ? `<div class="yours">내 답: <s>${esc(it.ans)}</s></div>` : (j < 2 ? '<div class="yours">답을 비워 뒀어요</div>' : '')}${rootHTML(x.r)}</div>`;
+  }
+  const meta = inTest ? `<div class="fc-meta"><div class="tags"><span class="tag">${DN(x.d)}</span><span class="tag plain">${NUM(x.id)}</span></div>${res ? spkBtn(x.id) : ''}</div>` : `<div class="fc-meta"><div class="tags"><span class="tag">철자 쓰기</span><span class="tag">${DN(x.d)}</span></div>${res ? spkBtn(x.id) : ''}</div>`;
+  body(`<div class="fc rim">${meta}
+    <div class="fc-main"><div class="mean lg">${fmtM(x.m)}</div>
+    ${res ? resHTML : `<div class="pattern">${pattern(x.w)}</div>${it.hint ? `<div class="reveal">${rootHTML(x.r)}</div>` : ''}
+      <input class="in spell-in" id="spellIn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="영어로 쓰기" aria-label="영어 철자">`}</div></div>
+    ${res ? spellActs(it, inTest) : `<div class="acts">${inTest ? '<button class="ghost" data-act="spellSkip">모르겠어요</button>' : (it.hint ? '<button class="ghost" disabled>힌트 봄</button>' : '<button class="ghost" data-act="hint">어원 힌트</button>')}<button class="primary" data-act="spellCheck">확인 <span class="kb">(Enter)</span></button></div>`}`);
+  const inp = $('#spellIn');
+  if(inp){ setTimeout(() => { try{ inp.focus({preventScroll:true}); }catch(e){} }, 60); }
+  if(res && S.set.speak) speak(x.w);
+  KEY = e => {
+    if(!it.checked){ if(e.key === 'Enter'){ e.preventDefault(); ACT.spellCheck(); } }
+    else if(e.key === 'Enter'){ e.preventDefault(); const b = document.querySelector('#stBody [data-default]'); if(b) b.click(); }
+  };
+}
+function spellActs(it, inTest){
+  const a = inTest ? 'tspell' : 'sspell';
+  if(it.j === 2) return `<div class="acts one"><button class="primary" data-act="${a}" data-g="2" data-default>다음 <span class="kb">(Enter)</span></button></div>`;
+  if(it.j === 1) return `<div class="acts"><button class="ghost" data-act="${a}" data-g="0">틀린 걸로</button><button class="primary" data-act="${a}" data-g="1" data-default>맞은 걸로 <span class="kb">(Enter)</span></button></div>`;
+  return `<div class="acts"><button class="ghost" data-act="${a}" data-g="1">맞은 걸로 처리</button><button class="primary" data-act="${a}" data-g="0" data-default>다음 <span class="kb">(Enter)</span></button></div>`;
+}
+function endStudy(){
+  KEY = null; setProg(SES.fin, SES.total);
+  const t = today(); let tmr = 0; for(const k in S.c){ const c = S.c[k]; if(c[0] >= 1 && c[1] <= t + 1) tmr++; }
+  const more = unseen() > 0;
+  body(`<div class="end"><section class="panel">
+    <div class="lbl">이번 학습</div><div class="dval">${SES.fin}<small>개 완료</small></div>
+    <div class="sumline"><div><b>${SES.rev}</b><span>복습</span></div><div><b>${SES.ok1}</b><span>한 번에 맞힘</span></div><div><b>${SES.nw}</b><span>새로 익힘</span></div></div>
+    <p class="hint2">내일 복습할 단어는 ${tmr}개예요. 오늘 틀린 단어는 내일 다시 나와요.</p></section>
+    <div class="acts ${more ? '' : 'one'}">${more ? '<button class="ghost" data-act="more">새 단어 10개 더</button>' : ''}<button class="primary" data-act="stClose">닫기</button></div></div>`);
+  $('#stCount').textContent = '끝';
+  SES.done = true;
+}
+
+/* ---------- 시험 ---------- */
+function makeOpts(id){
+  const x = W[id], got = [], ws = new Set([x.w]), ms = new Set([x.m]);
+  const add = j => { const y = W[j]; if(got.length >= 3 || ws.has(y.w) || ms.has(y.m)) return; ws.add(y.w); ms.add(y.m); got.push(j); };
+  shuffle(DAYS[x.d].ids.slice()).forEach(add);
+  for(let off = 1; got.length < 3 && off < DAYS.length; off++)
+    [x.d - off, x.d + off].forEach(dd => { if(dd >= 0 && dd < DAYS.length) shuffle(DAYS[dd].ids.slice()).forEach(add); });
+  return shuffle([id, ...got]);
+}
+function startTest(ids, type, label){
+  if(!ids.length){ toast('시험 볼 단어가 없어요'); return; }
+  TS = {qs:ids.map(id => ({id, opts:type === 'mcq' || type === 'mcqr' ? makeOpts(id) : null})), i:0, type, label, t0:Date.now()};
+  openStage(); showQ();
+}
+function showQ(){
+  clearTimeout(AUTO);
+  if(TS.i >= TS.qs.length) return endTest();
+  setProg(TS.i, TS.qs.length);
+  const q = TS.qs[TS.i], x = W[q.id];
+  const meta = `<div class="fc-meta"><div class="tags"><span class="tag">${DN(x.d)}</span><span class="tag plain">${NUM(x.id)}</span></div>${q.done || TS.type !== 'mcqr' ? spkBtn(x.id) : ''}</div>`;
+  if(TS.type === 'spell') return renderSpell(q, x, true);
+  if(TS.type === 'self'){
+    body(`<div class="fc rim">${meta}<div class="fc-main"><div class="word">${esc(x.w)}</div>
+      ${q.revealed ? `<div class="reveal"><div class="mean lg">${fmtM(x.m)}</div><div class="divider"></div>${rootHTML(x.r)}</div>` : '<p class="hint2" style="margin:0">뜻을 떠올린 다음 확인하세요.</p>'}</div></div>
+      ${q.revealed ? '<div class="acts"><button class="gbtn g0" data-act="selfG" data-g="0">몰랐어<small class="kb">1</small></button><button class="gbtn g2" data-act="selfG" data-g="1">알았어<small class="kb">2</small></button></div>'
+                   : '<div class="acts one"><button class="primary" data-act="selfReveal">뜻 확인 <span class="kb">(Space)</span></button></div>'}`);
+    KEY = e => { if(!q.revealed){ if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); ACT.selfReveal(); } } else if(e.key === '1' || e.key === '2') answerQ(e.key === '2'); };
+    return;
+  }
+  const rev = TS.type === 'mcqr';
+  const prompt = rev ? `<div class="mean lg">${fmtM(x.m)}</div>` : `<div class="word">${esc(x.w)}</div>`;
+  const opts = q.opts.map((j, k) => {
+    let cls = '';
+    if(q.done){ if(j === q.id) cls = 'right'; else if(j === q.pick) cls = 'wrong'; else cls = 'fade'; }
+    return `<button class="opt ${cls}" data-act="pick" data-j="${j}" ${q.done ? 'disabled' : ''}><span class="k">${k + 1}</span>${rev ? `<span class="w">${esc(W[j].w)}</span>` : `<span>${fmtM(W[j].m)}</span>`}</button>`;
+  }).join('');
+  body(`<div class="fc rim" style="min-height:190px">${meta}<div class="fc-main" style="padding:10px 0">${prompt}${q.done ? `<div class="reveal">${rev ? `<div class="word sm">${esc(x.w)}</div>` : ''}${rootHTML(x.r)}</div>` : ''}</div></div>
+    <div class="opts">${opts}</div>
+    ${q.done && !q.ok ? '<div class="acts one"><button class="primary" data-act="nextQ" data-default>다음 <span class="kb">(Enter)</span></button></div>' : ''}`);
+  if(S.set.speak && !rev && !q.done) speak(x.w);
+  KEY = e => {
+    if(!q.done){ const k = +e.key; if(k >= 1 && k <= q.opts.length) pickOpt(q.opts[k - 1]); }
+    else if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); ACT.nextQ(); }
+  };
+}
+function pickOpt(j){
+  const q = TS.qs[TS.i]; if(q.done) return;
+  q.done = true; q.pick = j; q.ok = j === q.id;
+  showQ();
+  if(q.ok){ AUTO = setTimeout(() => { if(TS && TS.qs[TS.i] === q){ TS.i++; showQ(); } }, 750); }
+}
+function answerQ(ok, ans){ const q = TS.qs[TS.i]; q.done = true; q.ok = ok; if(ans != null) q.ansTxt = ans; TS.i++; showQ(); }
+function endTest(){
+  clearTimeout(AUTO); KEY = null;
+  const done = TS.qs.filter(q => q.done), n = done.length, ok = done.filter(q => q.ok).length, wrong = done.filter(q => !q.ok);
+  if(!TS.ended && n){
+    TS.ended = true;
+    const t = today(), mc = TS.type === 'mcq' || TS.type === 'mcqr';
+    for(const q of done){
+      let c = card(q.id);
+      if(!q.ok){ if(c){ c[0] = 1; c[1] = t; c[2] = (c[2] || 0) + 1; c[5] = (c[5] || 0) + 1; } else setCard(q.id, [1, t, 0, 0, t, 1]); }
+      else if(!c) setCard(q.id, mc ? [1, t + 1, 0, 1, t, 0] : [2, capDue(q.id, t, t + 3), 0, 1, t, 0]);
+      else if(c[1] <= t){ c[0] = Math.min(I.length - 1, c[0] + 1); c[1] = capDue(q.id, t, t + fuzz(I[c[0]])); c[3] = (c[3] || 0) + 1; c[4] = t; }
+    }
+    S.tests.push({t:Date.now(), label:TS.label, type:TS.type, n, ok, wrong:wrong.map(q => q.id).join(',')});
+    S.tests = S.tests.slice(-30); save();
+  }
+  if(!n){ closeStage(); return; }
+  setProg(n, TS.qs.length); $('#stCount').textContent = n < TS.qs.length ? '중단' : '끝';
+  const sec = Math.round((Date.now() - TS.t0) / 1000), mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, '0');
+  const list = wrong.map(q => {
+    const x = W[q.id]; const pickTxt = q.pick != null && q.pick !== q.id ? (TS.type === 'mcqr' ? `고른 답: ${esc(W[q.pick].w)}` : `고른 뜻: ${fmtM(W[q.pick].m)} (${esc(W[q.pick].w)})`) : (q.ansTxt ? `쓴 답: ${esc(q.ansTxt)}` : '');
+    return `<div class="wrow"><div class="wtop"><button class="ww" data-act="speak" data-id="${x.id}">${esc(x.w)}</button><span class="wn">${DN(x.d)}</span></div><span></span>
+      <div class="wm">${fmtM(x.m)}</div>${pickTxt ? `<div class="wm yours">${pickTxt}</div>` : ''}<div class="wr">${rootHTML(x.r, true)}</div></div>`;
+  }).join('');
+  body(`<div class="end"><section class="panel">
+    <div class="lbl">${esc(TS.label)}, ${TYPE[TS.type]}${n < TS.qs.length ? `, ${TS.qs.length}문항 중 ${n}문항에서 중단` : ''}</div>
+    <div class="score"><span class="dval">${ok}</span><span class="of">/ ${n}</span></div>
+    <div class="sumline"><div><b>${Math.round(ok / n * 100)}%</b><span>정답률</span></div><div><b>${mm}:${ss}</b><span>걸린 시간</span></div><div><b>${wrong.length}</b><span>틀림</span></div></div>
+    ${wrong.length ? '<p class="hint2">틀린 단어는 오늘 복습에 넣었어요.</p>' : ''}</section>
+    ${wrong.length ? `<section class="panel"><h2>틀린 단어</h2><div class="wlist">${list}</div></section>` : ''}
+    <div class="acts ${wrong.length ? '' : 'one'}">${wrong.length ? '<button class="ghost" data-act="retryWrong">틀린 것만 다시</button>' : ''}<button class="primary" data-act="stClose">닫기</button></div></div>`);
+  TS.wrongIds = wrong.map(q => q.id);
+}
+
+/* ---------- 시트 ---------- */
+function openSheet(html){ $('#sheet').innerHTML = html; $('#sheetWrap').hidden = false; }
+function closeSheet(){ $('#sheetWrap').hidden = true; $('#sheet').innerHTML = ''; }
+function daySelect(id){ return `<select class="in" id="${id}">${DAYS.map((d, i) => `<option value="${i}" ${S.set.start === i ? 'selected' : ''}>${DN(i)}, ${esc(W[d.ids[0]].w)}부터</option>`).join('')}</select>`; }
+function settingsHTML(first){
+  const th = getTheme();
+  return `<div class="sh-head"><h2>${first ? '시작하기' : '설정'}</h2>${first ? '' : `<button class="close" data-act="closeSheet">닫기</button>`}</div>
+  ${first ? '<p class="hint2" style="font-size:14px">능률보카 어원편 1,474단어가 들어 있어요. 하루에 새로 익힐 양과 시작할 Day만 정하면, 복습 날짜는 앱이 알아서 잡아요.</p>' : ''}
+  <div class="f"><span>하루 새 단어</span><div class="stepper"><button data-act="per" data-v="-5" aria-label="줄이기">−</button><output id="perOut">${S.set.perDay}</output><button data-act="per" data-v="5" aria-label="늘리기">+</button></div>
+    <small>복습은 날마다 쌓이니까, 처음엔 15~25개가 무리 없어요. 밀린 복습이 많을 땐 줄이세요.</small></div>
+  <div class="f"><span>새 단어 시작 Day</span>${daySelect('setStart')}<small>여기부터 번호순으로 새 단어가 나와요. 앞쪽에 남은 단어는 뒤쪽을 다 본 다음에 나와요. 영어 시험이 켜져 있으면 시험 범위를 먼저 다 봐요.</small></div>
+  ${examSettings()}
+  ${first ? '<p class="hint2">학교에서 이미 외운 Day가 있다면 시험 탭에서 확인해 보세요. 맞힌 단어는 바로 복습 일정에 올라가요.</p>' : `
+  <div class="f tg"><span>철자 쓰기 섞기<small>두 번 이상 맞힌 단어는 가끔 뜻을 보고 철자를 쓰게 해요.</small></span><button class="tog" data-act="tog" data-k="spell" aria-pressed="${S.set.spell}" aria-label="철자 쓰기 섞기"></button></div>
+  ${canSpeak ? `<div class="f tg"><span>발음 자동 재생<small>단어가 나올 때 영어 발음을 들려줘요.</small></span><button class="tog" data-act="tog" data-k="speak" aria-pressed="${S.set.speak}" aria-label="발음 자동 재생"></button></div>` : ''}
+  <div class="f"><span>화면</span><div class="chips">${[['auto', '기기 설정'], ['light', '밝게'], ['dark', '어둡게']].map(([v, l]) => `<button class="chip" data-act="theme" data-v="${v}" aria-pressed="${th === v}">${l}</button>`).join('')}</div></div>`}
+  ${cloudHTML()}
+  ${xferHTML()}
+  <div class="sh-foot">${first ? '' : '<button class="danger" data-act="reset" id="resetBtn">기록 지우기</button>'}<button class="primary" data-act="${first ? 'begin' : 'closeSheet'}">${first ? '시작하기' : '완료'}</button></div>`;
+}
+/* ---------- 데이터 내보내기 · 가져오기 ---------- */
+function xferHTML(){
+  return `<div class="f"><span>데이터 옮기기</span>
+    <div class="row"><button class="ghost" data-act="xExport">내보내기</button><button class="ghost" data-act="xImport">가져오기</button></div>
+    <div id="xferIn" hidden><textarea class="in xta" id="xferTa" placeholder="내보낸 JSON을 여기에 붙여 넣기" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div class="row xrow"><label class="ghost xfile">파일 고르기<input id="xferFile" type="file" accept=".json,application/json,text/plain" hidden></label><button class="primary" data-act="xGo">이 데이터로 바꾸기</button></div></div>
+    <small>내보내면 JSON 파일을 받고, 아래 칸과 클립보드에도 같은 내용이 들어가요. 다른 기기에서 가져오기를 눌러 붙여 넣거나 파일을 고르면 그 기록으로 바뀌어요.</small></div>`;
+}
+function xferBox(txt){ const box = $('#xferIn'), ta = $('#xferTa'); if(!box) return; box.hidden = false; if(txt != null){ ta.value = txt; ta.select(); } else ta.focus(); }
+function exportData(){
+  const txt = JSON.stringify(S), d = new Date(today() * 864e5);
+  const ymd = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  try{
+    const url = URL.createObjectURL(new Blob([txt], {type:'application/json'}));
+    const a = document.createElement('a'); a.href = url; a.download = `eowon-vocab-${ymd}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }catch(e){}
+  xferBox(txt);
+  const done = () => toast('내보냈어요. 클립보드에도 복사했어요');
+  try{ if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, () => toast('내보냈어요. 아래 칸 내용을 복사해도 돼요')); else toast('내보냈어요. 아래 칸 내용을 복사해 두세요'); }
+  catch(e){ toast('내보냈어요. 아래 칸 내용을 복사해 두세요'); }
+}
+function importData(txt, b){
+  let o;
+  try{ o = JSON.parse(String(txt || '').trim()); }catch(e){ return toast('JSON 형식이 아니에요. 전체를 복사했는지 확인해 주세요'); }
+  if(!o || typeof o !== 'object' || Array.isArray(o) || !o.c || typeof o.c !== 'object' || !o.set) return toast('어원편 단어 시험 데이터가 아니에요');
+  const n = Object.keys(o.c).length;
+  if(b && !b.classList.contains('arm')){
+    b.classList.add('arm'); b.textContent = `${n}개 기록으로 바꾸기, 한 번 더`;
+    setTimeout(() => { if(b.isConnected){ b.classList.remove('arm'); b.textContent = '이 데이터로 바꾸기'; } }, 4000);
+    return;
+  }
+  S = normalize(o); S.set.ok = true; save(); closeSheet(); render();
+  toast(`가져왔어요. 학습한 단어 ${n}개`);
+}
+function daySel(id, v){ return `<select class="in" id="${id}">${DAYS.map((d, i) => `<option value="${i}" ${v === i ? 'selected' : ''}>${DN(i)}</option>`).join('')}</select>`; }
+function examSettings(){
+  const e = S.set.exam || {on:false, date:'', from:0, to:0};
+  return `<div class="f tg"><span>영어 시험 대비<small>범위 단어를 먼저 새로 내주고, 복습 간격을 시험 날에 맞춰 좁혀요.</small></span><button class="tog" data-act="exTog" aria-pressed="${!!e.on}" aria-label="영어 시험 대비"></button></div>
+  ${e.on ? `<div class="f" style="margin-top:-6px"><input class="in" type="date" id="exDate" value="${esc(e.date || '')}" aria-label="시험 날짜"><div class="range">${daySel('exFrom', e.from)}<span>~</span>${daySel('exTo', e.to)}</div></div>` : ''}`;
+}
+function methodHTML(){
+  return `<div class="sh-head"><h2>외우는 방식</h2><button class="close" data-act="closeSheet">닫기</button></div>
+  <ol class="method">
+    <li><b>보기 전에 먼저 떠올리기</b><span>뜻을 보면서 읽는 것보다, 가린 채 떠올리려고 애쓰는 쪽이 훨씬 오래 남아요(인출 연습). 그래서 카드는 항상 영어만 먼저 보여 줘요.</span></li>
+    <li><b>간격을 두고 다시 만나기</b><span>맞힌 단어는 1일, 3일, 7일, 16일 뒤로 점점 멀리 보내요. 한 번에 몰아서 반복하는 것보다 날을 나눠서 보는 쪽이 장기 기억에 크게 유리해요.</span></li>
+    <li><b>서로 다른 날 세 번 맞히기</b><span>한 번 익힌 뒤 다른 날 세 번 연속 맞히면 암기 완료로 쳐요. 연속 재학습 연구에서 가장 효율 좋은 기준으로 권하는 방식이에요.</span></li>
+    <li><b>틀리면 그 자리에서 다시</b><span>몰랐던 단어는 몇 장 뒤에 다시 나오고, 맞힐 때까지 세션이 끝나지 않아요. 다음 날 복습에도 다시 올라가요.</span></li>
+    <li><b>양쪽 방향으로</b><span>영어를 보고 뜻 떠올리기가 기본이고, 두 번 이상 맞힌 단어는 가끔 뜻을 보고 철자를 쓰게 해요. 뜻 떠올리기는 의미를, 철자 쓰기는 형태를 굳혀 줘요.</span></li>
+    <li><b>비슷한 단어는 떨어뜨려서</b><span>같은 Day 단어는 어근이 같아 서로 헷갈리기 쉬워요. 복습에서는 연달아 나오지 않게 섞고, 시험의 오답 보기로는 일부러 같은 Day 단어를 넣어 구별 연습을 해요.</span></li>
+    <li><b>어원은 뜻을 붙잡는 고리</b><span>새 단어는 어근 뜻을 이어 붙여 이해하고, 복습 때는 막히면 어원 힌트를 볼 수 있어요. 힌트를 본 단어는 '헷갈렸어'로 기록해서 조금 더 빨리 다시 나와요.</span></li>
+  </ol>`;
+}
+
+/* ---------- 동작 ---------- */
+const ACT = {
+  tab(b){ TAB = b.dataset.v; render(); window.scrollTo(0, 0); },
+  settings(){ openSheet(settingsHTML(false)); },
+  method(){ openSheet(methodHTML()); },
+  closeSheet(){ if(!S.set.ok){ S.set.ok = true; save(); } closeSheet(); render(); },
+  per(b){ S.set.perDay = Math.max(5, Math.min(60, S.set.perDay + +b.dataset.v)); $('#perOut').textContent = S.set.perDay; save(); },
+  tog(b){ const k = b.dataset.k; S.set[k] = !S.set[k]; b.setAttribute('aria-pressed', S.set[k]); save(); },
+  exTog(){ const e = S.set.exam || (S.set.exam = {on:false, date:'', from:S.set.start, to:S.set.start}); e.on = !e.on; save(); const y = $('#sheet').scrollTop; openSheet(settingsHTML(false)); $('#sheet').scrollTop = y; renderHead(); },
+  theme(b){ const v = b.dataset.v; try{ localStorage.setItem(LS_THEME, v); }catch(e){} theme(v); document.querySelectorAll('[data-act="theme"]').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === v)); },
+  begin(){ S.set.ok = true; save(); closeSheet(); render(); },
+  xExport(){ exportData(); },
+  xImport(){ xferBox(); },
+  cConnect(){ cloudConnect($('#cloudIn') ? $('#cloudIn').value : ''); },
+  cPull(){ if(cloudPending) cloudUse(cloudPending.id, true); },
+  cPush(b){ if(!cloudPending) return; if(!b.classList.contains('arm')){ b.classList.add('arm'); b.textContent = '한 번 더 누르면 덮어써요'; return; } cloudUse(cloudPending.id, false); },
+  cCancel(){ cloudPending = null; paintCloudBox(); },
+  cSync(){ cloudPull().then(() => toast(cloudErr ? '동기화하지 못했어요' : '동기화했어요')); },
+  cOff(b){ cloudOff(b); },
+  xGo(b){ const ta = $('#xferTa'); if(!ta || !ta.value.trim()){ toast('붙여 넣거나 파일을 골라 주세요'); return; } importData(ta.value, b); },
+  reset(b){
+    if(!b.classList.contains('arm')){ b.classList.add('arm'); b.textContent = '한 번 더 누르면 삭제'; setTimeout(() => { if(b.isConnected){ b.classList.remove('arm'); b.textContent = '기록 지우기'; } }, 3000); return; }
+    const th = S.set; S = fresh(); S.set.perDay = th.perDay; save(); closeSheet(); render(); toast('학습 기록을 지웠어요');
+  },
+  study(){ startStudy(); },
+  more(){ if(SES) closeStage(); startStudy(10); },
+  wrongTest(){ const ids = shuffle(wrongIds()).slice(0, 30); if(!ids.length){ toast('아직 틀린 단어가 없어요'); return; } startTest(ids, 'mcq', '오답 노트'); },
+  gotoDay(b){ SEL_DAY = +b.dataset.d; QUERY = ''; TAB = 'book'; render(); setTimeout(() => { const el = $('#bookList'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }, 30); },
+  selDay(b){ const d = +b.dataset.d; SEL_DAY = SEL_DAY === d ? null : d; QUERY = ''; render(); if(SEL_DAY != null) setTimeout(() => $('#bookList').scrollIntoView({behavior:'smooth', block:'start'}), 30); },
+  dayStart(b){ S.set.start = +b.dataset.d; save(); render(); toast(examInfo() && unseenRange(examInfo()) ? `시험 범위를 다 본 뒤 ${DN(S.set.start)}부터 나와요` : `새 단어는 ${DN(S.set.start)}부터 나와요`); },
+  dayTest(b){ const d = +b.dataset.d, c = T(); c.scope = 'range'; c.from = c.to = d; save(); startTest(shuffle(DAYS[d].ids.slice()), c.type, DN(d)); },
+  speak(b){ speak(W[+b.dataset.id].w); },
+  tset(b){ const c = T(), k = b.dataset.k; let v = b.dataset.v; if(k === 'n' && v !== 'all') v = +v; c[k] = v; save(); render(); },
+  startTest(){
+    const c = T(); let ids = testIds(c);
+    let pick = c.n === 'all' || c.n >= ids.length ? ids.slice() : shuffle(ids.slice()).slice(0, c.n);
+    if(c.order === 'seq') pick.sort((a, b) => a - b); else shuffle(pick);
+    startTest(pick, c.type, scopeLabel(c));
+  },
+  stClose(){ if(TS && !TS.ended && TS.qs.some(q => q.done)) return endTest(); closeStage(); },
+  learned(){ const it = SES.q[SES.i]; reinsert({id:it.id, mode:'rec', isNew:true}, 3); SES.i++; showCard(); },
+  known(){
+    /* 이미 아는 단어도 오늘 새 단어 개수에 포함: 대신할 새 단어를 더 끌어오지 않음 */
+    const it = SES.q[SES.i], t = today(), L = lg(t); setCard(it.id, [2, capDue(it.id, t, t + 3), 0, 1, t, 0]);
+    L.n++; if(inEx(examInfo(), it.id)) L.nx = (L.nx || 0) + 1;
+    SES.fin++; SES.known++; SES.nw++; save();
+    SES.i++; showCard();
+  },
+  reveal(){ const it = SES.q[SES.i]; it.revealed = true; renderRec(it, W[it.id]); },
+  hint(){ const it = SES.q[SES.i]; it.hint = true; if(it.mode === 'spell'){ const v = $('#spellIn') ? $('#spellIn').value : ''; renderSpell(it, W[it.id], false); if($('#spellIn')) $('#spellIn').value = v; } else renderRec(it, W[it.id]); },
+  grade(b){ gradeRec(+b.dataset.g); },
+  spellCheck(){
+    const it = SES ? SES.q[SES.i] : TS.qs[TS.i], inp = $('#spellIn'); if(!inp || it.checked) return;
+    it.ans = inp.value; it.j = judge(inp.value, W[it.id].w); it.checked = true;
+    renderSpell(it, W[it.id], !SES);
+    if(it.j === 2 && TS){ const q = it; AUTO = setTimeout(() => { if(TS && TS.qs[TS.i] === q) answerQ(true, q.ans); }, 800); }
+  },
+  spellSkip(){ const q = TS.qs[TS.i]; q.ans = ''; q.j = 0; q.checked = true; renderSpell(q, W[q.id], true); },
+  sspell(b){ const g = +b.dataset.g; const it = SES.q[SES.i]; gradeRec(g === 2 && it.hint ? 1 : g); },
+  tspell(b){ clearTimeout(AUTO); const q = TS.qs[TS.i]; answerQ(+b.dataset.g > 0, q.ans); },
+  pick(b){ pickOpt(+b.dataset.j); },
+  nextQ(){ clearTimeout(AUTO); if(TS){ TS.i++; showQ(); } },
+  selfReveal(){ const q = TS.qs[TS.i]; q.revealed = true; showQ(); },
+  selfG(b){ answerQ(b.dataset.g === '1'); },
+  retryWrong(){ const ids = shuffle((TS.wrongIds || []).slice()), type = TS.type, label = TS.label + ' 오답'; TS = null; startTest(ids, type, label); }
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b || b.disabled) return;
+  const f = ACT[b.dataset.act]; if(f){ e.preventDefault(); f(b); }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if(t.id === 'setStart'){ S.set.start = +t.value; save(); }
+  else if(t.id === 'xferFile'){ const f = t.files && t.files[0]; if(!f) return; const r = new FileReader(); r.onload = () => { $('#xferTa').value = String(r.result || ''); toast('파일을 읽었어요. 확인 후 바꾸기를 누르세요'); }; r.readAsText(f); t.value = ''; }
+  else if(t.id === 'exDate' || t.id === 'exFrom' || t.id === 'exTo'){ const e = S.set.exam; if(t.id === 'exDate') e.date = t.value; else e[t.id === 'exFrom' ? 'from' : 'to'] = +t.value; save(); renderHead(); }
+  else if(t.id === 'tFrom' || t.id === 'tTo'){ const c = T(); c[t.id === 'tFrom' ? 'from' : 'to'] = +t.value; save(); render(); }
+});
+document.addEventListener('keydown', e => {
+  if(!$('#sheetWrap').hidden){ if(e.key === 'Escape') ACT.closeSheet(); return; }
+  if($('#stage').hidden) return;
+  if(e.key === 'Escape'){ ACT.stClose(); return; }
+  if(e.target.tagName === 'INPUT' && e.key !== 'Enter') return;
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  if(KEY) KEY(e);
+});
+
+render();
+if(!S.set.ok) openSheet(settingsHTML(true));
+cloudBoot();
+document.addEventListener('visibilitychange', () => { if(!document.hidden && !SES && !TS) render(); });
+
+/* ---------- Sabathia: 홈 아이콘에 오늘 진행을 알리고, 런처 뒤로가기는 설정·학습 화면부터 닫음 ---------- */
+function reportHome(){
+  if(!window.Sabathia) return;
+  const t = today(), L = logOf(t), done = L.n + L.r, left = dueIds(t).length + Math.min(newLeft(t), newAvail()), E = examInfo();
+  const exam = E ? {title: '영어 시험', date: S.set.exam.date, note: `Day ${DD(E.a)}–${DD(E.b)}`} : null;
+  Sabathia.report('vocab', {done, total: done + left, pct: done + left ? done / (done + left) * 100 : 100, exam});
+}
+document.addEventListener('visibilitychange', () => { if(document.hidden) reportHome(); });
+if(window.Sabathia) Sabathia.back = () => {
+  if(!$('#sheetWrap').hidden){ ACT.closeSheet(); return true; }
+  if(!$('#stage').hidden){ ACT.stClose(); return true; }
+  return false;
+};
+})();
+</script>
+</body>
+</html>
