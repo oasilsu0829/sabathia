@@ -37,7 +37,7 @@
 
 ## 구조
 ```
-public/index.html   Sabathia 홈: 화면별 배치 3개(폰 <640 · 세로 화면 · 가로 화면), 오늘 하루 줄, 앱 아이콘(컨택트 맵, 홈에서만 앱 고유색), 폰 앱 시트(런처 브리지). 독 없음
+public/index.html   Sabathia 홈: 화면별 배치 3개(폰 <640 · 세로 화면 · 가로 화면), 오늘 하루 줄, 앱 아이콘(컨택트 맵, 홈에서만 앱 고유색), 폰 앱 시트(런처 브리지). 독 없음, 설정 시트(화면 모드 자동·일반·투사, localStorage sabathia.theme)
 public/apps.js      앱 목록(코드·이름·주소·고유색·홈 아이콘 진행률 계산). 새 앱은 여기에
 public/today.js     홈의 "오늘 하루": 15577 보고(블록 위치·상태·수업·D-day) + /api/events + 어원 단어 보고를 한 줄로 모음
 public/sabathia.js  공통: 런처 뒤로가기/홈 버튼, 앱 상태 보고(localStorage sabathia.status.<id>), /sw.js 등록

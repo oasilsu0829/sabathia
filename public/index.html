@@ -8,6 +8,13 @@
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
+<script>
+/* 화면 모드(설정 시트): 첫 그림 전에 적용해 깜빡임을 막는다. 주소의 ?theme= 가 저장값보다 앞선다 */
+(() => { try {
+  const v = new URLSearchParams(location.search).get('theme') || localStorage.getItem('sabathia.theme');
+  if (v === 'light' || v === 'dark' || v === 'projector') document.documentElement.dataset.theme = v;
+} catch {} })();
+</script>
 <link rel="icon" type="image/png" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -98,6 +105,7 @@ a { color: inherit; text-decoration: none; }
 .sec-count { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sec-link { background: none; border: 0; padding: 0; min-height: 44px; margin-block: -12px; font-weight: 800; font-size: 13px; }
 .sec-link .num { font-weight: 700; }
+.sec-links { display: flex; gap: 20px; }
 
 /* 머리: 폰 */
 .p-date { margin-top: 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
@@ -258,6 +266,14 @@ a { color: inherit; text-decoration: none; }
 .alist .go { flex: 1; min-width: 0; min-height: 48px; padding: 12px 0; background: none; border: 0; text-align: left; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .alist .pin { flex: none; min-height: 44px; background: none; border: 0; padding: 0; font-weight: 800; font-size: 12px; letter-spacing: 0.06em; color: var(--muted); }
 .alist .pin.on { color: var(--accent); }
+.seg { border: 0; padding: 0; margin: 0; min-width: 0; }
+.seg legend { padding: 0; margin-bottom: 6px; font-weight: 800; font-size: 12px; letter-spacing: 0.06em; }
+.seg-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: var(--line-thin) solid var(--ink); }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg label span { display: block; min-height: 44px; padding-top: 11px; text-align: center; font-size: 15px; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.seg input:checked + span { color: var(--ink); font-weight: 800; border-bottom-color: var(--accent); }
+.seg input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* 움직임 (디자인 언어 14장). transform · opacity · filter · clip-path 만 움직인다.
    홈은 하루에 수십 번 열리니 짧게: 첫 화면은 1초 안에 끝나고, 30초마다 다시 그릴 때는 움직이지 않는다 */
@@ -334,8 +350,24 @@ a { color: inherit; text-decoration: none; }
   const J = window.Jarvis; // 안드로이드 런처 앱 안에서만 있다
   const S0 = 6 * 60, S1 = 24 * 60; // 하루 줄 06:00–24:00
 
-  const q = new URLSearchParams(location.search).get('theme');
-  if (q === 'light' || q === 'dark' || q === 'projector') document.documentElement.dataset.theme = q;
+  /* ---------- 화면 모드: 자동(기기 설정) · 일반 · 투사. 이 기기에 저장(localStorage sabathia.theme) ---------- */
+  const THEMES = [['auto', '자동'], ['light', '일반'], ['projector', '투사']];
+  const urlTheme = new URLSearchParams(location.search).get('theme');
+  const metas = [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => [m, m.content]);
+  const getTheme = () => { try { return localStorage.getItem('sabathia.theme') || 'auto'; } catch { return 'auto'; } };
+  function applyTheme(v) {
+    const root = document.documentElement;
+    if (v === 'light' || v === 'dark' || v === 'projector') root.dataset.theme = v;
+    else delete root.dataset.theme;
+    // 상태 표시줄 색: 기기 설정과 다른 모드를 고르면 두 meta 모두 지금 바탕색으로
+    const bg = root.dataset.theme ? (root.dataset.theme === 'light' ? '#ffffff' : '#000000') : null;
+    for (const [m, c] of metas) m.content = bg || c;
+  }
+  function setTheme(v) {
+    try { if (v === 'auto') localStorage.removeItem('sabathia.theme'); else localStorage.setItem('sabathia.theme', v); } catch {}
+    applyTheme(urlTheme || v);
+  }
+  applyTheme(urlTheme || getTheme());
 
   /* ---------- 화면 모드: 폰 · 세로 화면 · 가로 화면 ---------- */
   const modeOf = () => innerWidth < 640 ? 'phone' : innerHeight > innerWidth ? 'tall' : 'wide';
@@ -494,7 +526,7 @@ a { color: inherit; text-decoration: none; }
         : `<a class="cell app-c" href="${esc(a.href)}" style="${style}" aria-label="${esc(label)}"><span class="ic">${mapSVG(a.name, pct, 8)}${badge}</span><span style="min-width:0"><span class="cd">${esc(a.code)}</span><span class="nm">${esc(a.name)}</span><span class="mt">${esc(meta)}</span></span></a>`;
     }).join('');
     return `<section class="apps-sec" aria-labelledby="h-apps"><div class="sec-head"><h2 class="sec-title" id="h-apps">앱</h2>
-      <button type="button" class="sec-link" data-act="phone">폰 앱 <span class="num">${pad(phoneApps.length)}</span></button></div>
+      <span class="sec-links"><button type="button" class="sec-link" data-act="settings">설정</button><button type="button" class="sec-link" data-act="phone">폰 앱 <span class="num">${pad(phoneApps.length)}</span></button></span></div>
       <nav class="${phone ? 'tiles' : 'cells'}" aria-label="앱">${items}</nav></section>`;
   }
 
@@ -698,6 +730,18 @@ a { color: inherit; text-decoration: none; }
       phoneApps.splice(i, 1); savePhone(); render(); openPhone();
     };
   }
+  function openSettings() {
+    const cur = getTheme();
+    openSheet('settings', `${head('설정')}
+      <div class="form">
+        <fieldset class="seg"><legend>화면 모드</legend><div class="seg-opts">
+          ${THEMES.map(([v, l]) => `<label><input type="radio" name="theme" value="${v}" ${cur === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}
+        </div></fieldset>
+        <p class="hint">일반은 흰 바탕, 투사는 프로젝터용 검정 바탕입니다. 자동은 기기의 밝게 · 어둡게 설정을 따릅니다. 이 기기에만 저장됩니다.</p>
+        ${urlTheme ? `<p class="hint">지금은 주소의 theme=${esc(urlTheme)} 가 먼저 적용되어 있습니다.</p>` : ''}
+      </div>`);
+    sheet.querySelectorAll('input[name="theme"]').forEach((r) => { r.onchange = () => setTheme(r.value); });
+  }
   // 런처 안에서만: 설치된 모든 앱
   let allApps = [];
   function openAll() {
@@ -728,7 +772,10 @@ a { color: inherit; text-decoration: none; }
       b.classList.add('on'); b.textContent = '폰 앱에 있음';
     }
   });
-  $('#app').addEventListener('click', (e) => { if (e.target.closest('[data-act="phone"]')) openPhone(); });
+  $('#app').addEventListener('click', (e) => {
+    if (e.target.closest('[data-act="phone"]')) openPhone();
+    else if (e.target.closest('[data-act="settings"]')) openSettings();
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') back(); });
 
   /* ---------- 런처 버튼 ---------- */
