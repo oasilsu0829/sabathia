@@ -2008,13 +2008,15 @@ function today(){ const d = new Date(Date.now() - 4 * 3600e3); return Math.round
 
 /* ---------- 상태 ---------- */
 const LS = 'eowon.vocab.v1', LS_THEME = 'eowon.vocab.theme';
-function fresh(){ return {v:2, updatedAt:0, set:{perDay:20, spell:true, speak:false, start:0, ok:false, test:null, exam:{on:true, date:'2026-10-16', from:30, to:44}}, c:{}, log:{}, tests:[]}; }
+function fresh(){ return {v:3, updatedAt:0, set:{perDay:20, spell:true, speak:false, start:0, ok:false, test:null, exam:{on:true, date:'2026-10-16', from:30, to:44}}, c:{}, log:{}, tests:[]}; }
 function normalize(s){
   const f = fresh(); if(!s || typeof s !== 'object') return f;
   s.set = Object.assign(f.set, s.set || {}); s.c = s.c && typeof s.c === 'object' ? s.c : {};
   s.log = s.log && typeof s.log === 'object' ? s.log : {}; s.tests = Array.isArray(s.tests) ? s.tests.slice(-30) : [];
   if(!(s.set.start >= 0 && s.set.start < DAYS.length)) s.set.start = 0;
   if(!(s.v >= 2)) migrate46(s);
+  /* v3: 시험 기본 유형을 철자 쓰기(서답형)로 */
+  if(!(s.v >= 3)){ if(s.set.test) s.set.test.type = 'spell'; s.v = 3; }
   return s;
 }
 /* v2: Day 46·47 단어를 시험 범위 목록으로 바꿈(26·25개 → 79·76개). 단어 번호가 곧 기록 키라서
@@ -2026,7 +2028,6 @@ function migrate46(s){
   for(const k in s.c){ const id = mv(+k.slice(1)); if(id != null) c['k' + id] = s.c[k]; }
   s.c = c;
   s.tests.forEach(h => { if(h.wrong) h.wrong = String(h.wrong).split(',').filter(Boolean).map(Number).map(mv).filter(x => x != null).join(','); });
-  s.v = 2;
 }
 function localLoad(){ try{ const r = localStorage.getItem(LS); return r ? JSON.parse(r) : null; }catch(e){ return null; } }
 function localSave(){ try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){} }
@@ -2324,7 +2325,7 @@ function examPanel(t){
 
 /* ---------- 시험 설정 ---------- */
 function T(){
-  if(!S.set.test){ const d = S.set.start; S.set.test = {scope:examInfo() ? 'exam' : 'range', from:Math.max(0, d - 1), to:d, type:'mcq', n:30, order:'shuffle'}; }
+  if(!S.set.test){ const d = S.set.start; S.set.test = {scope:examInfo() ? 'exam' : 'range', from:Math.max(0, d - 1), to:d, type:'spell', n:30, order:'shuffle'}; }
   if(S.set.test.scope === 'exam' && !examInfo()) S.set.test.scope = 'range';
   return S.set.test;
 }
@@ -2493,7 +2494,7 @@ function renderSpell(it, x, inTest){
   const res = it.checked;
   let resHTML = '';
   if(res){
-    const j = it.j, v = j === 2 ? '<span class="verdict ok">정답</span>' : j === 1 ? '<span class="verdict near">한 글자 차이</span>' : '<span class="verdict no">틀림</span>';
+    const j = it.j, v = j === 2 ? `<span class="verdict ok">정답</span>${it.alt ? `<div class="yours">${esc(it.alt)}도 같은 뜻이라 정답이에요</div>` : ''}` : j === 1 ? '<span class="verdict near">한 글자 차이</span>' : '<span class="verdict no">틀림</span>';
     resHTML = `<div class="reveal">${v}<div class="word sm">${esc(x.w)}</div>${j < 2 && it.ans ? `<div class="yours">내 답: <s>${esc(it.ans)}</s></div>` : (j < 2 ? '<div class="yours">답을 비워 뒀어요</div>' : '')}${rootHTML(x.r)}</div>`;
   }
   const meta = inTest ? `<div class="fc-meta"><div class="tags"><span class="tag">${DN(x.d)}</span><span class="tag plain">${NUM(x.id)}</span></div>${res ? spkBtn(x.id) : ''}</div>` : `<div class="fc-meta"><div class="tags"><span class="tag">철자 쓰기</span><span class="tag">${DN(x.d)}</span></div>${res ? spkBtn(x.id) : ''}</div>`;
@@ -2718,7 +2719,7 @@ const ACT = {
   gotoDay(b){ SEL_DAY = +b.dataset.d; QUERY = ''; TAB = 'book'; render(); setTimeout(() => { const el = $('#bookList'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }, 30); },
   selDay(b){ const d = +b.dataset.d; SEL_DAY = SEL_DAY === d ? null : d; QUERY = ''; render(); if(SEL_DAY != null) setTimeout(() => $('#bookList').scrollIntoView({behavior:'smooth', block:'start'}), 30); },
   dayStart(b){ S.set.start = +b.dataset.d; save(); render(); toast(examInfo() && unseenRange(examInfo()) ? `시험 범위를 다 본 뒤 ${DN(S.set.start)}부터 나와요` : `새 단어는 ${DN(S.set.start)}부터 나와요`); },
-  dayTest(b){ const d = +b.dataset.d, c = T(); c.scope = 'range'; c.from = c.to = d; save(); startTest(shuffle(DAYS[d].ids.slice()), c.type, DN(d)); },
+  dayTest(b){ const d = +b.dataset.d, c = T(); c.scope = 'range'; c.from = c.to = d; c.type = 'spell'; save(); startTest(shuffle(DAYS[d].ids.slice()), 'spell', DN(d)); },
   speak(b){ speak(W[+b.dataset.id].w); },
   tset(b){ const c = T(), k = b.dataset.k; let v = b.dataset.v; if(k === 'n' && v !== 'all') v = +v; c[k] = v; save(); render(); },
   startTest(){
@@ -2741,7 +2742,10 @@ const ACT = {
   grade(b){ gradeRec(+b.dataset.g); },
   spellCheck(){
     const it = SES ? SES.q[SES.i] : TS.qs[TS.i], inp = $('#spellIn'); if(!inp || it.checked) return;
-    it.ans = inp.value; it.j = judge(inp.value, W[it.id].w); it.checked = true;
+    it.ans = inp.value; it.j = judge(inp.value, W[it.id].w); it.alt = null;
+    /* 뜻이 똑같은 다른 단어(refuse·reject·decline 등)를 썼으면 그것도 정답 */
+    if(it.j < 2){ const m = norm(W[it.id].m), o = W.find(y => y.id !== it.id && norm(y.m) === m && judge(inp.value, y.w) === 2); if(o){ it.j = 2; it.alt = o.w; } }
+    it.checked = true;
     renderSpell(it, W[it.id], !SES);
     if(it.j === 2 && TS){ const q = it; AUTO = setTimeout(() => { if(TS && TS.qs[TS.i] === q) answerQ(true, q.ans); }, 800); }
   },
