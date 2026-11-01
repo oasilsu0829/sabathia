@@ -69,6 +69,13 @@ test/               ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립�
 - 프로젝트 장부 (원래 핵심 기능)
 - 반복 리마인더
 
+## 수업 노트 아티팩트 (2026-11-01)
+- 수업 전사·정리 앱은 Sabathia PWA가 아니라 claude.ai 아티팩트로 만듦(사용자 결정: AI 정리를 API 키 없이 쓰려고). https://claude.ai/artifact/799cSCZn6VKRq2x2xBjxnY
+- 원본 `artifacts/lecture.html`. 고친 뒤 같은 파일을 Artifact 도구로 다시 게시(주소 유지). capabilities: db(루트 read/write admin = 본인만), sample(Claude 호출)
+- 아티팩트 화면은 마이크가 막혀 Web Speech API 실시간 전사가 안 될 가능성이 큼 → 막히면 전사문 입력(Gboard 음성 입력·클로바노트 붙여넣기·.txt/.srt/.vtt)으로 넘어감. 실시간 녹음이 꼭 필요하면 Sabathia `/lecture/` PWA로 녹음 화면만 따로 만드는 안이 남아 있음
+- DB: lectures/{id}(mode, subject, date, title, summary, cards[{q,a,box,due}], hwDone), tx/{id}-{n}(전사문 6만 자씩), settings/subjects. 예시 문서 lectures/example, tx/example-0
+- 정리: 1만 자 넘으면 구간별 정리 후 병합. 카드 복습은 상자 0~5, 간격 1·2·4·8·16일
+
 ## 사용자 선호
 - 답변은 짧고 직접적으로. 이모지 쓰지 않기
 - 모바일(안드로이드) 기준으로 안내. 다만 아이패드·컴퓨터도 많이 씀(가로 화면 중요)
