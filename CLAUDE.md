@@ -18,7 +18,8 @@
 - Cloudflare Workers Builds 설정: Build command `npm run build`(echo만 함), Deploy command `npx wrangler deploy`. 이 칸에 브랜치 이름이 들어가면 `ccr-a6652a14-opge2l: not found`로 실패한다. 예전 빌드의 'Retry build'는 예전 설정으로 다시 도니, 설정을 고친 뒤에는 새 커밋으로 확인할 것
 
 ## 진행 중 (2026-10-29 세션에서 넘어옴)
-- **PR #1 열려 있음**: https://github.com/oasilsu0829/sabathia/pull/1 (브랜치 `claude/sweet-sagan-srvqei` → 기본 브랜치). 학습앱 통합 + 새 홈 전부 여기 있고 아직 병합 전. 지금 사이트는 예전 CMD 자비스 그대로
+- PR #1(학습앱 통합 + 새 홈), PR #2(홈 움직임) 병합됨
+- 이름·아이콘: 웹 매니페스트는 PR #1부터 Sabathia. 폰에 예전에 설치한 '자비스' PWA는 크롬이 매니페스트 변경을 늦게(하루 단위, 확인 창) 반영하니 지우고 다시 설치하는 게 빠르다. 런처 APK(`android/`)도 이름 Sabathia + 컨택트 맵 적응형 아이콘으로 바꿈(applicationId는 그대로라 덮어 설치됨)
 - **막힌 것: Cloudflare 미리보기 빌드 실패.** 로그는 매번 `Executing user build command: ccr-a6652a14-opge2l` → `not found`. 코드 문제 아님(`npx wrangler deploy --dry-run`, `versions upload --dry-run` 모두 통과). 대시보드 Settings → Builds의 Build command 칸이 화면엔 "None"(빈 칸)으로 보이는데 실제 저장값은 브랜치 이름인 것으로 보임. 오늘 02:54 UTC 정식 빌드는 `npm run build`로 성공했음
   - 다음 할 일: 사용자가 Build command에 `npm run build`를 직접 입력·저장(새로고침해서 남는지 확인) → Claude가 PR 브랜치에 실제 변경이 있는 새 커밋을 올려 확인(빈 커밋 금지) → 초록이면 사용자가 병합
   - 원인: Settings → Builds 위의 **Production / Previews Base** 탭 중 Previews Base(미리보기 빌드 설정)의 Build command에 브랜치 이름이 들어가 있었음. Production 탭은 정상(`npm run build` / `npx wrangler deploy`). Previews Base는 Build `npm run build`, Deploy `npx wrangler versions upload`. 2026-10-29 13:24 UTC 사용자가 Previews Base 수정 완료(캡처로 확인). 그래도 새 커밋 빌드가 예전 값(브랜치 이름)으로 실패해서, 'Builds for Preview branches'를 껐다 켜서 다시 저장함
