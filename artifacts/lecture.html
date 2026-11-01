@@ -104,6 +104,7 @@ button { font: inherit; color: inherit; background: none; border: 0; border-radi
 .draft .label { color: var(--accent); }
 .mic { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .mic p { margin: 0; font-size: 15px; }
+.mic a { color: inherit; font-weight: 800; }
 .mic ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 .err { display: flex; gap: 10px; align-items: baseline; font-size: 14px; }
 .status { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; min-height: 24px; margin: 0; }
@@ -405,6 +406,31 @@ function paintLive() {
   else { st.className = 'status'; st.textContent = document.visibilityState === 'visible' ? '다시 연결하는 중' : '화면이 꺼져 멈춤'; }
 }
 
+/* ---------- Sabathia 수업 녹음에서 받기 ---------- */
+// 녹음 앱(public/lecture/)이 붙이는 머리줄: [수업노트] 학교 · 한국사 · 2026-11-01 · 48:00
+const RECORDER_URL = 'https://sabathia.oasilsu0829.workers.dev/lecture/';
+const HEAD_RE = /^\s*\[수업노트\]\s*(학교|학원)\s*·\s*(.+?)\s*·\s*(\d{4}-\d{2}-\d{2})(?:\s*·\s*([\d:]+))?[ \t]*(?:\r?\n|$)/;
+function parseHeader(text) {
+  const m = HEAD_RE.exec(String(text || ''));
+  if (!m) return null;
+  const sec = m[4] ? m[4].split(':').map(Number).reduce((a, n) => a * 60 + (n || 0), 0) : 0;
+  return { mode: m[1] === '학원' ? 'academy' : 'school', subject: m[2], date: m[3], sec, body: String(text).slice(m[0].length).trim() };
+}
+function applyHeader(d, text) {
+  const h = parseHeader(text);
+  if (!h) return false;
+  Object.assign(d, { mode: h.mode, subject: h.subject, date: h.date, transcript: h.body });
+  if (h.sec) d.durationSec = h.sec;
+  return true;
+}
+function intake(text) {
+  if (!str(text)) return;
+  newDraft();
+  if (!applyHeader(S.draft, text)) S.draft.transcript = String(text).trim();
+  saveDraft(); S.view = 'edit'; render(); window.scrollTo(0, 0);
+  toast(parseHeader(text) ? '녹음 앱의 전사문을 받았습니다' : '붙여넣은 글을 전사문으로 열었습니다');
+}
+
 /* ---------- 초안 ---------- */
 let draftT;
 function saveDraft() { lsj('draft', S.draft); }
@@ -610,7 +636,7 @@ const sec = (title, count, inner) => `<section class="sec"><div class="sec-h"><h
 function micHelp() {
   return `<div class="mic"><span class="chip-warn">마이크 차단</span>
     <p>이 화면에서는 마이크를 쓸 수 없었습니다. 대신 전사문을 넣어 주세요.</p>
-    <ul><li>키보드의 마이크 버튼(Gboard 음성 입력)으로 받아쓰기</li><li>클로바노트·녹음 앱의 전사문 붙여넣기</li><li>.txt · .srt · .vtt 파일 불러오기</li></ul></div>`;
+    <ul><li><a href="${RECORDER_URL}" target="_blank" rel="noopener">Sabathia 수업 녹음</a>으로 받아쓴 뒤 복사해 붙여넣기</li><li>키보드의 마이크 버튼(Gboard 음성 입력)으로 받아쓰기</li><li>클로바노트·녹음 앱의 전사문 붙여넣기</li><li>.txt · .srt · .vtt 파일 불러오기</li></ul></div>`;
 }
 function dueCards(subj, lid) {
   const t = today(), out = [];
@@ -658,6 +684,8 @@ function vNew() {
   ${note()}
   ${hasDraft ? `<section class="draft"><div class="row-k"><span class="label">작성 중</span><span class="meta">${esc((MODE[d.mode] || MODE.school).name)} · ${esc(d.subject)} · <span class="num">${d.transcript.length.toLocaleString()}</span>자</span></div>
     <div class="btns"><button class="btn primary" data-act="resume">이어서</button><button class="btn" data-act="discard">버리기</button></div></section>` : ''}
+  ${hasDraft ? '' : `<section class="sec"><div class="sec-h"><h2>녹음 앱에서 받기</h2><a class="link" href="${RECORDER_URL}" target="_blank" rel="noopener">녹음 앱 열기</a></div>
+    <textarea id="f-inbox" class="short" data-inbox="1" placeholder="Sabathia 수업 녹음에서 복사한 전사문을 여기에 붙여넣으세요. 모드·과목·날짜가 자동으로 채워집니다."></textarea></section>`}
   <section class="sec"><div class="sec-h"><h2>모드</h2></div>
     <div class="seg" role="group" aria-label="모드">${['school', 'academy'].map(m => `<button data-act="mode" data-v="${m}" aria-pressed="${S.mode === m}">${MODE[m].name}</button>`).join('')}</div>
     <p class="meta">${MODE[S.mode].desc}</p></section>
@@ -958,6 +986,10 @@ document.addEventListener('click', e => {
   const f = ACT[b.dataset.act]; if (f) f(b.dataset.v, b, e);
 });
 document.addEventListener('input', e => {
+  if (e.target.dataset.inbox) { const v = e.target.value; e.target.value = ''; intake(v); return; }
+  if (e.target.id === 'f-tx' && S.draft && parseHeader(e.target.value)) {
+    applyHeader(S.draft, e.target.value); saveDraft(); render(); toast('녹음 앱의 머리줄로 모드·과목·날짜를 채웠습니다'); return;
+  }
   const k = e.target.dataset.in;
   if (!k || k === 'file' || S.view !== 'edit' || !S.draft) return;
   S.draft[k] = e.target.value;
@@ -976,7 +1008,8 @@ document.addEventListener('change', e => {
       if (/\.(srt|vtt)$/i.test(file.name)) {
         text = text.split(/\r?\n/).filter(x => !/^WEBVTT/.test(x) && !/^\d+$/.test(x.trim()) && !/-->/.test(x) && !/^NOTE\b/.test(x)).map(x => x.trim()).filter(Boolean).join(' ');
       }
-      S.draft.transcript = (str(S.draft.transcript) ? S.draft.transcript.trim() + '\n' : '') + text.trim();
+      if (!str(S.draft.transcript) && parseHeader(text)) applyHeader(S.draft, text);
+      else S.draft.transcript = (str(S.draft.transcript) ? S.draft.transcript.trim() + '\n' : '') + text.trim();
       saveDraft(); render(); toast(file.name + ' 불러옴');
     };
     r.onerror = () => toast('파일을 읽지 못했습니다');
