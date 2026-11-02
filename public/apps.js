@@ -47,10 +47,19 @@
     return { pct: tasks.length ? doneN / tasks.length * 100 : 0, badge: late, meta: tasks.length ? `${doneN} / ${tasks.length} 할 일` : '할 일 없음' };
   }
 
+  // 수업 녹음: 받아쓰기만 하는 도구라 모양을 다 채우고, 아직 수업 노트로 보내지 않은 전사문을 배지로
+  function lecture() {
+    const r = Sabathia.read('lecture');
+    let unsent = r ? r.unsent || 0 : 0;
+    if (!r) { const recs = json('lecture.recs') || []; unsent = recs.filter((x) => !x.sent && (x.text || '').trim()).length; }
+    return { pct: 100, badge: unsent, meta: unsent ? `보낼 전사문 ${unsent}` : r && r.n ? `오늘 ${r.n}개 · ${r.min}분` : '받아쓰기' };
+  }
+
   window.SABATHIA_APPS = [
     { id: 'plan', code: 'PLN-01', name: '15577', dock: '15577', href: '/plan/', color: ['#a35a00', '#f2a33a'], status: plan },
     { id: 'vocab', code: 'VOC-02', name: '어원 단어', dock: '단어', href: '/vocab/', color: ['#5b3fc0', '#a99bff'], status: vocab },
     { id: 'cal', code: 'CAL-03', name: '일정', dock: '일정', href: '/schedule/', color: ['#026395', '#4fb3e0'], status: cal },
     { id: 'pdf', code: 'PDF-04', name: '사진 PDF', href: '/pdf/', color: ['#1f7a4d', '#5fd39a'], status: null },
+    { id: 'lecture', code: 'LEC-05', name: '수업 녹음', href: '/lecture/', color: ['#6a6a00', '#cfcf4a'], status: lecture },
   ];
 })();

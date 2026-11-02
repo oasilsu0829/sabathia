@@ -5,7 +5,7 @@
 학습앱은 전부 **Sabathia** 하나로 묶었다(2026-10-29). 한 주소, 한 번 설치(PWA 하나), 디자인 언어 v1.0(`docs/design-language.md`).
 - 루트 `/` = Sabathia 홈. 예전 CMD 자비스 화면(리마인더 UI·배경화면)은 지웠다. 폰 앱 실행(런처)은 홈의 "폰 앱" 시트로
 - 홈 배치(사용자가 시안에서 고름): 가로 화면 = C(하루 줄 3칸), 폰 = P5(시계 먼저 + 하루 띠), 패드 세로 = P6. 독(작업표시줄)은 어느 쪽에도 두지 않음
-- 앱: 15577 `/plan/`, 어원 단어 `/vocab/`, 일정 `/schedule/`, 사진 PDF `/pdf/`. 원본 저장소(Block-planner, llm-wiki-private)의 사본이고 이제 이쪽이 기준
+- 앱: 15577 `/plan/`, 어원 단어 `/vocab/`, 일정 `/schedule/`, 사진 PDF `/pdf/`, 수업 녹음 `/lecture/`. 원본 저장소(Block-planner, llm-wiki-private)의 사본이고 이제 이쪽이 기준
 - FFF 대시보드·주간 루틴은 쓰지 않음(사용자 결정). 할 일·일정은 Sabathia 일정(D1)으로
 - 새 앱 추가: `public/<폴더>/index.html` + `public/apps.js`에 한 항목. 앱 페이지는 `/sabathia.js`를 불러오고 맨 위에 `SABATHIA` 줄을 둔다
 
@@ -68,6 +68,16 @@ test/               ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립�
 - 캘린더: 일정 앱(/schedule/) 추가함. Sabathia 홈 아이콘에 오늘 할 일·지연 배지 연결함. 마감 웹 푸시는 아직
 - 프로젝트 장부 (원래 핵심 기능)
 - 반복 리마인더
+
+## 수업 노트 아티팩트 (2026-11-01)
+- 수업 전사·정리 앱은 Sabathia PWA가 아니라 claude.ai 아티팩트로 만듦(사용자 결정: AI 정리를 API 키 없이 쓰려고). https://claude.ai/artifact/799cSCZn6VKRq2x2xBjxnY
+- 원본 `artifacts/lecture.html`. 고친 뒤 같은 파일을 Artifact 도구로 다시 게시(주소 유지). capabilities: db(루트 read/write admin = 본인만), sample(Claude 호출)
+- 아티팩트는 마이크가 막혀 있음(GitHub 조사: 아티팩트에서 마이크를 연 사례 없음, 이 계정 기능 목록에도 없음). 소리는 넘겨도 아티팩트 AI가 못 받아씀(글자·이미지만)
+- 그래서 녹음은 Sabathia `/lecture/`(LEC-05)가 맡는다: 크롬 Web Speech 받아쓰기 → "복사하고 수업 노트 열기" → 아티팩트 첫 화면 "녹음 앱에서 받기" 칸에 붙여넣기. 전송은 클립보드(실패하면 .txt). 아티팩트는 다른 주소를 fetch할 수 없어 D1 경유는 불가
+- 머리줄 형식 `[수업노트] 학교 · 한국사 · 2026-11-01 · 48:00` (녹음 앱 `header()` ↔ 아티팩트 `parseHeader()` 같이 바꿀 것)
+- 녹음 앱 저장: localStorage `lecture.recs`(최대 40, 보낸 것부터 지움). 홈 아이콘 배지 = 아직 안 보낸 전사문 수. 홈 앱 격자가 4칸이라 5번째 아이콘이 둘째 줄에 혼자 있음(배치 바꿀지 사용자에게 물을 것)
+- DB: lectures/{id}(mode, subject, date, title, summary, cards[{q,a,box,due}], hwDone), tx/{id}-{n}(전사문 6만 자씩), settings/subjects. 예시 문서 lectures/example, tx/example-0
+- 정리: 1만 자 넘으면 구간별 정리 후 병합. 카드 복습은 상자 0~5, 간격 1·2·4·8·16일
 
 ## 사용자 선호
 - 답변은 짧고 직접적으로. 이모지 쓰지 않기
