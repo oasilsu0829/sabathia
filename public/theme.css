@@ -5,7 +5,8 @@
    - 모양: 둥근 모서리(카드 14, 버튼·입력 10), 옅은 그림자, 굵은 검정 선 대신 옅은 구분선 */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
 
-:root, :root:not([data-theme="light"]) {
+:root, :root:not([data-theme="light"]), :root[data-theme="dark"], :root[data-theme="projector"] {
+  --body-size: 16px; --tint: 30%;
   --bg: #f9f9f8; --card: #ffffff; --soft: #f3f4f3; --soft-2: #eeeeed;
   --ink: #1a1c1c; --muted: #5d6170; --hair: #e2e2e2;
   --accent: #004ac6; --on-accent: #ffffff; --accent-soft: #dbe1ff;
@@ -20,29 +21,8 @@
   --font-num: 'Inter', 'Noto Sans KR', system-ui, sans-serif;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121414; --card: #1c1e1e; --soft: #242626; --soft-2: #2c2e2e;
-    --ink: #e7e8e7; --muted: #a2a6b4; --hair: #303232;
-    --accent: #b4c5ff; --on-accent: #00174b; --accent-soft: #003ea8;
-    --ok: #79db8d; --ok-soft: #005323;
-    --warn: #ffb4ab; --on-warn: #690005; --warn-text: #ffb4ab;
-    --map-empty: #2a2c2c; --map-pending: #4a4d5a;
-    --line-bold: 1px; --line-thin: 1px;
-    --shadow: none;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"], :root[data-theme="projector"] {
-  --bg: #121414; --card: #1c1e1e; --soft: #242626; --soft-2: #2c2e2e;
-  --ink: #e7e8e7; --muted: #a2a6b4; --hair: #303232;
-  --accent: #b4c5ff; --on-accent: #00174b; --accent-soft: #003ea8;
-  --ok: #79db8d; --ok-soft: #005323;
-  --warn: #ffb4ab; --on-warn: #690005; --warn-text: #ffb4ab;
-  --map-empty: #2a2c2c; --map-pending: #4a4d5a;
-  --line-bold: 1px; --line-thin: 1px; --shadow: none;
-}
-
+/* 다크 모드 없음(2026-11-07): 홈 아이콘도 라이트 색만 */
+.app-c { --c: var(--c-l) !important; }
 body { background: var(--bg); letter-spacing: -0.005em; }
 
 /* 선: 검정 선 대신 옅은 구분선. 글자색을 따르는 칩·체크 테두리는 살린다 */
