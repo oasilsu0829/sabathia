@@ -55,11 +55,25 @@
     return { pct: 100, badge: unsent, meta: unsent ? `보낼 전사문 ${unsent}` : r && r.n ? `오늘 ${r.n}개 · ${r.min}분` : '받아쓰기' };
   }
 
+  // 장부: 진행 중 프로젝트의 단계 진행률, 배지는 멈춘 프로젝트 수
+  function projects() {
+    let r = Sabathia.read('projects');
+    if (!r) {
+      const ps = json('projects.v1') || [];
+      const act = ps.filter((p) => p.status === 'active');
+      let n = 0, done = 0;
+      for (const p of act) { n += p.steps.length; done += p.steps.filter((x) => x.done).length; }
+      r = { pct: n ? done / n * 100 : 0, active: act.length, paused: ps.filter((p) => p.status === 'paused').length };
+    }
+    return { pct: r.pct || 0, badge: 0, meta: r.active ? `진행 ${r.active} · 멈춤 ${r.paused}` : '프로젝트 없음' };
+  }
+
   window.SABATHIA_APPS = [
     { id: 'plan', code: 'PLN-01', name: '15577', dock: '15577', href: '/plan/', color: ['#a35a00', '#f2a33a'], status: plan },
     { id: 'vocab', code: 'VOC-02', name: '어원 단어', dock: '단어', href: '/vocab/', color: ['#5b3fc0', '#a99bff'], status: vocab },
     { id: 'cal', code: 'CAL-03', name: '일정', dock: '일정', href: '/schedule/', color: ['#026395', '#4fb3e0'], status: cal },
     { id: 'pdf', code: 'PDF-04', name: '사진 PDF', href: '/pdf/', color: ['#1f7a4d', '#5fd39a'], status: null },
     { id: 'lecture', code: 'LEC-05', name: '수업 녹음', href: '/lecture/', color: ['#6a6a00', '#cfcf4a'], status: lecture },
+    { id: 'projects', code: 'PRJ-06', name: '장부', href: '/projects/', color: ['#8a2b5c', '#e07aae'], status: projects },
   ];
 })();
