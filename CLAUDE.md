@@ -6,7 +6,7 @@
 - 2026-11-07 사용자 결정: UI를 장부 시안 스타일(옅은 회색 바탕, 흰 둥근 카드, 옅은 그림자, Inter, 파랑 #004ac6)로 전면 교체. `public/theme.css`가 모든 페이지 <head> 끝에서 v1.0 변수를 덮어쓴다. 새 화면은 theme.css 기준. v1.0 문서의 색·글꼴·선·모서리 규칙은 theme.css가 우선
 - 루트 `/` = Sabathia 홈. 예전 CMD 자비스 화면(리마인더 UI·배경화면)은 지웠다. 폰 앱 실행(런처)은 홈의 "폰 앱" 시트로
 - 홈 배치(사용자가 시안에서 고름): 가로 화면 = C(하루 줄 3칸), 폰 = P5(시계 먼저 + 하루 띠), 패드 세로 = P6. 독(작업표시줄)은 어느 쪽에도 두지 않음
-- 앱: 15577 `/plan/`, 어원 단어 `/vocab/`, 일정 `/schedule/`, 사진 PDF `/pdf/`, 수업 녹음 `/lecture/`, 장부 `/projects/`. 원본 저장소(Block-planner, llm-wiki-private)의 사본이고 이제 이쪽이 기준
+- 앱: 15577 `/plan/`, 어원 단어 `/vocab/`, 일정 `/schedule/`, 사진 PDF `/pdf/`, 수업 녹음 `/lecture/`, 장부 `/projects/`, 집중 `/focus/`. 원본 저장소(Block-planner, llm-wiki-private)의 사본이고 이제 이쪽이 기준
 - FFF 대시보드·주간 루틴은 쓰지 않음(사용자 결정). 할 일·일정은 Sabathia 일정(D1)으로
 - 새 앱 추가: `public/<폴더>/index.html` + `public/apps.js`에 한 항목. 앱 페이지는 `/sabathia.js`를 불러오고 맨 위에 `SABATHIA` 줄을 둔다
 
@@ -47,6 +47,13 @@ public/manifest.webmanifest  PWA 하나 (scope /)
 public/plan/        15577 공부 블록 플래너 (Block-planner 사본). 온라인 저장은 Firestore planners/{ID}
 public/vocab/       어원 단어 (Block-planner/vocab 사본을 v1.0으로 다시 그림). Firestore planners/v-{ID}
 public/pdf/         사진 PDF 묶음기 (llm-wiki-private/tools 사본, v1.0)
+public/focus/       집중 타이머 Aero Focus (FOC-07). 파일 하나. theme.css를 쓰지 않는 몰입 화면(사용자 결정: CRT 열대 해변)
+                    - 배경은 저해상도 캔버스에 그려 Skylance 2099와 같은 WebGL CRT 셰이더로 출력. 글자·버튼은 Inter + 글로우 + 약한 글리치(DOM)
+                    - 실제 시각 → 해·달·하늘·바다 색. 날씨는 Open-Meteo(키 없음, 위치 권한 없으면 서울) 30분마다, 일출·일몰도 여기서
+                    - 평소엔 현재 시각 표시, 시작하면 카운트다운. 숫자 누르면 시간 직접 입력(40 / 12:30 / 1.5)
+                    - 소리: 파도(바다·바람·비·효과음)와 알람 음량 따로(localStorage aerofocus.vol). 알람은 압축기 거쳐 3번 반복 + 진동
+                    - 사람(낚시·모래성·수영·산책)과 아프리카 펭귄 4마리는 1px 스프라이트(문자열로 정의). 키: T 시간대, W 날씨 미리보기, S 음소거
+                    - 원본은 claude.ai 아티팩트 https://claude.ai/artifact/QBbYAhP3pPsQuKkWmy7dsz (날씨 없는 이전 판). 이제 이쪽이 기준
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우트 + scheduled() 1분 cron으로 리마인더 발송

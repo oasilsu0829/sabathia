@@ -68,6 +68,17 @@
     return { pct: r.pct || 0, badge: 0, meta: r.active ? `진행 ${r.active} · 멈춤 ${r.paused}` : '프로젝트 없음' };
   }
 
+  // 집중(Aero Focus): 진행 중이면 지난 비율과 남은 분, 아니면 오늘 끝낸 횟수
+  function focus() {
+    const r = Sabathia.read('focus');
+    if (!r) return { pct: 0, badge: 0, meta: '집중 타이머' };
+    if (r.run && r.endAt > Date.now()) {
+      const left = r.endAt - Date.now();
+      return { pct: Math.max(0, 100 - left / r.total * 100), badge: 0, meta: `${Math.ceil(left / 60000)}분 남음` };
+    }
+    return { pct: r.n ? 100 : 0, badge: 0, meta: r.n ? `오늘 ${r.n}회` : '집중 타이머' };
+  }
+
   window.SABATHIA_APPS = [
     { id: 'plan', code: 'PLN-01', name: '15577', dock: '15577', href: '/plan/', color: ['#a35a00', '#f2a33a'], status: plan },
     { id: 'vocab', code: 'VOC-02', name: '어원 단어', dock: '단어', href: '/vocab/', color: ['#5b3fc0', '#a99bff'], status: vocab },
@@ -75,5 +86,6 @@
     { id: 'pdf', code: 'PDF-04', name: '사진 PDF', href: '/pdf/', color: ['#1f7a4d', '#5fd39a'], status: null },
     { id: 'lecture', code: 'LEC-05', name: '수업 녹음', href: '/lecture/', color: ['#6a6a00', '#cfcf4a'], status: lecture },
     { id: 'projects', code: 'PRJ-06', name: '장부', href: '/projects/', color: ['#8a2b5c', '#e07aae'], status: projects },
+    { id: 'focus', code: 'FOC-07', name: '집중', href: '/focus/', color: ['#00658d', '#4fd0ff'], status: focus },
   ];
 })();
