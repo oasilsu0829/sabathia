@@ -170,7 +170,36 @@ a { color: inherit; text-decoration: none; }
 .legend i { display: inline-block; width: 12px; height: 8px; border: var(--line-thin) solid var(--ink); }
 .legend i.l-fix { border-color: var(--muted); }
 .legend i.l-ev { width: 3px; height: 10px; border: 0; background: var(--ink); }
+.legend i.l-sl { border: 0; background: var(--map-pending); }
 .legend i.l-now { width: 2px; height: 10px; border: 0; background: var(--accent); }
+
+/* 원 그래프 타임테이블 */
+.d-wrap { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 32px; align-items: center; }
+.m-wide .d-wrap { grid-template-columns: minmax(0, clamp(300px, 52vh, 480px)) minmax(0, 1fr); }
+.dial { position: relative; width: 100%; max-width: 420px; margin: 8px auto 0; aspect-ratio: 1; }
+.dial svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.d-bg { fill: none; stroke: var(--map-empty); stroke-width: 11; }
+.d-tk { stroke: var(--muted); stroke-width: 1; }
+.d-hr { fill: var(--muted); font-family: var(--font-num); font-size: 8px; text-anchor: middle; dominant-baseline: central; }
+.d-sl { fill: none; stroke: var(--map-pending); stroke-width: 39; }
+.d-slt { fill: var(--muted); font-weight: 800; font-size: 9px; text-anchor: middle; dominant-baseline: central; }
+.d-a { fill: none; stroke: var(--ink); stroke-width: 11; }
+.d-m { fill: var(--ink); stroke: var(--bg); stroke-width: 1.5; }
+.d-a.s-fix, .d-a.s-past { stroke: var(--muted); }
+.d-a.s-done { stroke: var(--map-pending); }
+.d-m.s-done, .d-m.s-past, .d-m.s-due { fill: var(--muted); }
+.d-a.s-now, .d-a.s-run, .d-a.s-next { stroke: var(--accent); }
+.d-m.s-now, .d-m.s-next { fill: var(--accent); }
+.d-a.s-late { stroke: var(--warn); }
+.d-m.s-late { fill: var(--warn); }
+.d-now { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
+.d-mid { position: absolute; inset: 34%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
+.d-mid .label.ac { color: var(--accent); }
+.d-t { margin-top: 2px; font-weight: 800; font-size: 15px; line-height: 20px; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.d-t.empty { color: var(--muted); font-weight: 500; }
+.d-s { font-family: var(--font-num); font-size: 12px; line-height: 16px; color: var(--muted); }
+.d-leg { justify-content: center; }
+@media (max-width: 760px) { .d-wrap { grid-template-columns: minmax(0, 1fr); } }
 
 /* 지금 · 다음 (폰) */
 .focus { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding-block: 10px 12px; }
@@ -267,13 +296,14 @@ a { color: inherit; text-decoration: none; }
 }
 /* 들어오기: #app.enter 동안만. --dl 은 각자 지연, --el 은 다시 그렸을 때 이미 지난 시간(이어서 재생) */
 .enter > :not(.apps-sec), .enter .apps-sec > .sec-head { animation: rise 420ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) - var(--el, 0ms)); }
-.enter .lane .track, .enter .bar { animation: wipe 720ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) - var(--el, 0ms)); }
+.enter .dial svg { animation: spin 720ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) - var(--el, 0ms)); }
 .enter .now-line, .enter .now-tag { animation: fade 240ms var(--ease-out) both; animation-delay: calc(640ms - var(--el, 0ms)); }
 .enter .tile, .enter .cell { animation: rise 420ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) - var(--el, 0ms)); }
 .enter .cmap .f { animation: fade 200ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) + 120ms + var(--k, 0) * 20ms - var(--el, 0ms)); }
 .enter .badge { animation: pop 260ms var(--ease-out) both; animation-delay: calc(var(--dl, 0ms) + 380ms - var(--el, 0ms)); }
 @keyframes rise { from { opacity: 0; transform: translateY(var(--rise)); filter: blur(var(--blur)); } }
 @keyframes wipe { from { clip-path: inset(-12px 100% -12px 0); } to { clip-path: inset(-12px 0 -12px 0); } }
+@keyframes spin { from { opacity: 0; transform: rotate(-90deg) scale(0.92); } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: scale(0.6); } }
 /* 시계: 바뀐 숫자만 아래에서 올라온다 */
@@ -408,43 +438,43 @@ a { color: inherit; text-decoration: none; }
     return parts.join(' · ');
   }
 
-  // 하루 줄의 블록 하나. 끝 시각이 없는 일정은 표시(왼쪽 3px 선)로
-  function blkHTML(x, compact, trackW) {
-    if (x.e != null && (x.e <= S0 || x.s >= S1)) return '';
-    if (x.e == null && (x.s < S0 || x.s >= S1)) return '';
-    const l = pctOf(x.s);
-    const w = x.e != null ? ((frac(x.e) - frac(x.s)) * 100).toFixed(3) + '%' : (compact ? '3px' : (115 / (S1 - S0) * 100).toFixed(3) + '%');
-    // 좁은 블록은 시각을 빼고(small), 더 좁으면 글자 없이(tiny) 그린다. 폭은 화면 폭으로 어림
-    const px = x.e != null && trackW ? (frac(x.e) - frac(x.s)) * trackW : 999;
-    const cls = `blk s-${x.st}${x.e == null ? ' mk' : px < 28 ? ' tiny' : px < 110 ? ' small' : ''}`;
-    const time = x.e != null ? fmt(x.s) + '–' + fmt(x.e) : fmt(x.s);
-    if (compact) return `<span class="${cls}" style="left:${l};width:${w}" title="${esc(time + ' ' + x.t)}"></span>`;
-    return `<div class="${cls}" style="left:${l};width:${w}" title="${esc(time + ' ' + x.t)}"><span class="bt">${time}</span><span class="bn">${esc(x.t)}</span></div>`;
+  // 원 그래프 타임테이블: 24시간 시계판(0시 맨 위, 시계 방향). 바깥부터 일정 · 15577 · 수업 고리
+  const RING = { '일정': 92, '15577': 78, '수업': 64 };
+  const ang = (m) => ((m % 1440) / 1440) * 2 * Math.PI - Math.PI / 2;
+  const pt = (r, m) => { const a = ang(m); return [(110 + r * Math.cos(a)).toFixed(2), (110 + r * Math.sin(a)).toFixed(2)]; };
+  function arc(r, s, e) {
+    if (e - s >= 1440) e = s + 1439.9;
+    const [x0, y0] = pt(r, s), [x1, y1] = pt(r, e);
+    return `M${x0} ${y0}A${r} ${r} 0 ${e - s > 720 ? 1 : 0} 1 ${x1} ${y1}`;
   }
-  function hoursHTML(step) {
-    let s = '';
-    for (let h = 6; h <= 24; h += step) s += `<span class="${h === 6 ? 'first' : h === 24 ? 'last' : ''}" style="left:${pctOf(h * 60)}">${pad(h)}</span>`;
-    return s;
-  }
-  const nowIn = () => D && D.now >= S0 && D.now < S1;
-
-  function lanesHTML() {
+  function dialHTML() {
     const lanes = D ? D.lanes : [{ name: '수업', items: [] }, { name: '15577', items: [] }, { name: '일정', items: [] }];
-    const nowL = `calc(72px + (100% - 72px) * ${frac(D ? D.now : 0).toFixed(4)})`;
-    const trackW = Math.min(innerWidth, mode === 'wide' ? 1320 : 900) - 80 - 72;
-    return `<div class="lanes">
-      <div class="hrs"><div></div><div class="track">${hoursHTML(mode === 'wide' ? 2 : 3)}</div></div>
-      ${lanes.map((ln) => `<div class="lane"><div class="name">${esc(ln.name)}${ln.late ? `<br><span class="lane-chip">지연 ${ln.late}</span>` : ''}</div>
-        <div class="track">${ln.items.map((x) => blkHTML(x, false, trackW)).join('')}</div></div>`).join('')}
-      ${nowIn() ? `<div class="now-line" style="left:${nowL}"></div><div class="now-tag" style="left:${nowL}">${fmt(D.now)}</div>` : ''}
-    </div>`;
-  }
-  function barHTML() {
-    const items = D ? D.lanes.flatMap((ln) => ln.items.map((x) => ({ ...x, st: ln.name === '수업' && x.st !== 'now' ? 'past' : x.st }))) : [];
-    return `<div class="bar">${items.map((x) => blkHTML(x, true)).join('')}
-      ${nowIn() ? `<span class="now-line" style="left:${pctOf(D.now)}"></span>` : ''}</div>
-      <div class="bar-hrs">${hoursHTML(6)}</div>
-      <div class="legend"><span><i class="l-fix"></i>수업</span><span><i></i>15577</span><span><i class="l-ev"></i>일정</span><span><i class="l-now"></i>지금</span></div>`;
+    let g = '';
+    for (const r of Object.values(RING)) g += `<circle class="d-bg" cx="110" cy="110" r="${r}"/>`;
+    for (let h = 0; h < 24; h++) {
+      const [x0, y0] = pt(100, h * 60), [x1, y1] = pt(h % 6 ? 102 : 99, h * 60);
+      g += `<line class="d-tk" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"/>`;
+      if (h % 3 === 0) { const [x, y] = pt(108, h * 60); g += `<text class="d-hr" x="${x}" y="${y}">${h}</text>`; }
+    }
+    // 수면 00:00–06:00: 세 고리를 한 덩어리로 채운다
+    g += `<path class="d-sl" d="${arc(78, 0, S0)}"><title>00:00–${fmt(S0)} 수면</title></path>`;
+    { const [x, y] = pt(78, S0 / 2); g += `<text class="d-slt" x="${x}" y="${y}">수면</text>`; }
+    for (const ln of lanes) {
+      const r = RING[ln.name] || 64;
+      for (const x of ln.items) {
+        const st = ln.name === '수업' && x.st === 'wait' ? 'fix' : x.st;
+        const tip = `<title>${esc((x.e != null ? fmt(x.s) + '–' + fmt(x.e) : fmt(x.s)) + ' ' + x.t)}</title>`;
+        if (x.e != null && x.e > x.s) g += `<path class="d-a s-${st}" d="${arc(r, x.s, x.e)}">${tip}</path>`;
+        else { const [cx, cy] = pt(r, x.s); g += `<circle class="d-m s-${st}" cx="${cx}" cy="${cy}" r="4.5">${tip}</circle>`; }
+      }
+    }
+    if (D) { const [x0, y0] = pt(54, D.now), [x, y] = pt(100, D.now); g += `<line class="d-now" x1="${x0}" y1="${y0}" x2="${x}" y2="${y}"/>`; }
+    const c = D && D.cur, n = D && D.next;
+    const mid = c ? `<div class="label ac">지금</div><div class="d-t">${esc(c.t)}</div>${c.e ? `<div class="d-s">${left(c.e - D.now)} 남음</div>` : ''}`
+      : n ? `<div class="label">다음 · ${fmt(n.s)}</div><div class="d-t">${esc(n.t)}</div><div class="d-s">${after(n.s - D.now)}</div>`
+      : `<div class="label">오늘</div><div class="d-t empty">남은 일 없음</div>`;
+    return `<div class="d-box"><div class="dial"><svg viewBox="0 0 220 220" role="img" aria-label="오늘 하루 원 그래프">${g}</svg><div class="d-mid">${mid}</div></div>
+      <div class="legend d-leg"><span><i class="l-ev"></i>일정 (바깥)</span><span><i></i>15577</span><span><i class="l-fix"></i>수업 (안쪽)</span><span><i class="l-sl"></i>수면</span><span><i class="l-now"></i>지금</span></div></div>`;
   }
 
   function focusHTML() {
@@ -512,7 +542,7 @@ a { color: inherit; text-decoration: none; }
     const set = (x, ms) => x.style.setProperty('--dl', ms + 'ms');
     let i = 0;
     for (const c of app.children) set(c.classList.contains('apps-sec') ? c.firstElementChild : c, i++ * 50);
-    app.querySelectorAll('.lane .track, .bar').forEach((x, k) => set(x, 140 + k * 60));
+    app.querySelectorAll('.dial svg').forEach((x, k) => set(x, 140 + k * 60));
     app.querySelectorAll('.tile, .cell').forEach((x, k) => set(x, 200 + k * 40));
     clearTimeout(enterT);
     enterT = setTimeout(() => app.classList.remove('enter'), ENTER_MS - el);
@@ -530,7 +560,7 @@ a { color: inherit; text-decoration: none; }
     if (mode === 'phone') {
       html = `<header>${h1}<div class="clock-xl" aria-hidden="true">${clk}</div>
           <div class="p-date"><span><span class="md">${mon} ${n.getDate()}일</span> <span class="wd">${wd}</span></span>${dday ? `<span class="dd">${esc(dday.title)} ${ddLabel(dday)}</span>` : ''}</div></header>
-        <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">06–24</span></div>${barHTML()}</section>
+        <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">06–24</span></div>${dialHTML()}</section>
         <section aria-label="지금과 다음">${focusHTML()}</section>
         ${appsHTML()}`;
     } else if (mode === 'tall') {
@@ -538,7 +568,7 @@ a { color: inherit; text-decoration: none; }
           <div class="c-date"><div class="hero-num" aria-hidden="true">${dd}</div><div><div class="month">${mon}</div><div class="weekday">${wd}</div></div></div>
           <div class="right">${dday ? `<div class="label">${esc(dday.title)} · ${md(dday.date)} · <span class="num" style="color:var(--ink)">${ddLabel(dday)}</span></div>` : ''}<div class="stat" aria-hidden="true">${clk}</div></div></header>
         <p class="meta t-line">${nextLine()}</p>
-        <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div>${lanesHTML()}</section>
+        <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div><div class="d-wrap">${dialHTML()}<div class="d-side">${focusHTML()}</div></div></section>
         <div class="sec split2">${todoHTML()}${aheadHTML()}</div>
         ${appsHTML()}`;
     } else {
@@ -546,7 +576,7 @@ a { color: inherit; text-decoration: none; }
           <div class="c-date"><div class="hero-num" aria-hidden="true">${dd}</div><div><div class="month">${mon}</div><div class="weekday">${wd}</div></div></div>
           <div class="c-mid"><div class="stat" aria-hidden="true">${clk}</div><p class="meta">${nextLine()}</p></div>
           ${dday ? `<div class="c-dday"><div class="label">${esc(dday.title)} · ${md(dday.date)}${dday.note ? ' · ' + esc(dday.note) : ''}</div><div class="stat">${ddLabel(dday)}</div></div>` : '<div></div>'}</header>
-        <section class="sec" aria-labelledby="h-day" style="margin-top:28px"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div>${lanesHTML()}</section>
+        <section class="sec" aria-labelledby="h-day" style="margin-top:28px"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div><div class="d-wrap">${dialHTML()}<div class="d-side">${focusHTML()}</div></div></section>
         ${appsHTML()}`;
     }
     $('#app').innerHTML = html;
