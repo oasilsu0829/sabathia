@@ -170,6 +170,7 @@ a { color: inherit; text-decoration: none; }
 .legend i { display: inline-block; width: 12px; height: 8px; border: var(--line-thin) solid var(--ink); }
 .legend i.l-fix { border-color: var(--muted); }
 .legend i.l-ev { width: 3px; height: 10px; border: 0; background: var(--ink); }
+.legend i.l-sl { border: 0; background: var(--map-pending); }
 .legend i.l-now { width: 2px; height: 10px; border: 0; background: var(--accent); }
 
 /* 원 그래프 타임테이블 */
@@ -180,6 +181,8 @@ a { color: inherit; text-decoration: none; }
 .d-bg { fill: none; stroke: var(--map-empty); stroke-width: 11; }
 .d-tk { stroke: var(--muted); stroke-width: 1; }
 .d-hr { fill: var(--muted); font-family: var(--font-num); font-size: 8px; text-anchor: middle; dominant-baseline: central; }
+.d-sl { fill: none; stroke: var(--map-pending); stroke-width: 39; }
+.d-slt { fill: var(--muted); font-weight: 800; font-size: 9px; text-anchor: middle; dominant-baseline: central; }
 .d-a { fill: none; stroke: var(--ink); stroke-width: 11; }
 .d-m { fill: var(--ink); stroke: var(--bg); stroke-width: 1.5; }
 .d-a.s-fix, .d-a.s-past { stroke: var(--muted); }
@@ -453,6 +456,9 @@ a { color: inherit; text-decoration: none; }
       g += `<line class="d-tk" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"/>`;
       if (h % 3 === 0) { const [x, y] = pt(108, h * 60); g += `<text class="d-hr" x="${x}" y="${y}">${h}</text>`; }
     }
+    // 수면 00:00–06:00: 세 고리를 한 덩어리로 채운다
+    g += `<path class="d-sl" d="${arc(78, 0, S0)}"><title>00:00–${fmt(S0)} 수면</title></path>`;
+    { const [x, y] = pt(78, S0 / 2); g += `<text class="d-slt" x="${x}" y="${y}">수면</text>`; }
     for (const ln of lanes) {
       const r = RING[ln.name] || 64;
       for (const x of ln.items) {
@@ -468,7 +474,7 @@ a { color: inherit; text-decoration: none; }
       : n ? `<div class="label">다음 · ${fmt(n.s)}</div><div class="d-t">${esc(n.t)}</div><div class="d-s">${after(n.s - D.now)}</div>`
       : `<div class="label">오늘</div><div class="d-t empty">남은 일 없음</div>`;
     return `<div class="d-box"><div class="dial"><svg viewBox="0 0 220 220" role="img" aria-label="오늘 하루 원 그래프">${g}</svg><div class="d-mid">${mid}</div></div>
-      <div class="legend d-leg"><span><i class="l-ev"></i>일정 (바깥)</span><span><i></i>15577</span><span><i class="l-fix"></i>수업 (안쪽)</span><span><i class="l-now"></i>지금</span></div></div>`;
+      <div class="legend d-leg"><span><i class="l-ev"></i>일정 (바깥)</span><span><i></i>15577</span><span><i class="l-fix"></i>수업 (안쪽)</span><span><i class="l-sl"></i>수면</span><span><i class="l-now"></i>지금</span></div></div>`;
   }
 
   function focusHTML() {
