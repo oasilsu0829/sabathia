@@ -66,6 +66,7 @@ android/            홈 런처 앱(WebView, JS 브리지 window.Jarvis: launch/a
 test/               ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립트
 ```
 - 리마인더 API(/api/reminders)와 cron 발송은 서버에 남아 있지만 화면은 없다. 주소를 아는 사람은 API 사용 가능
+- 일정 묶음(2026-11-08): 오늘·일정 탭 위에 요약 3칸 + 묶음 카드 3개(보고서 제출 / 학교 수행 / 학원 수행). 일정마다 `cat`(report·school·academy·none, D1 열은 첫 요청 때 ALTER로 추가). 비어 있으면 제목·메모로 짐작(학원 → 학원 수행, 보고서|리포트|레포트 → 보고서, 수행 → 학교 수행). 묶음에 든 할 일은 아래 '할 일' 목록에서 빠지고, 마감·일정은 타임라인에도 남는다. 상세 시트에서 묶음을 바꾸면 바로 저장
 - 일정 API(/api/events)는 Worker에 secret `API_TOKEN`이 있으면 Bearer 토큰 필요. OpenClaw는 PC 사용자 환경 변수 SABATHIA_TOKEN으로 읽는다(토큰을 채팅·설정 파일에 쓰지 않기)
 - 리마인더 시각은 UTC ISO 문자열로 저장
 

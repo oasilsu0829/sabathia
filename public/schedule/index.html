@@ -251,6 +251,24 @@ button { cursor: pointer; }
 .tl-item.s-done .r-title { color: var(--muted); font-weight: 500; text-decoration: line-through; }
 .tl-empty { margin: 4px 0 0; font-size: 13px; line-height: 18px; color: var(--muted); }
 
+/* 묶음: 보고서 제출 · 학교 수행 · 학원 수행 */
+.gsum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.gsum button {
+  appearance: none; border: 0; background: var(--card, var(--bg)); border-radius: var(--radius, 0); box-shadow: var(--shadow, none);
+  padding: 12px 10px; text-align: left; display: grid; gap: 2px; min-width: 0;
+}
+.g-name { font-weight: 700; font-size: 13px; line-height: 18px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-n { font-family: var(--font-num); font-weight: 700; font-size: 30px; line-height: 36px; font-variant-numeric: tabular-nums; }
+.g-sub { font-size: 12px; line-height: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g-sub.late { color: var(--warn-text); font-weight: 700; }
+.g-sub.soon { color: var(--accent); font-weight: 700; }
+.gsum .is-zero .g-n { color: var(--off); }
+.grp { scroll-margin-top: 16px; }
+.grp .check .chip.label-num { color: var(--muted); }
+.grp .check.s-next .chip.label-num, .grp .check.is-soon .chip.label-num { color: var(--accent); }
+.grp-more { background: none; border: 0; padding: 10px 0 0; font-weight: 700; font-size: 13px; color: var(--muted); }
+.seg-opts.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
 /* 탭바 · 추가 버튼 */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg);
@@ -330,6 +348,16 @@ button { cursor: pointer; }
   const WD = ['일', '월', '화', '수', '목', '금', '토'];
   const WD_LONG = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
   const KIND = { event: '일정', task: '할 일', deadline: '마감' };
+  // 묶음. cat이 비어 있으면 제목·메모로 짐작한다 (학원 → 학원 수행, 보고서 → 보고서 제출, 수행 → 학교 수행)
+  const GROUPS = [['report', '보고서 제출'], ['school', '학교 수행'], ['academy', '학원 수행']];
+  const GROUP = Object.fromEntries(GROUPS);
+  const guessCat = (s) => /학원/.test(s) ? 'academy' : /보고서|리포트|레포트/.test(s) ? 'report' : /수행/.test(s) ? 'school' : 'none';
+  function catOf(e) {
+    if (e.cat === 'none') return '';
+    if (GROUP[e.cat]) return e.cat;
+    const g = guessCat(`${e.title} ${e.note || ''}`);
+    return g === 'none' ? '' : g;
+  }
   const pad = (n) => String(n).padStart(2, '0');
   const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
@@ -354,6 +382,7 @@ button { cursor: pointer; }
     tab: 'home',
     sel: today(),
     month: today().slice(0, 7),
+    openGroups: new Set(), // "더 보기"를 연 묶음
   };
   const cfg = () => ({ base: (store.get('base', '') || location.origin).replace(/\/+$/, ''), token: store.get('token', '') });
 
@@ -396,6 +425,7 @@ button { cursor: pointer; }
     return e.date < t ? 'late' : 'wait';
   }
   const RANK = { late: 0, next: 1, wait: 2, past: 3, done: 3 };
+  const doneToday = (e, t) => e.done && e.updated && ymd(new Date(e.updated)) === t;
   const byTime = (a, b) => a.date.localeCompare(b.date) || (a.time || '99:99').localeCompare(b.time || '99:99') || a.title.localeCompare(b.title);
 
   // 오늘 목록: 오늘 항목 + 지난 미완료. 지연 → 다음 → 대기 → 완료 순.
@@ -454,9 +484,12 @@ button { cursor: pointer; }
     if (st === 'late') time = `−${diffDays(t, e.date)}D`;
     else if (opt.dateCol) time = md(e.date);
     else time = e.time || '—';
-    const meta = [opt.dateCol && e.time ? e.time : '', e.note].filter(Boolean).join(' · ');
-    const chip = st === 'late' ? '<span class="chip">지연</span>' : st === 'next' ? '<span class="chip">다음</span>' : '';
-    return `<div class="check s-${st}">
+    const meta = [opt.kindMeta ? KIND[e.kind] : '', opt.dateCol && e.time ? e.time : '', e.note].filter(Boolean).join(' · ');
+    const n = diffDays(e.date, t);
+    let chip = st === 'late' ? '<span class="chip">지연</span>' : st === 'next' ? '<span class="chip">다음</span>' : '';
+    if (opt.dday && (st === 'wait' || st === 'next')) chip = `<span class="chip label-num">${n === 0 ? '오늘' : 'D-' + n}</span>`;
+    const soon = opt.dday && st === 'wait' && n <= 3 ? ' is-soon' : '';
+    return `<div class="check s-${st}${soon}">
       <button type="button" class="cbox" data-act="check" data-id="${esc(e.id)}" aria-pressed="${e.done}" aria-label="${esc(e.title)} ${e.done ? '완료 취소' : '완료'}"><span>${CHECK_SVG}</span></button>
       <span class="c-time">${esc(time)}</span>
       <button type="button" class="c-body" data-act="open" data-id="${esc(e.id)}"><span class="r-title">${esc(e.title)}</span>${meta ? `<span class="r-meta">${esc(meta)}</span>` : ''}</button>
@@ -464,10 +497,10 @@ button { cursor: pointer; }
     </div>`;
   }
   function checklistHTML(t, now, aheadDays) {
-    const tasks = S.events.filter((e) => e.kind === 'task');
-    const doneToday = (e) => e.done && e.updated && ymd(new Date(e.updated)) === t;
+    // 묶음(보고서·학교 수행·학원 수행)에 들어간 할 일은 위 묶음 카드에서 보여 주므로 뺀다
+    const tasks = S.events.filter((e) => e.kind === 'task' && !catOf(e));
     const rows = tasks
-      .filter((e) => e.date === t || (e.date < t && (!e.done || doneToday(e))))
+      .filter((e) => e.date === t || (e.date < t && (!e.done || doneToday(e, t))))
       .map((e) => ({ e, st: statusOf(e, t, now) }));
     const waiting = rows.filter((r) => r.st === 'wait').sort((a, b) => byTime(a.e, b.e));
     const nx = waiting.find((r) => r.e.time && r.e.time >= now) || waiting.find((r) => !r.e.time);
@@ -475,7 +508,7 @@ button { cursor: pointer; }
     rows.sort((a, b) => RANK[a.st] - RANK[b.st] || byTime(a.e, b.e));
     const todays = rows.filter((r) => r.e.date === t);
     const doneN = todays.filter((r) => r.st === 'done').length;
-    const ahead = aheadDays ? tasks.filter((e) => e.date > t && e.date <= addDays(t, aheadDays) && (!e.done || doneToday(e))).sort(byTime) : [];
+    const ahead = aheadDays ? tasks.filter((e) => e.date > t && e.date <= addDays(t, aheadDays) && (!e.done || doneToday(e, t))).sort(byTime) : [];
     let html = `<div class="sec-head"><h2 class="sec-title" id="h-tasks">할 일</h2><span class="sec-count">${doneN} / ${todays.length}</span></div>`;
     html += rows.length ? rows.map((r) => checkRowHTML(r.e, r.st, t)).join('') : '<p class="empty">오늘 할 일이 없습니다.</p>';
     if (ahead.length) {
@@ -485,11 +518,53 @@ button { cursor: pointer; }
     return html;
   }
 
+  /* ---------- 묶음: 보고서 제출 · 학교 수행 · 학원 수행 ---------- */
+  // 묶음마다 아직 안 끝난 것(날짜 상관없이) + 오늘 끝낸 것. 지연 → 날짜 순.
+  function groupRows(cat, t, now) {
+    const rows = S.events
+      .filter((e) => catOf(e) === cat)
+      .map((e) => ({ e, st: statusOf(e, t, now) }))
+      .filter((r) => r.st === 'late' || r.st === 'wait' || (r.st === 'done' && doneToday(r.e, t)));
+    return rows.sort((a, b) => (a.st === 'done') - (b.st === 'done') || RANK[a.st] - RANK[b.st] || byTime(a.e, b.e));
+  }
+  function groupSummaryHTML(t, now) {
+    return `<nav class="gsum" aria-label="묶음 요약">${GROUPS.map(([cat, name]) => {
+      const rows = groupRows(cat, t, now).filter((r) => r.st !== 'done');
+      const late = rows.filter((r) => r.st === 'late').length;
+      const first = rows.find((r) => r.st === 'wait');
+      let sub = '<span class="g-sub">없음</span>';
+      if (late) sub = `<span class="g-sub late">지연 ${late}</span>`;
+      else if (first) {
+        const n = diffDays(first.e.date, t);
+        sub = `<span class="g-sub${n <= 3 ? ' soon' : ''}">가장 가까운 ${n === 0 ? '오늘' : 'D-' + n}</span>`;
+      }
+      return `<button type="button" class="${rows.length ? '' : 'is-zero'}" data-act="jump" data-target="g-${cat}" aria-label="${name} ${rows.length}개${late ? `, 지연 ${late}개` : ''}">
+        <span class="g-name">${name}</span><span class="g-n">${rows.length}</span>${sub}</button>`;
+    }).join('')}</nav>`;
+  }
+  const GROUP_SHOW = 5;
+  function groupsHTML(t, now) {
+    return GROUPS.map(([cat, name]) => {
+      const rows = groupRows(cat, t, now);
+      const left = rows.filter((r) => r.st !== 'done').length;
+      const open = S.openGroups.has(cat);
+      const shown = open ? rows : rows.slice(0, GROUP_SHOW);
+      let body = rows.length
+        ? shown.map((r) => checkRowHTML(r.e, r.st, t, { dateCol: r.st !== 'late', dday: true, kindMeta: true })).join('')
+        : `<p class="empty">남은 ${name}이 없습니다.</p>`;
+      if (rows.length > GROUP_SHOW) body += `<button type="button" class="grp-more" data-act="grp-more" data-cat="${cat}">${open ? '접기' : `${rows.length - GROUP_SHOW}개 더 보기`}</button>`;
+      return `<section class="sec grp" id="g-${cat}" aria-labelledby="h-g-${cat}">
+        <div class="sec-head"><h2 class="sec-title" id="h-g-${cat}">${name}</h2><span class="sec-count">남은 ${left}</span></div>
+        ${body}
+      </section>`;
+    }).join('');
+  }
+
   /* ---------- 일 단위 타임라인 (일정 · 마감) ---------- */
   function tlItemHTML(e, st, t) {
     const time = e.time ? (e.end ? `${e.time}–${e.end}` : e.time) : '종일';
     const mk = e.kind === 'deadline' ? 'mk-dl' : e.kind === 'task' ? 'mk-task' : 'mk-ev';
-    const meta = [KIND[e.kind], e.note].filter(Boolean).join(' · ');
+    const meta = [KIND[e.kind], GROUP[catOf(e)], e.note].filter(Boolean).join(' · ');
     const chip = st === 'late' ? '<span class="chip">지연</span>' : st === 'next' ? '<span class="chip">다음</span>' : st === 'done' ? '<span class="chip">완료</span>' : st === 'past' ? '<span class="chip">지남</span>' : '';
     return `<button type="button" class="tl-item s-${st}" data-act="open" data-id="${esc(e.id)}">
       <span class="t-time">${esc(time)}</span>
@@ -554,6 +629,8 @@ button { cursor: pointer; }
       </header>
       <div class="week">${week}</div>
       ${noticeHTML()}
+      ${groupSummaryHTML(t, now)}
+      ${groupsHTML(t, now)}
       <section class="sec" aria-labelledby="h-tasks">${checklistHTML(t, now, 7)}</section>
       <section class="sec" aria-labelledby="h-tl">
         <div class="sec-head"><h2 class="sec-title" id="h-tl">일정 · 마감</h2><span class="sec-count">${evN}</span></div>
@@ -624,6 +701,8 @@ button { cursor: pointer; }
     const t = today(), now = nowHM();
     return `<header class="page-head"><h1 class="page-title">일정</h1><span class="page-sub">30일</span></header>
       ${noticeHTML()}
+      ${groupSummaryHTML(t, now)}
+      ${groupsHTML(t, now)}
       <section class="sec" aria-label="할 일">${checklistHTML(t, now, 30)}</section>
       <section class="sec" aria-labelledby="h-tl30">
         <div class="sec-head"><h2 class="sec-title" id="h-tl30">일정 · 마감</h2></div>
@@ -689,6 +768,7 @@ button { cursor: pointer; }
     if (lastFocus) lastFocus.focus({ preventScroll: true });
   }
   function openAdd(date) {
+    catTouched = false;
     openSheet(`
       <div class="sheet-head"><h2 id="sheet-title">새 일정</h2><button class="close" type="button" data-act="close">닫기</button></div>
       <form class="form" id="add-form" autocomplete="off" novalidate>
@@ -698,6 +778,7 @@ button { cursor: pointer; }
           <label><input type="radio" name="kind" id="kind-task" value="task"><span>할 일</span></label>
           <label><input type="radio" name="kind" id="kind-deadline" value="deadline"><span>마감</span></label>
         </div></fieldset>
+        ${catSegHTML('a-cat', 'none')}
         <label class="field"><span>날짜</span><input id="a-date" type="date" required value="${esc(date)}"></label>
         <div class="field-row">
           <label class="field"><span>시작</span><input id="a-time" type="time"></label>
@@ -707,6 +788,13 @@ button { cursor: pointer; }
         <p class="form-err" id="a-err" hidden></p>
         <button class="btn" type="submit">추가</button>
       </form>`);
+  }
+  // 묶음 고르기: 보고서 제출 · 학교 수행 · 학원 수행 · 없음
+  function catSegHTML(name, value) {
+    const opts = [...GROUPS.map(([c, n]) => [c, n.replace(' 제출', '')]), ['none', '없음']];
+    return `<fieldset class="seg" id="${name}-set"><legend>묶음</legend><div class="seg-opts four">
+      ${opts.map(([v, l]) => `<label><input type="radio" name="${name}" value="${v}" ${value === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}
+    </div></fieldset>`;
   }
   function openDetail(id) {
     const e = S.events.find((x) => x.id === id);
@@ -722,6 +810,8 @@ button { cursor: pointer; }
         ${e.note ? `<div class="kv"><dt>메모</dt><dd>${esc(e.note)}</dd></div>` : ''}
         ${e.source ? `<div class="kv"><dt>출처</dt><dd>${esc(e.source)}</dd></div>` : ''}
       </dl>
+      <div style="margin-top:16px" data-cat-id="${esc(e.id)}">${catSegHTML('d-cat', catOf(e) || 'none')}
+        ${!e.cat && catOf(e) ? '<p class="hint" style="margin-top:6px">제목을 보고 자동으로 넣었습니다. 다른 묶음을 누르면 바뀝니다.</p>' : ''}</div>
       <div class="btns" style="margin-top:24px">
         <button class="btn" type="button" data-act="toggle" data-id="${esc(e.id)}">${e.done ? '완료 취소' : '완료로 표시'}</button>
         <button class="btn line" type="button" data-act="delete" data-id="${esc(e.id)}">삭제</button>
@@ -794,6 +884,10 @@ button { cursor: pointer; }
       x(7, d(1), '영어 스피치 연습', 'task', '18:00'),
       x(8, d(2), '프로젝터 수령', 'event', '14:00', null, false, '번개장터 택배'),
       x(9, d(4), '투사 필름 시공 테스트', 'task'),
+      x(13, d(3), '물리 탐구 보고서 제출', 'deadline', null, null, false, '구글 클래스룸'),
+      x(14, d(2), '학원 영어 수행 발표 준비', 'task', '20:00'),
+      x(15, d(8), '학원 수학 수행 테스트', 'deadline'),
+      x(16, d(5), '국어 수행평가 서평 쓰기', 'task'),
       x(10, d(6), '학력평가 대비 모의고사', 'event', '09:00', '12:00'),
       x(11, d(9), '화학 수행평가 제출', 'deadline'),
       x(12, d(13), '국제교류 서류 마감', 'deadline', '17:00'),
@@ -873,6 +967,15 @@ button { cursor: pointer; }
         if (fn) await fn();
       }
       else if (act === 'close') closeSheet();
+      else if (act === 'jump') {
+        const node = document.getElementById(el.dataset.target);
+        if (node) node.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+      }
+      else if (act === 'grp-more') {
+        const c = el.dataset.cat;
+        if (S.openGroups.has(c)) S.openGroups.delete(c); else S.openGroups.add(c);
+        render();
+      }
       else if (act === 'goday') { S.sel = el.dataset.date; S.month = S.sel.slice(0, 7); go('calendar'); }
       else if (act === 'sel') { S.sel = el.dataset.date; if (S.sel.slice(0, 7) !== S.month) S.month = S.sel.slice(0, 7); render(); }
       else if (act === 'month') {
@@ -912,6 +1015,23 @@ button { cursor: pointer; }
 
   document.addEventListener('change', (ev) => {
     if (ev.target.name === 'theme') { store.set('theme', ev.target.value); applyTheme(); }
+    if (ev.target.name === 'a-cat') catTouched = true;
+    if (ev.target.name === 'd-cat') {
+      const id = ev.target.closest('[data-cat-id]').dataset.catId;
+      const cat = ev.target.value;
+      mutate('patch', { id, cat })
+        .then(() => { closeSheet(); toast(cat === 'none' ? '묶음에서 뺐습니다' : `${GROUP[cat]}에 넣었습니다`); })
+        .catch((err) => toast(err.message));
+    }
+  });
+
+  // 새 일정: 묶음을 직접 고르기 전까지는 제목을 보고 자동으로 골라 둔다
+  let catTouched = false;
+  document.addEventListener('input', (ev) => {
+    if (ev.target.id !== 'a-title' || catTouched) return;
+    const g = guessCat(ev.target.value);
+    const r = sheet.querySelector(`input[name="a-cat"][value="${g}"]`);
+    if (r) r.checked = true;
   });
 
   document.addEventListener('submit', async (ev) => {
@@ -934,7 +1054,7 @@ button { cursor: pointer; }
       const btn = form.querySelector('[type=submit]');
       btn.disabled = true;
       try {
-        await mutate('add', { title, date, time, end, kind: form.kind.value, done: false, note: $('#a-note').value.trim() });
+        await mutate('add', { title, date, time, end, kind: form.kind.value, cat: form['a-cat'].value, done: false, note: $('#a-note').value.trim() });
         closeSheet(); toast('추가했습니다');
       } catch (e) {
         btn.disabled = false;

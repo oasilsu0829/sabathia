@@ -3,6 +3,8 @@
 // 인증: Worker에 API_TOKEN 비밀값이 있으면 Authorization: Bearer <토큰> 이 필요하다. 없으면 열려 있다.
 
 const KINDS = new Set(['event', 'task', 'deadline']);
+// 묶음: 보고서 제출 / 학교 수행 / 학원 수행 / none(묶지 않음). 빈 값이면 앱이 제목으로 짐작한다.
+const CATS = new Set(['', 'report', 'school', 'academy', 'none']);
 const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const ID_RE = /^[\w.-]{1,64}$/;
@@ -28,10 +30,16 @@ function ensureTable(env) {
         done INTEGER NOT NULL DEFAULT 0,
         note TEXT NOT NULL DEFAULT '',
         source TEXT NOT NULL DEFAULT '',
-        updated TEXT NOT NULL
+        updated TEXT NOT NULL,
+        cat TEXT NOT NULL DEFAULT ''
       )`),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_events_date ON events (date)'),
-    ]).catch((e) => { ready = null; throw e; });
+    ])
+      // 예전에 만든 테이블에는 cat 열이 없다. 이미 있으면 duplicate column 오류가 나므로 무시한다.
+      .then(() => env.DB.prepare("ALTER TABLE events ADD COLUMN cat TEXT NOT NULL DEFAULT ''").run().catch((e) => {
+        if (!/duplicate column/i.test(String(e && e.message))) throw e;
+      }))
+      .catch((e) => { ready = null; throw e; });
   }
   return ready;
 }
@@ -119,6 +127,8 @@ function normalize(x, prev) {
   if (end && !TIME_RE.test(end)) throw httpError(400, 'end는 24시간제 HH:MM 형식이어야 합니다');
   const kind = x.kind ? String(x.kind) : 'event';
   if (!KINDS.has(kind)) throw httpError(400, 'kind는 event, task, deadline 중 하나여야 합니다');
+  const cat = x.cat ? String(x.cat) : '';
+  if (!CATS.has(cat)) throw httpError(400, 'cat은 report, school, academy, none 중 하나이거나 비워야 합니다');
   return {
     id: prev ? prev.id : x.id != null ? String(x.id) : crypto.randomUUID().slice(0, 8),
     title: title.slice(0, 200),
@@ -126,6 +136,7 @@ function normalize(x, prev) {
     time,
     end,
     kind,
+    cat,
     done: x.done === true || x.done === 'true' || x.done === 1,
     note: x.note ? String(x.note).slice(0, 500) : '',
     source: x.source ? String(x.source).slice(0, 40) : '',
@@ -137,14 +148,14 @@ const getRow = (env, id) => env.DB.prepare('SELECT * FROM events WHERE id = ?').
 
 function insertStmt(env, e) {
   return env.DB
-    .prepare('INSERT OR REPLACE INTO events (id, title, date, time, end_time, kind, done, note, source, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(e.id, e.title, e.date, e.time, e.end, e.kind, e.done ? 1 : 0, e.note, e.source, e.updated);
+    .prepare('INSERT OR REPLACE INTO events (id, title, date, time, end_time, kind, done, note, source, updated, cat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(e.id, e.title, e.date, e.time, e.end, e.kind, e.done ? 1 : 0, e.note, e.source, e.updated, e.cat);
 }
 
 function fromRow(r) {
   return {
     id: r.id, title: r.title, date: r.date, time: r.time || null, end: r.end_time || null,
-    kind: r.kind, done: !!r.done, note: r.note || '', source: r.source || '', updated: r.updated,
+    kind: r.kind, cat: r.cat || '', done: !!r.done, note: r.note || '', source: r.source || '', updated: r.updated,
   };
 }
 
