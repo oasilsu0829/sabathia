@@ -671,7 +671,7 @@ function drawLife(t){const L=[];for(const p of PPL)L.push([p.y,0,p]);for(const q
   for(const [,k,o] of L)k===0?drawPerson(o,t):k===1?drawPenguin(o,t):k===3?drawAdelie(o,t):drawCastle(o,t)}
 function lifeAt(x,y){for(const p of PPL){const sw=swimSt(p.st);if(Math.abs(x-p.x)<6&&y>p.y-(sw?7:24)&&y<p.y+3)return['person',p]}
   for(const q of PEN){const sea=penSea(q.st);if(Math.abs(x-q.x)<(sea?9:7)&&y>q.y-(sea?6:19)-(q.hop||0)&&y<q.y+3)return['penguin',q]}
-  for(const a of ADL)if(Math.abs(x-a.x)<7&&y>a.y-16-(a.hop||0)&&y<a.y+3)return['adelie',a];
+  for(const a of ADL)if(Math.abs(x-a.x)<6&&y>a.y-12-(a.hop||0)&&y<a.y+3)return['adelie',a];
   for(const c of CAST)if(Math.abs(x-c.x)<10&&y>c.y-15&&y<c.y+2)return['castle',c];return null}
 
 /* ================= SPECIAL DAYS: holidays redress the beach ================= */
@@ -762,7 +762,7 @@ function drawGlow(t,dt){const D=SD.day;if(!D)return;const k=Math.max(NT,clamp((G
     for(let i=DECO.sp.length-1;i>=0;i--){const p=DECO.sp[i];p.t+=dt;if(p.t>p.l){DECO.sp.splice(i,1);continue}p.vy+=30*G.s*dt;p.vx*=.985;p.vy*=.985;p.x+=p.vx*dt;p.y+=p.vy*dt;const a=1-p.t/p.l;ctx.globalAlpha=a;ctx.fillStyle=p.t<.15?'#ffffff':p.c;ctx.fillRect(Math.round(p.x),Math.round(p.y),1,1);if(Math.random()<.3){ctx.globalAlpha=a*.4;ctx.fillRect(Math.round(p.x-p.vx*.03),Math.round(p.y-p.vy*.03),1,1)}}
     ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}}
 /* ---- winter: Adélie penguins arrive in a flock ---- */
-const ADF={stand:`...KKKK....\n..KKKKKK...\n..KKKKKWK..\n..KKKKWeWB.\n..KKKKKWKBB\n..KKKKKKK..\n.KKKKWWW...\n.KKKWWWWW..\nKkKKWWWWWw.\nKkKKWWWWWw.\nKkKKWWWWWw.\n.KKKWWWWWw.\n.KKKKWWWw..\n..KKKWWw...\n..fF.fF....`,step1:`....KKKK...\n...KKKKKK..\n...KKKKKWK.\n...KKKKWeWB\n...KKKKKWKB\n...KKKKKKK.\n..KKKKWWW..\n.KKKKWWWWW.\nKkKKWWWWWw.\nKkKKWWWWWw.\nKkKKWWWWWw.\n.KKKWWWWWw.\n.KKKKWWWw..\n.fKKKWWwF..\n.F.....fF..`,step2:`....KKKK...\n...KKKKKK..\n...KKKKKWK.\n...KKKKWeWB\n...KKKKKWKB\n...KKKKKKK.\n..KKKKWWW..\n.KKKKWWWWW.\nKkKKWWWWWw.\nKkKKWWWWWw.\nKkKKWWWWWw.\n.KKKWWWWWw.\n.KKKKWWWw..\n..KKFWWw...\n...fFF.....`,slide:`..........KKK...\n...KKKKKKKKKWK..\n.KKKKKKKKKKWeWBB\nkKKKKKKKKKKKWKB.\n.kWWWWWWWWWWWW..\n...wwwwwwwww....`,front:`...KKKK....\n..KKKKKK...\n.KWKKKKWK..\n.WeWKKWeW..\n.KWKBBKWK..\n..KKBBKK...\n.KKWWWWKK..\nKkKWWWWWKk.\nKkKWWWWWKk.\nKkKWWWWWKk.\n.kKWWWWWKk.\n.KKWWWWWKK.\n..KKWWWKK..\n...KwwwK...\n..fF...Ff..`,swim:`.........KKK..\n.......KKKWeWB\n..KKKKKKKKKWBB\nKKKKKKKKKKK...`,porp:`.........KKK..\n..KKKKKKKKKWeB\nKKKKKKKKKKKKBB\n.KkKWWWWWWWW..\n..kWWWWWWWw...\n.....wwww.....`};let ASPR=null;const ADL=[];const FLK={on:false,next:0,phase:null,t:0,tx:0,ty:0,retarget:0};
+const ADF={stand:`..KKK..\n.KKKKK.\n.KKKWKB\n.KKKKK.\nKKKWWW.\nKkKWWWw\nKkKWWWw\n.kKWWWw\n.KKWWw.\n.F..F..`,step1:`...KKK.\n..KKKKK\n..KKKWB\n..KKKKK\n.KKKWWW\nKkKWWWw\nKkKWWWw\n.kKWWWw\n.KKWWw.\nF....F.`,step2:`...KKK.\n..KKKKK\n..KKKWB\n..KKKKK\n.KKKWWW\nKkKWWWw\nKkKWWWw\n.kKWWWw\n.KKWWw.\n..FF...`,slide:`......KKK.\n.KKKKKKKWB\nkKKKKKKKK.\n.WWWWWWWw.`,front:`..KKK..\n.KKKKK.\n.WKKKW.\n.KKBKK.\nKKWWWKK\nkKWWWKk\nkKWWWKk\n.KWWWK.\n.KWWwK.\n.F...F.`,flap:`..KKK..\n.KKKKK.\n.KKKWKB\n.KKKKK.\nkKKWWW.\nk.KWWWw\n.KKWWWw\n.kKWWWw\n.KKWWw.\n.F..F..`,swim:`.....KKK\n.KKKKKWB\nKKKKKK..`,porp:`......KK.\n.KKKKKKWB\nkKKKKKKK.\n.WWWWWw..`};let ASPR=null;const ADL=[];const FLK={on:false,next:0,phase:null,t:0,tx:0,ty:0,retarget:0};
 function buildAdelie(){ASPR={};for(const n in ADF){const rows=ADF[n].split('\n'),w=Math.max(...rows.map(r=>r.length)),h=rows.length,c=cnv(w,h),g=c.getContext('2d');rows.forEach((r,y)=>{for(let x=0;x<r.length;x++){const col=PPAL[r[x]];if(col){g.fillStyle=col;g.fillRect(x,y,1,1)}}});
   const m=cnv(w,h),mg=m.getContext('2d');mg.translate(w,0);mg.scale(-1,1);mg.drawImage(c,0,0);ASPR[n]={r:c,l:m,w,h}}}
 function spawnFlock(){if(!ASPR)buildAdelie();ADL.length=0;const n=6+(Math.random()*5|0),cx=W*(.25+Math.random()*.5);FLK.on=true;FLK.phase='arrive';FLK.t=0;FLK.tx=cx;FLK.ty=sandY(cx,.25);
@@ -779,7 +779,7 @@ function updFlock(dt){const now=performance.now();if(!SD.winter){if(FLK.on&&FLK.
     case 'hopOut':{const k=clamp(a.t/.35,0,1),gy=wetY(a.x)+2;a.y=lerp(a.hy,gy,k);a.hop=Math.sin(PI*k)*4;if(k>=1){a.hop=0;a.st='walk';a.t=0}}break;
     case 'walk':case 'idle':{if(FLK.phase==='leave'){a.st='toSea';a.tx=clamp(a.x+(Math.random()-.5)*20,8,W-8);break}
       const tx=clamp(FLK.tx+a.ox,6,W-6),ty=Math.max(wetY(tx)+3,FLK.ty+a.oy),dx=tx-a.x,dy=ty-a.y,d=Math.hypot(dx,dy);
-      for(const o of ADL)if(o!==a){const ex=a.x-o.x,ey=(a.y-o.y)*1.6,ed=Math.hypot(ex,ey);if(ed<10&&ed>0){a.x+=ex/ed*dt*14;a.y+=ey/ed*dt*6}}
+      for(const o of ADL)if(o!==a){const ex=a.x-o.x,ey=(a.y-o.y)*1.6,ed=Math.hypot(ex,ey);if(ed<7&&ed>0){a.x+=ex/ed*dt*12;a.y+=ey/ed*dt*5}}
       if(d<2){a.st='idle';a.v=0;if(!a.act&&Math.random()<dt*.4){const r=Math.random();a.act=r<.5?'look':'flap';a.actT=r<.5?1+Math.random():.6}break}
       a.st='walk';if(Math.abs(dx)>1.5)a.dir=dx>0?1:-1;const slide=d>26;a.slide=slide;const want=slide?17*G.s:6*G.s;a.v=lerp(a.v,want,Math.min(1,dt*3));const m=Math.min(d,a.v*dt);a.x+=dx/d*m;a.y+=dy/d*m;a.ph+=m/2.3}break;
     case 'toSea':{const ty=wetY(a.tx),dx=a.tx-a.x,dy=ty-a.y,d=Math.hypot(dx,dy);if(Math.abs(dx)>1)a.dir=dx>0?1:-1;if(d<1){a.st='hopIn';a.t=0;a.hy=a.y;break}const m=Math.min(d,7*G.s*dt);a.x+=dx/d*m;a.y+=dy/d*m;a.ph+=m/2.3}break;
@@ -788,12 +788,12 @@ function updFlock(dt){const now=performance.now();if(!SD.winter){if(FLK.on&&FLK.
   for(let i=ADL.length-1;i>=0;i--)if(ADL[i].st==='gone')ADL.splice(i,1);
   if(FLK.on&&!ADL.length){FLK.on=false;FLK.next=now+(60+Math.random()*90)*1000}}
 function drawAdelie(a,t){const S=ASPR;if(!S)return;let n;const sea=a.st==='swimIn'||a.st==='swimOut'||a.st==='porpIn';if(a.st==='swimIn'&&a.t<0)return;
-  if(a.st==='porpIn')n='porp';else if(sea)n='swim';else if(a.st==='walk'&&a.slide)n='slide';else if(a.act==='look')n='front';else if(a.act==='flap')n=Math.floor(t*10)%2?'step1':'stand';
+  if(a.st==='porpIn')n='porp';else if(sea)n='swim';else if(a.st==='walk'&&a.slide)n='slide';else if(a.act==='look')n='front';else if(a.act==='flap')n=Math.floor(t*10)%2?'flap':'stand';
   else if(a.st==='walk'||a.st==='toSea')n=['stand','step1','stand','step2'][Math.floor(a.ph)%4];else n='stand';
-  const dir=a.st==='swimIn'||a.st==='porpIn'?(a.x<W/2?1:-1):a.st==='swimOut'?-1:a.dir,sp=S[n],img=dir>0?sp.r:sp.l,horiz=n==='swim'||n==='porp'||n==='slide',ax=horiz?(dir>0?8:sp.w-9):(dir>0?5:sp.w-6),ay=horiz?(n==='slide'?sp.h-1:2):sp.h;
-  if(!sea&&a.st!=='hopIn'&&a.st!=='hopOut'){ctx.fillStyle='rgba(60,40,10,.22)';ctx.beginPath();ctx.ellipse(a.x,a.y,n==='slide'?7:4.5,1.3,0,0,TAU);ctx.fill()}
+  const dir=a.st==='swimIn'||a.st==='porpIn'?(a.x<W/2?1:-1):a.st==='swimOut'?-1:a.dir,sp=S[n],img=dir>0?sp.r:sp.l,horiz=n==='swim'||n==='porp'||n==='slide',ax=horiz?(dir>0?sp.w-4:3):(dir>0?3:sp.w-4),ay=horiz?(n==='slide'?sp.h-1:2):sp.h;
+  if(!sea&&a.st!=='hopIn'&&a.st!=='hopOut'){ctx.fillStyle='rgba(60,40,10,.22)';ctx.beginPath();ctx.ellipse(a.x,a.y,n==='slide'?5:3,1,0,0,TAU);ctx.fill()}
   ctx.drawImage(img,Math.round(a.x-ax),Math.round(a.y-ay-(a.hop||0)));
-  if(n==='slide'&&Math.floor(t*12)%2){ctx.fillStyle='rgba(255,250,235,.7)';ctx.fillRect(Math.round(a.x-dir*9),Math.round(a.y),2,1)}
+  if(n==='slide'&&Math.floor(t*12)%2){ctx.fillStyle='rgba(255,250,235,.7)';ctx.fillRect(Math.round(a.x-dir*7),Math.round(a.y),2,1)}
   if(n==='swim'){ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillRect(Math.round(a.x-ax),Math.round(a.y)+1,sp.w,1)}}
 
 /* ================= FIDGET: poke the beach ================= */
