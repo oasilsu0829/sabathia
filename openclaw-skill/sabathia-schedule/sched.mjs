@@ -22,8 +22,8 @@ const WD = ['일', '월', '화', '수', '목', '금', '토'];
 const HELP = `사용법: node sched.mjs <명령> [옵션]
   agenda [--days 7]                  지연된 일 + 오늘부터 N일
   list [--from D] [--to D]           기간 조회 (기본: 오늘~14일 뒤)
-  add --title T --date D [--time HH:MM] [--end HH:MM] [--kind event|task|deadline] [--note N] [--source S] [--id ID]
-  update <id> [--title ..] [--date ..] [--time ..|none] [--end ..|none] [--kind ..] [--note ..]
+  add --title T --date D [--time HH:MM] [--end HH:MM] [--kind event|task|deadline] [--cat report|school|academy|none] [--note N] [--source S] [--id ID]
+  update <id> [--title ..] [--date ..] [--time ..|none] [--end ..|none] [--kind ..] [--cat ..] [--note ..]
   done <id> | undo <id> | remove <id>
   import <file.json>                 배열 또는 {"events":[...]} 를 한 번에 넣기 (id가 같으면 덮어씀)
 날짜 D: YYYY-MM-DD, today, tomorrow, 오늘, 내일, 모레, +3, -1`;
@@ -96,6 +96,7 @@ function eventFrom(f) {
   if (f.time !== undefined) o.time = nullable(f.time);
   if (f.end !== undefined) o.end = nullable(f.end);
   if (f.kind !== undefined) o.kind = f.kind;
+  if (f.cat !== undefined) o.cat = f.cat === true ? '' : String(f.cat);
   if (f.note !== undefined) o.note = f.note === true ? '' : String(f.note);
   if (f.source !== undefined) o.source = String(f.source);
   if (f.id !== undefined) o.id = String(f.id);

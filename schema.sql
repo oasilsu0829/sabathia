@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS events (
   done     INTEGER NOT NULL DEFAULT 0,
   note     TEXT NOT NULL DEFAULT '',
   source   TEXT NOT NULL DEFAULT '',
-  updated  TEXT NOT NULL
+  updated  TEXT NOT NULL,
+  cat      TEXT NOT NULL DEFAULT ''   -- '' | report | school | academy | none (묶음)
 );
 CREATE INDEX IF NOT EXISTS idx_events_date ON events (date);
