@@ -434,7 +434,8 @@ a { color: inherit; text-decoration: none; }
     if (!D) return '';
     const n = D.next, c = D.cur, parts = [];
     if (c && mode === 'tall') parts.push(`지금 — <b class="ac">${esc(c.t)}${c.e ? ' · ' + left(c.e - D.now) + ' 남음' : ''}</b>`);
-    parts.push(n ? `다음 — <b>${fmt(n.s)} ${esc(n.t)}</b> · ${after(n.s - D.now)}` : '오늘 남은 일정이 없습니다');
+    const lg = !n && D.ledger && D.ledger[0];
+    parts.push(n ? `다음 — <b>${fmt(n.s)} ${esc(n.t)}</b> · ${after(n.s - D.now)}` : lg ? `다음 — <b>${esc(lg.t)}</b> · 장부 ${esc(lg.name)}` : '오늘 남은 일정이 없습니다');
     return parts.join(' · ');
   }
 
@@ -485,7 +486,10 @@ a { color: inherit; text-decoration: none; }
       : `<div class="focus first"><div><div class="label">지금</div><div class="ttl empty">비는 시간</div></div></div>`;
     const nextH = n
       ? `<div class="focus sub"><div style="min-width:0"><div class="label">다음 · ${fmt(n.s)} · ${esc(n.src)}</div><div class="ttl">${esc(n.t)}</div></div><div class="r"><div class="muted-num">${after(n.s - D.now)}</div></div></div>`
-      : `<div class="focus sub"><div><div class="label">다음</div><div class="ttl empty">오늘 남은 일 없음</div></div></div>`;
+      : D && D.ledger && D.ledger[0]
+        // 오늘 시각 있는 일이 없으면 장부의 다음 할 일을 보여 준다
+        ? `<a class="focus sub" href="/projects/" style="color:inherit;text-decoration:none"><div style="min-width:0"><div class="label">다음 · 장부 · ${esc(D.ledger[0].name)}</div><div class="ttl">${esc(D.ledger[0].t)}</div></div>${D.ledger[0].left != null ? `<div class="r"><div class="muted-num">${D.ledger[0].left ? 'D-' + D.ledger[0].left : 'D-DAY'}</div></div>` : ''}</a>`
+        : `<div class="focus sub"><div><div class="label">다음</div><div class="ttl empty">오늘 남은 일 없음</div></div></div>`;
     const late = D ? D.late : [];
     const lateH = late.length
       ? `<div class="late-row"><span class="chip-late">지연${late.length > 1 ? ' ' + late.length : ''}</span><span class="t">${esc(late[0].t)}</span><span class="d">${esc(late[0].time)}</span></div>`

@@ -2,6 +2,7 @@
    - 15577: 앱이 남긴 보고(sabathia.status.plan: 블록 위치·상태, 수업, D-day). 오늘 보고가 없으면 저장된 기록에서 어림
    - 일정: /api/events (연결이 안 되면 일정 앱이 남긴 캐시 sab.cache)
    - 어원 단어: 앱이 남긴 보고(sabathia.status.vocab: 오늘 남은 단어, 영어 시험)
+   - 장부: projects.v1의 진행 중 프로젝트 다음 할 일(날짜 없는 것만, 3개까지). 날짜가 있는 단계는 서버가 일정에 올려 둔다
    시각은 모두 자정부터 센 분. 하루 줄은 06:00–24:00 */
 (() => {
   'use strict';
@@ -65,6 +66,17 @@
     return { exam: e && e.on && e.date ? { title: '영어 시험', date: e.date, note: '' } : null };
   }
 
+  function projects(t) {
+    const ps = json('projects.v1');
+    if (!Array.isArray(ps)) return [];
+    return ps.filter((p) => p && p.status === 'active' && !p.demo && Array.isArray(p.steps))
+      .map((p) => ({ p, nx: p.steps.find((s) => s && !s.done) }))
+      .filter(({ nx }) => nx && !nx.due)
+      .sort((a, b) => (a.p.due || '9999').localeCompare(b.p.due || '9999') || (a.p.pri || 2) - (b.p.pri || 2) || b.p.updated - a.p.updated)
+      .slice(0, 3)
+      .map(({ p, nx }) => ({ t: nx.t, name: p.name, due: p.due && p.due >= t ? p.due : '', left: p.due && p.due >= t ? diffDays(p.due, t) : null }));
+  }
+
   /* ---------- 모으기 ---------- */
   async function load() {
     const t = ymd(new Date()), now = nowMin();
@@ -116,6 +128,9 @@
       ...blocks.filter((b) => b.st !== 'late').map((b) => ({ st: b.st === 'done' ? 'done' : b.st === 'now' ? 'now' : 'wait', time: fmt(b.s), t: b.t, meta: '15577', s: b.s })),
     ];
     if (v && v.total > v.done) todo.push({ st: 'wait', time: '—', t: `어원 단어 ${v.total - v.done}개`, meta: '어원 단어', s: 9998 });
+    // 장부: 진행 중 프로젝트의 다음 할 일(날짜 없는 것) 3개까지. 날짜가 있는 단계는 일정으로 올라와 위에 이미 있다
+    const ledger = projects(t);
+    for (const x of ledger) todo.push({ st: 'wait', time: x.due ? (x.due === t ? 'D-DAY' : `D-${diffDays(x.due, t)}`) : '—', t: x.t, meta: `장부 · ${x.name}`, s: 9997 });
     const waiting = todo.filter((r) => r.st === 'wait').sort((a, b) => a.s - b.s);
     const nx = waiting.find((r) => r.s >= now && r.s < 9998) || waiting[0];
     if (nx && !todo.some((r) => r.st === 'now')) nx.st = 'next';
@@ -140,7 +155,7 @@
         { name: '15577', items: blocks, late: blocks.filter((b) => b.st === 'late').length },
         { name: '일정', items: timed },
       ],
-      cur, next, late, todo, doneN, ahead, dday,
+      cur, next, late, todo, doneN, ahead, dday, ledger,
     };
   }
 

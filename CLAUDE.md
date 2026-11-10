@@ -48,6 +48,7 @@ public/index.html   Sabathia 홈: 화면별 배치 3개(폰 <640 · 세로 화�
 public/apps.js      앱 목록(코드·이름·주소·고유색·홈 아이콘 진행률 계산). 새 앱은 여기에
 public/today.js     홈의 "오늘 하루": 15577 보고(블록 위치·상태·수업·D-day) + /api/events + 어원 단어 보고를 한 줄로 모음
 public/sabathia.js  공통: 런처 뒤로가기/홈 버튼, 앱 상태 보고(localStorage sabathia.status.<id>), /sw.js 등록
+public/projects/merge.js  장부 합치기(화면·서버 공용)
 public/sw.js        서비스 워커 하나가 / 전체를 맡음. 캐시를 먼저 보여 주고 뒤에서 갱신(다음에 열 때 반영), 새로고침·"최신 버전 확인"은 네트워크 먼저.
                     설치 때 앱 8개 화면을 미리 캐시. 글꼴·jsPDF는 버전과 무관한 캐시. push → 알림(누르면 url로 이동)
                     공통 파일이나 여러 화면을 함께 고치면 VERSION을 올릴 것
@@ -70,16 +71,27 @@ src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → �
 src/util.js         json·httpError·readBody·authorized, ensureTables(모든 테이블을 첫 요청·첫 cron 때 자동 생성)
 src/notify.js       알림: /api/subscribe·unsubscribe·test, /api/notify(설정), /api/repeats(반복 알림), /api/reminders(한 번짜리, 화면 없음)
                     tick(): 시작 전 알림 · 아침 요약 · 전날 저녁 · 반복 알림. 후보 고르기는 순수 함수 candidates()(test/notify.mjs). 시각은 한국 시각(UTC+9 고정)
-src/projects.js     /api/projects/sync 장부 동기화 (프로젝트 단위로 나중에 고친 쪽이 이김, 지운 것은 deleted 줄로 180일 보관)
+src/projects.js     /api/projects/sync 장부 동기화 (merge.js로 항목 단위 합치기, 지운 것은 deleted 줄로 180일 보관) + 마감·단계 날짜를 일정에 맞춤
 src/webpush.js      RFC 8291(aes128gcm) + RFC 8292(VAPID), WebCrypto만 사용
 schema.sql          참고용 (subscriptions, reminders, events, settings, repeats, push_log, projects)
 src/events.js       /api/events 일정 API
 public/schedule/    일정 PWA (홈·캘린더·일정·설정). 디자인 언어 v1.0. ?theme=projector&kiosk=1 은 책상 프로젝터용
 openclaw-skill/     OpenClaw 스킬 sabathia-schedule (SKILL.md + sched.mjs). PC의 OpenClaw가 이걸로 일정을 넣는다
 android/            홈 런처 앱(WebView, JS 브리지 window.Jarvis: launch/apps/open). Actions가 빌드해 릴리스 'launcher'에 jarvis.apk 게시
-test/               notify.mjs(알림 고르기), ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립트
+test/               notify.mjs(알림 고르기), merge.mjs(장부 합치기), ece.mjs(암호화), vapid.mjs(JWT 서명, .dev.vars 필요) 검증 스크립트
 ```
 - 알림(2026-11-10): 일정 앱 설정 → 알림. 구독은 기기마다, 설정(lead 분·am·pm, D1 settings k='notify')과 반복 알림(repeats)은 서버에 하나. 기본값 10분 전 · 07:30 · 20:00. 같은 알림은 push_log 키(lead:<id>:<날짜T시각>, am:<날짜>, pm:<날짜>, rep:<id>:<날짜>)로 한 번만
+- 장부 v2(2026-11-10, 계획서 https://claude.ai/artifact/7NoqWBYbB8WGbQefaufZ3U 1단계): 카드를 누르면 상세(단계·기록·자료 탭). 폰·세로는 화면을 덮는 판(history.pushState로 뒤로가기에 닫힘), 1000px 이상은 왼쪽 목록 440px + 오른쪽 상세
+  - 프로젝트 모양 v: 2 — cat(report·school·academy·research·code·personal, 일정 묶음과 같은 이름), steps[{id,t,done,due,note,doneAt}], log[{id,at,kind(auto·memo·decision·block),t}], links[{id,url,title,kind(paper·link)}]. 숫자 칸(events·papers·decisions)은 없앴고 값이 있었으면 기록에 '예전 숫자 칸' 한 줄
+  - 저장 이름은 projects.v1 그대로(홈 아이콘이 읽음). normalize()가 어떤 모양이 와도 v2로 맞추고 updated는 건드리지 않는다. 처음 옮길 때 projects.v1.bak에 원본
+  - 새 프로젝트는 종류별 기본 단계(TPL)와 코드 접두어(RPT·SCH·ACA·EXP·CODE·PER). 자료 칸은 DOI·PMID만 넣어도 링크로. '논문 리더용으로 복사' = Paper-reader profile/my-projects.md 형식
+  - 서버 프로젝트 한도 200KB(src/projects.js MAX_BYTES). 자동 기록은 100줄까지
+- 장부 2단계(2026-11-10): 사용자 결정 — 종류는 6개 다, 숫자 칸 없앰, 집중에 프로젝트 고르기 넣음, 손 안 댄 알림 7일
+  - 합치기: public/projects/merge.js 하나를 화면(<script>)과 서버(import)가 같이 쓴다. 항목마다 u(고친 시각), 단계 o(순서), 칸은 fu, 지운 항목은 del{id:시각}. 두 기기에서 고쳐도 둘 다 남는다(test/merge.mjs)
+  - 마감 연결은 서버가 한다(/api/projects/sync 안 reconcileEvents): 프로젝트 마감 prj-<id>(deadline), 날짜 있는 단계 prj-<id>-<단계 id>(task, 묶음은 report·school·academy만). source '장부'인 것만 고치거나 지운다. 일정에서 그 할 일을 끝내면 다음 동기화 때 단계도 끝남(기록에 '(일정에서)'). 화면의 linkEvents·dueSynced·projects.evdel은 없앰
+  - 집중: 왼쪽 위 '프로젝트 고르기'(aerofocus.prj). 장부 상세 '집중' 버튼 = /focus/?prj=<id>. 끝나면 projects.focus 줄에 {id: f+끝난 시각, pid, min} → 장부를 열 때 기록(kind focus, min)으로 옮김. 그 기기에서 장부를 열어야 올라간다
+  - 알림: 아침 요약 끝에 '7일 넘게 그대로 — …'(진행 중 프로젝트, notify.js STALE_DAYS). 일정이 없으면 '장부' 알림 하나. 단계 날짜는 일정으로 올라가므로 전날 저녁 알림에 같이 나온다
+  - 홈: 오늘 시각 있는 일이 없으면 '다음' 칸(폰)·다음 줄(가로)에 장부의 다음 할 일. 세로 화면 '오늘 할 일'에는 날짜 없는 다음 할 일 3개(today.js projects())
 - 장부 동기화(2026-11-10): 이 기기 저장(projects.v1)이 먼저, 고치면 1.5초 뒤 /api/projects/sync. 예시 프로젝트는 demo: true 라 올리지 않고 진짜 프로젝트가 생기면 사라짐. 지운 것은 projects.gone, 마감(due)은 일정에 id prj-<id> 마감으로 올림(dueSynced로 한 번만), 일정에서 지울 것은 projects.evdel
 - 백업: 장부·수업 녹음 화면의 내보내기/가져오기(.json)
 - 토큰 이름은 API_TOKEN 하나(keys.html·gen-keys도 이 이름). 주소·토큰은 일정 앱 설정의 sab.base·sab.token을 홈·장부가 같이 읽는다
@@ -91,6 +103,8 @@ test/               notify.mjs(알림 고르기), ece.mjs(암호화), vapid.mjs(
 - 런처 APK는 뒤로가기 때 window.onJarvisBack 만 부른다(WebView history 안 씀). 앱 페이지는 Sabathia.back 으로 시트를 닫고, 없으면 홈으로 간다
 
 ## 다음 기능 (예정)
+- 장부 3단계(계획서): 주간 돌아보기, 날짜 축 보기, OpenClaw로 단계 추가·수업 노트 과제 보내기. 1·2단계를 2주쯤 써 본 뒤 고르기로 함
+- 장부 상세 화면은 시안 없이 바로 만들었다(사용자가 '코딩 시작'). 써 보고 바꿀 곳을 물을 것
 - 15577 블록 시작 알림(블록은 Firestore·기기에 있어 서버 cron이 모름. 하려면 15577이 오늘 블록을 서버에 올려야 함)
 - 홈 앱 격자: 앱 7개라 4칸 격자 둘째 줄이 3개. 배치 시안을 보여 주고 고르게 할 것
 - 홈이 30초마다 일정 90일치를 통째로 받음 → 바뀐 게 없으면 304

@@ -75,6 +75,14 @@ body{
 .sab span{margin-left:.8em;opacity:.75}
 .sab:hover,.sab:focus-visible{opacity:1}
 #ov #wx{padding:4px 0;font-size:12px;letter-spacing:.03em;font-weight:300;color:var(--ink);text-align:left}
+#ov #prj{padding:2px 0;font-size:11px;letter-spacing:.03em;font-weight:300;color:var(--soft);text-align:left;opacity:.8;max-width:min(60vw,320px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity .25s}
+#ov #prj:hover,#ov #prj:focus-visible,#ov #prj.on{opacity:1}
+#prjs{position:absolute;top:calc(clamp(18px,4vh,40px) + 70px);left:clamp(22px,5vw,56px);pointer-events:auto;display:grid;gap:0;padding:6px 12px;min-width:200px;max-width:min(320px,80vw);max-height:50vh;overflow:auto;
+  background:rgba(4,22,44,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(220,246,255,.22);border-radius:6px}
+#prjs[hidden]{display:none}
+#ov #prjs button{text-align:left;font-size:12px;font-weight:300;letter-spacing:.02em;color:var(--soft);padding:8px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ov #prjs button[aria-checked="true"]{color:var(--ink);font-weight:500}
+#prjs p{margin:6px 0;font-size:11px;font-weight:300;color:var(--soft);opacity:.8}
 #vol{position:absolute;top:calc(clamp(18px,4vh,40px) + 34px);right:clamp(22px,5vw,56px);pointer-events:auto;display:grid;gap:12px;padding:14px 16px;min-width:190px;
   background:rgba(4,22,44,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(220,246,255,.22);border-radius:6px}
 #vol[hidden]{display:none}
@@ -87,7 +95,7 @@ body{
 #vol input:focus-visible{outline:1px solid var(--glow);outline-offset:2px}
 #ov #vTest{justify-self:start;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--soft);padding:4px 0}
 #ov.clk #bar{opacity:0}
-#tl .glow,#snd{text-shadow:0 0 1px rgba(255,255,255,.8),0 0 8px var(--glow),0 1px 3px rgba(0,22,50,.85),0 0 10px rgba(0,22,50,.55)}
+#tl .glow,#snd,#prjs .glow{text-shadow:0 0 1px rgba(255,255,255,.8),0 0 8px var(--glow),0 1px 3px rgba(0,22,50,.85),0 0 10px rgba(0,22,50,.55)}
 #pre{grid-row:5;display:flex;gap:clamp(14px,3vw,28px);transition:opacity .5s}
 #pre button{font-size:11px;letter-spacing:.18em;font-weight:300}
 #pre button[aria-pressed="true"]{color:var(--ink);font-weight:500}
@@ -105,7 +113,8 @@ body{
 <div id="stage"><div id="tube">
   <canvas id="cv" aria-hidden="true"></canvas>
   <div id="ov">
-    <div id="tl"><a class="sab glow" href="/" aria-label="Sabathia 홈으로">SABATHIA<span>FOC-07</span></a><button id="wx" class="glow" aria-label="오늘 날씨. 눌러서 새로 고침">날씨 불러오는 중</button></div>
+    <div id="tl"><a class="sab glow" href="/" aria-label="Sabathia 홈으로">SABATHIA<span>FOC-07</span></a><button id="wx" class="glow" aria-label="오늘 날씨. 눌러서 새로 고침">날씨 불러오는 중</button><button id="prj" class="glow" aria-haspopup="true" aria-expanded="false" aria-controls="prjs">프로젝트 고르기</button></div>
+    <div id="prjs" hidden role="menu" aria-label="집중 시간을 남길 장부 프로젝트"></div>
     <button id="snd" class="glow" aria-expanded="false" aria-controls="vol">Sound</button>
     <div id="vol" hidden>
       <label class="glow">Waves<input id="vAmb" type="range" min="0" max="100" step="1"></label>
@@ -203,10 +212,15 @@ const AU={ac:null,
 
 /* ================= TIMER STATE (wall clock based, survives reloads) ================= */
 const PRE=[15,25,45,60],MAXM=180;
+// 끝낸 집중을 고른 장부 프로젝트에 남긴다. id는 끝난 시각으로 만들어 다시 불려도 한 번만 들어간다
+function logFocus(end,total){try{const pid=store.get('aerofocus.prj','');if(!pid)return;const ps=store.get('projects.v1',[]);
+  if(!Array.isArray(ps)||!ps.some(p=>p&&p.id===pid&&p.status!=='done'))return;const min=Math.round(total/60000);if(min<1)return;
+  const q=store.get('projects.focus',[]),id='f'+Math.round(end).toString(36);if(!Array.isArray(q)||q.some(x=>x.id===id))return;
+  q.push({id,pid,min,at:Math.round(end)});store.set('projects.focus',q.slice(-200))}catch(e){}}
 const T={total:25*60000,remain:25*60000,endAt:0,run:false,done:false,chime:true,snd:true,doneAt:0};
 {const s=store.get('aerofocus.v1',null);
  if(s&&typeof s.total==='number'){T.total=clamp(s.total,10000,MAXM*60000);T.remain=clamp(typeof s.remain==='number'?s.remain:T.total,0,T.total);T.endAt=+s.endAt||0;T.run=!!s.run;T.done=!!s.done;T.chime=s.chime!==false;T.snd=s.snd!==false;T.doneAt=+s.doneAt||0;
-  if(T.run&&T.endAt-Date.now()<=0){T.run=false;T.done=true;T.remain=0;T.doneAt=T.endAt}}}
+  if(T.run&&T.endAt-Date.now()<=0){T.run=false;T.done=true;T.remain=0;T.doneAt=T.endAt;logFocus(T.endAt,T.total)}}}
 let VOL=store.get('aerofocus.vol',null);if(!VOL||typeof VOL.amb!=='number')VOL={amb:.7,alarm:.9};
 const rep=()=>{try{window.Sabathia&&Sabathia.report('focus',{n:DAY.n,run:T.run,endAt:T.endAt,total:T.total,remain:remainNow()})}catch(e){}};
 const save=()=>{rep();store.set('aerofocus.v1',{total:T.total,remain:T.remain,endAt:T.endAt,run:T.run,done:T.done,chime:T.chime,snd:T.snd,doneAt:T.doneAt})};
@@ -231,7 +245,7 @@ function stepM(d){const D=d*60000;
   else{T.remain=clamp(T.remain+D,60000,MAXM*60000);T.total=clamp(T.total+D,T.remain,MAXM*60000)}
   glitch(.35);AU.blip(d>0);save();say(Math.ceil((T.run?T.endAt-Date.now():T.remain)/60000)+'분 남음')}
 function complete(){T.run=false;T.done=true;T.remain=0;T.doneAt=Date.now();FX.doneT=performance.now();FX.sweep=FX.doneT;unwake();
-  DAY=store.get('aerofocus.day',DAY);if(!DAY||DAY.d!==today())DAY={d:today(),n:0};DAY.n++;store.set('aerofocus.day',DAY);
+  DAY=store.get('aerofocus.day',DAY);if(!DAY||DAY.d!==today())DAY={d:today(),n:0};DAY.n++;store.set('aerofocus.day',DAY);logFocus(T.endAt||Date.now(),T.total);
   spawnBubbles();AU.chime();save();say('집중 시간이 끝났습니다')}
 function toggle(){T.run?pause():start()}
 function toggleFull(){try{if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});else document.exitFullscreen().catch(()=>{})}catch(e){}}
@@ -398,6 +412,23 @@ vA.addEventListener('input',()=>{VOL.amb=vA.value/100;AU.init();AU.seaStart();AU
 vL.addEventListener('input',()=>{VOL.alarm=vL.value/100;AU.init();AU.setVol();store.set('aerofocus.vol',VOL)});
 $('vTest').addEventListener('click',()=>{AU.init();AU.stopAlarm();AU.chime(true)});
 addEventListener('pointerdown',e=>{if(!elVol.hidden&&!elVol.contains(e.target)&&e.target!==elSnd)toggleVol(false)},true);
+
+/* 장부 프로젝트 고르기: 고른 프로젝트가 있으면 끝낸 집중 시간을 projects.focus 줄에 남기고, 장부를 열 때 그 프로젝트 기록으로 옮긴다.
+   장부 상세의 '집중' 버튼은 /focus/?prj=<id> 로 연다 */
+const elPrj=$('prj'),elPrjs=$('prjs');
+{const q=new URLSearchParams(location.search).get('prj');if(q){store.set('aerofocus.prj',q);try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}}}
+const prjList=()=>{const ps=store.get('projects.v1',[]);return Array.isArray(ps)?ps.filter(p=>p&&p.id&&p.name&&p.status!=='done'):[]};
+const prjCur=()=>{const id=store.get('aerofocus.prj','');return prjList().find(p=>p.id===id)||null};
+function prjLabel(){const p=prjCur();elPrj.textContent=p?'→ '+p.name:'프로젝트 고르기';elPrj.setAttribute('aria-label',p?'집중 시간을 남길 프로젝트: '+p.name+'. 눌러서 바꾸기':'집중 시간을 남길 프로젝트 고르기')}
+function togglePrj(open){const o=open==null?elPrjs.hidden:open;
+  if(o){const cur=prjCur(),ps=prjList();const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    elPrjs.innerHTML=(ps.length?ps.map(p=>'<button class="glow" role="menuitemradio" aria-checked="'+(cur&&cur.id===p.id)+'" data-id="'+esc(p.id)+'">'+esc(p.name)+'</button>').join(''):'<p class="glow">장부에 진행 중인 프로젝트가 없다</p>')+'<button class="glow" role="menuitemradio" aria-checked="'+!cur+'" data-id="">없음</button>'}
+  elPrjs.hidden=!o;elPrj.setAttribute('aria-expanded',String(o));elPrj.classList.toggle('on',o)}
+elPrj.addEventListener('click',()=>{AU.init();togglePrj()});
+elPrjs.addEventListener('click',e=>{const b=e.target.closest('button[data-id]');if(!b)return;store.set('aerofocus.prj',b.dataset.id);togglePrj(false);prjLabel();AU.blip(1);const p=prjCur();say(p?p.name+'에 집중 시간을 남깁니다':'프로젝트 없이 집중')});
+addEventListener('pointerdown',e=>{if(!elPrjs.hidden&&!elPrjs.contains(e.target)&&e.target!==elPrj)togglePrj(false)},true);
+addEventListener('storage',e=>{if(e.key==='projects.v1'||e.key==='aerofocus.prj')prjLabel()});
+prjLabel();
 const p2=n=>String(n).padStart(2,'0'),nowHM=()=>{const d=new Date();return p2(d.getHours())+':'+p2(d.getMinutes())},
   durStr=ms=>{const s=Math.round(ms/1000),m=Math.floor(s/60);return m+':'+p2(s%60)};
 function syncUI(){const ap=activePreset();elPre.querySelectorAll('button[data-m]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.m===ap)));$('cus').setAttribute('aria-pressed',String(!ap))}
@@ -964,7 +995,7 @@ $('wx').addEventListener('click',()=>{AU.init();if(WX.ov>0){WX.ov=-1;wxLabel()}g
 if(!WX.data||WX.data.day!==today()||Date.now()-WX.data.at>30*60e3)loadWx();
 setInterval(loadWx,30*60e3);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&(!WX.data||Date.now()-WX.data.at>30*60e3))loadWx()});
 setInterval(rep,30000);rep();
-if(window.Sabathia)Sabathia.back=()=>{if(!elVol.hidden){toggleVol(false);return true}if(editing){closeEdit(false);return true}return false};
+if(window.Sabathia)Sabathia.back=()=>{if(!elPrjs.hidden){togglePrj(false);return true}if(!elVol.hidden){toggleVol(false);return true}if(editing){closeEdit(false);return true}return false};
 if(!RM)FX.boot=performance.now();
 if(T.run)wake();
 setInterval(tickTimer,1000);

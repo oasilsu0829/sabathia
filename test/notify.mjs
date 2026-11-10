@@ -4,9 +4,9 @@ import { kst, parseSettings, candidates, DEFAULTS } from '../src/notify.js';
 
 const at = (s) => Date.parse(s + '+09:00'); // 한국 시각
 const ev = (id, date, time, kind = 'event', extra = {}) => ({ id, title: '제목 ' + id, date, time, end_time: null, kind, done: 0, ...extra });
-const run = (when, set, repeats, events, overdue) => {
+const run = (when, set, repeats, events, overdue, stale) => {
   const now = at(when);
-  return candidates(kst(now), kst(now + 864e5).date, { ...DEFAULTS, ...set }, repeats, events, overdue);
+  return candidates(kst(now), kst(now + 864e5).date, { ...DEFAULTS, ...set }, repeats, events, overdue, stale);
 };
 const keys = (list) => list.map((c) => c.key);
 
@@ -61,5 +61,13 @@ const reps = [{ id: 1, title: '단어', time: '21:30', days: '135', active: 1 },
 assert.deepEqual(keys(run('2026-11-11T21:30', {}, reps, [])), ['rep:1:2026-11-11']);
 assert.deepEqual(run('2026-11-11T21:29', {}, reps, []), []);
 assert.deepEqual(keys(run('2026-11-14T21:31', {}, reps, [])), ['rep:2:2026-11-14']);
+
+// 장부: 오래 손대지 않은 프로젝트는 아침 요약 끝에 한 줄. 일정이 없으면 장부 알림 하나
+const amS = run('2026-11-11T07:30', {}, [], day, 0, ['가', '나', '다', '라']);
+assert.match(amS[0].body, /\n7일 넘게 그대로 — 가, 나, 다 외 1개$/);
+const onlyS = run('2026-11-11T07:30', {}, [], [], 0, ['가']);
+assert.equal(onlyS[0].title, '장부');
+assert.equal(onlyS[0].url, '/projects/');
+assert.deepEqual(run('2026-11-11T12:00', {}, [], [], 0, ['가']), [], '아침 시각이 아니면 없다');
 
 console.log('notify ok');
