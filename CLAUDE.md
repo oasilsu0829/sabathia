@@ -29,6 +29,12 @@
 - 병합 후 사용자가 할 일: 폰·패드 크롬에서 Sabathia 설치, 15577·어원 단어 온라인 저장에 예전 ID로 연결, 예전에 따로 설치한 '일정' 앱은 지워도 됨
 - 원본 저장소(Block-planner, llm-wiki-private, fff-dashboard)는 건드리지 않음. 예전 주소는 그대로 열림
 
+## 2026-11-10 세션 (속도·오프라인 / 알림 / 장부 동기화)
+- 브랜치 `claude/charming-mendel-vhuvjh`에 커밋 3개 + 문서. 로컬(wrangler dev + Playwright)에서 확인한 것: 오프라인으로 앱 8개 열림, 새로고침 때 최신 반영, 집중 30fps, 알림 설정 화면·API·cron 중복 방지, 토큰 401, 장부 두 기기 동기화·마감 → 일정·내보내기/가져오기
+- 확인 못 한 것: 실제 기기에서 푸시가 오는지(샌드박스에서는 푸시 서버에 못 닿고 헤드리스 크롬은 알림 권한이 막혀 있음). 병합 뒤 폰에서 테스트 알림으로 확인할 것
+- 병합 후 사용자가 할 일: 폰 크롬에 설치한 Sabathia → 일정 → 설정 → 알림 → "이 기기에서 알림 켜기" → 테스트 알림. 장부는 기기마다 한 번 열면 맞춰짐(토큰을 쓰면 일정 설정에 토큰이 들어 있어야 함)
+- 알림 시각 기본값(10분 전 · 07:30 · 20:00)은 사용자에게 물었지만 답이 없어 임의로 정함. 설정에서 바꿀 수 있음
+
 ## 현재 상태
 - [x] 코드 작성, 로컬 검증 완료 (API, cron, 푸시 암호화는 http_ece로 복호화 확인, VAPID JWT 서명 검증)
 - [x] D1 `jarvis-db` 생성, 테이블 생성 완료. ID는 `wrangler.toml`에 반영됨
@@ -42,7 +48,9 @@ public/index.html   Sabathia 홈: 화면별 배치 3개(폰 <640 · 세로 화�
 public/apps.js      앱 목록(코드·이름·주소·고유색·홈 아이콘 진행률 계산). 새 앱은 여기에
 public/today.js     홈의 "오늘 하루": 15577 보고(블록 위치·상태·수업·D-day) + /api/events + 어원 단어 보고를 한 줄로 모음
 public/sabathia.js  공통: 런처 뒤로가기/홈 버튼, 앱 상태 보고(localStorage sabathia.status.<id>), /sw.js 등록
-public/sw.js        서비스 워커 하나가 / 전체를 맡음 (네트워크 우선 + 오프라인 캐시, push → 알림)
+public/sw.js        서비스 워커 하나가 / 전체를 맡음. 캐시를 먼저 보여 주고 뒤에서 갱신(다음에 열 때 반영), 새로고침·"최신 버전 확인"은 네트워크 먼저.
+                    설치 때 앱 8개 화면을 미리 캐시. 글꼴·jsPDF는 버전과 무관한 캐시. push → 알림(누르면 url로 이동)
+                    공통 파일이나 여러 화면을 함께 고치면 VERSION을 올릴 것
 public/manifest.webmanifest  PWA 하나 (scope /)
 public/plan/        15577 공부 블록 플래너 (Block-planner 사본). 온라인 저장은 Firestore planners/{ID}
 public/vocab/       어원 단어 (Block-planner/vocab 사본을 v1.0으로 다시 그림). Firestore planners/v-{ID}
@@ -58,27 +66,35 @@ public/focus/       집중 타이머 Aero Focus (FOC-07). 파일 하나. theme.c
                     - 원본은 claude.ai 아티팩트 https://claude.ai/artifact/QBbYAhP3pPsQuKkWmy7dsz (날씨 없는 이전 판). 이제 이쪽이 기준
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
-src/index.js        /api/* 라우트 + scheduled() 1분 cron으로 리마인더 발송
+src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
+src/util.js         json·httpError·readBody·authorized, ensureTables(모든 테이블을 첫 요청·첫 cron 때 자동 생성)
+src/notify.js       알림: /api/subscribe·unsubscribe·test, /api/notify(설정), /api/repeats(반복 알림), /api/reminders(한 번짜리, 화면 없음)
+                    tick(): 시작 전 알림 · 아침 요약 · 전날 저녁 · 반복 알림. 후보 고르기는 순수 함수 candidates()(test/notify.mjs). 시각은 한국 시각(UTC+9 고정)
+src/projects.js     /api/projects/sync 장부 동기화 (프로젝트 단위로 나중에 고친 쪽이 이김, 지운 것은 deleted 줄로 180일 보관)
 src/webpush.js      RFC 8291(aes128gcm) + RFC 8292(VAPID), WebCrypto만 사용
-schema.sql          subscriptions, reminders, events
-src/events.js       /api/events 일정 API (D1 events 테이블, 첫 요청 때 자동 생성)
+schema.sql          참고용 (subscriptions, reminders, events, settings, repeats, push_log, projects)
+src/events.js       /api/events 일정 API
 public/schedule/    일정 PWA (홈·캘린더·일정·설정). 디자인 언어 v1.0. ?theme=projector&kiosk=1 은 책상 프로젝터용
 openclaw-skill/     OpenClaw 스킬 sabathia-schedule (SKILL.md + sched.mjs). PC의 OpenClaw가 이걸로 일정을 넣는다
 android/            홈 런처 앱(WebView, JS 브리지 window.Jarvis: launch/apps/open). Actions가 빌드해 릴리스 'launcher'에 jarvis.apk 게시
-test/               ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립트
+test/               notify.mjs(알림 고르기), ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립트
 ```
-- 리마인더 API(/api/reminders)와 cron 발송은 서버에 남아 있지만 화면은 없다. 주소를 아는 사람은 API 사용 가능
+- 알림(2026-11-10): 일정 앱 설정 → 알림. 구독은 기기마다, 설정(lead 분·am·pm, D1 settings k='notify')과 반복 알림(repeats)은 서버에 하나. 기본값 10분 전 · 07:30 · 20:00. 같은 알림은 push_log 키(lead:<id>:<날짜T시각>, am:<날짜>, pm:<날짜>, rep:<id>:<날짜>)로 한 번만
+- 장부 동기화(2026-11-10): 이 기기 저장(projects.v1)이 먼저, 고치면 1.5초 뒤 /api/projects/sync. 예시 프로젝트는 demo: true 라 올리지 않고 진짜 프로젝트가 생기면 사라짐. 지운 것은 projects.gone, 마감(due)은 일정에 id prj-<id> 마감으로 올림(dueSynced로 한 번만), 일정에서 지울 것은 projects.evdel
+- 백업: 장부·수업 녹음 화면의 내보내기/가져오기(.json)
+- 토큰 이름은 API_TOKEN 하나(keys.html·gen-keys도 이 이름). 주소·토큰은 일정 앱 설정의 sab.base·sab.token을 홈·장부가 같이 읽는다
 - 일정 묶음(2026-11-08): 오늘·일정 탭 위에 요약 3칸 + 묶음 카드 3개(보고서 제출 / 학교 수행 / 학원 수행). 일정마다 `cat`(report·school·academy·none, D1 열은 첫 요청 때 ALTER로 추가). 비어 있으면 제목·메모로 짐작(학원 → 학원 수행, 보고서|리포트|레포트 → 보고서, 수행 → 학교 수행). 묶음에 든 할 일은 아래 '할 일' 목록에서 빠지고, 마감·일정은 타임라인에도 남는다. 상세 시트에서 묶음을 바꾸면 바로 저장
-- 일정 API(/api/events)는 Worker에 secret `API_TOKEN`이 있으면 Bearer 토큰 필요. OpenClaw는 PC 사용자 환경 변수 SABATHIA_TOKEN으로 읽는다(토큰을 채팅·설정 파일에 쓰지 않기)
+- /api/* 전체(/api/vapid 제외)는 Worker에 secret `API_TOKEN`이 있으면 Bearer 토큰 필요. OpenClaw는 PC 사용자 환경 변수 SABATHIA_TOKEN으로 읽는다(토큰을 채팅·설정 파일에 쓰지 않기)
 - 리마인더 시각은 UTC ISO 문자열로 저장
 
 - 런처 WebView는 웹 푸시 미지원 → 알림은 크롬 PWA로 받음
 - 런처 APK는 뒤로가기 때 window.onJarvisBack 만 부른다(WebView history 안 씀). 앱 페이지는 Sabathia.back 으로 시트를 닫고, 없으면 홈으로 간다
 
 ## 다음 기능 (예정)
-- 캘린더: 일정 앱(/schedule/) 추가함. Sabathia 홈 아이콘에 오늘 할 일·지연 배지 연결함. 마감 웹 푸시는 아직
-- 프로젝트 장부: `/projects/`(PRJ-06) 첫 판. 로컬 저장(localStorage projects.v1)만, 온라인 저장·일정 연결은 아직
-- 반복 리마인더
+- 15577 블록 시작 알림(블록은 Firestore·기기에 있어 서버 cron이 모름. 하려면 15577이 오늘 블록을 서버에 올려야 함)
+- 홈 앱 격자: 앱 7개라 4칸 격자 둘째 줄이 3개. 배치 시안을 보여 주고 고르게 할 것
+- 홈이 30초마다 일정 90일치를 통째로 받음 → 바뀐 게 없으면 304
+- 페이지마다 v1.0 CSS 위에 theme.css가 !important로 덮는 이중 구조 정리
 
 ## 수업 노트 아티팩트 (2026-11-01)
 - 수업 전사·정리 앱은 Sabathia PWA가 아니라 claude.ai 아티팩트로 만듦(사용자 결정: AI 정리를 API 키 없이 쓰려고). https://claude.ai/artifact/799cSCZn6VKRq2x2xBjxnY

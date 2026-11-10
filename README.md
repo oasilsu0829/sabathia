@@ -9,6 +9,9 @@
 | `/vocab/` | 어원 단어 (능률보카 어원편 간격 반복) |
 | `/schedule/` | 일정 (OpenClaw가 넣는 할 일·일정·마감) |
 | `/pdf/` | 사진 PDF 묶음기 |
+| `/lecture/` | 수업 녹음 (받아쓰기 → 수업 노트로 보내기) |
+| `/projects/` | 장부 (프로젝트·단계·마감, 기기 간 동기화) |
+| `/focus/` | 집중 타이머 |
 
 디자인 규칙은 [`docs/design-language.md`](docs/design-language.md). 새 앱은 `public/<폴더>/`에 넣고 `public/apps.js`에 한 항목을 더하면 홈에 나옵니다.
 
@@ -17,11 +20,22 @@
 ## 구조
 ```
 public/         PWA (홈 index.html, apps.js, sabathia.js, sw.js, manifest, 아이콘, 앱 폴더)
-src/index.js    API + 1분 간격 cron (리마인더 발송)
+src/index.js    /api/* 라우터(토큰 확인) + 1분 간격 cron
+src/events.js   일정 API
+src/notify.js   알림: 구독, 알림 설정, 반복 알림, cron이 보낼 알림 고르기
+src/projects.js 장부 동기화 API
 src/webpush.js  웹 푸시 암호화/VAPID (외부 라이브러리 없음)
-schema.sql      DB 테이블
-scripts/gen-keys.mjs  VAPID 키 + 앱 토큰 생성
+src/util.js     공통 도구, 테이블 자동 생성
+schema.sql      DB 테이블 (참고용. Worker가 첫 요청 때 스스로 만든다)
+scripts/gen-keys.mjs  VAPID 키 + API 토큰 생성
+test/           node test/notify.mjs (알림 고르기), ece.mjs · vapid.mjs (푸시 암호화)
 ```
+
+## 알림
+일정 앱 → 설정 → 알림에서 기기마다 "이 기기에서 알림 켜기"를 누른다. 언제 받을지(시작 전 알림, 아침 요약, 전날 저녁 마감 알림)와 반복 알림은 서버에 저장되어 모든 기기에 같이 적용된다. 런처 앱(WebView) 안에서는 웹 푸시가 안 되니 크롬에 설치한 Sabathia에서 켠다.
+
+## 토큰
+Worker에 `API_TOKEN` 비밀값을 넣으면 `/api/*` 전체(공개 키 `/api/vapid` 제외)에 `Authorization: Bearer <토큰>`이 필요하다. 일정 앱 설정의 토큰 칸에 넣으면 홈·일정·장부가 같이 쓴다. 넣지 않으면 주소를 아는 사람은 누구나 API를 쓸 수 있다.
 
 ## 배포 A: 폰만으로 (GitHub 연동)
 1. Cloudflare 대시보드 → Storage & Databases → **D1** → Create → 이름 `jarvis-db`
@@ -51,9 +65,9 @@ scripts/gen-keys.mjs  VAPID 키 + 앱 토큰 생성
    npm run keys
    npx wrangler secret put VAPID_PUBLIC
    npx wrangler secret put VAPID_PRIVATE_JWK
-   npx wrangler secret put APP_TOKEN
+   npx wrangler secret put API_TOKEN
    ```
-   각 명령마다 `npm run keys` 출력에서 `=` 뒤의 값을 붙여넣으면 됩니다. **APP_TOKEN은 따로 적어두세요** (폰에서 입력함).
+   각 명령마다 `npm run keys` 출력에서 `=` 뒤의 값을 붙여넣으면 됩니다. **API_TOKEN은 따로 적어두세요** (일정 앱 설정의 토큰 칸에 입력).
 
 ## 폰 설정 (안드로이드 크롬)
 1. `https://sabathia.<서브도메인>.workers.dev` 접속
@@ -68,5 +82,5 @@ npm run dev          # http://localhost:8787 , 크론 테스트: /__scheduled
 ```
 
 ## 다음에 붙일 것
-- 캘린더 / 프로젝트 장부 테이블 + API
-- 반복 리마인더
+- 15577 블록 시작 알림
+- 홈 앱 격자 배치(앱 7개)

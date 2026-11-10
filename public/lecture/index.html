@@ -289,6 +289,8 @@ function vHome() {
   </section>
   <section class="sec"><div class="sec-head"><h2 class="sec-title">보관함</h2><span class="sec-count">${pad(S.recs.length)}</span></div>
     ${recent.length ? `<div class="rows">${recent.map(rowHTML).join('')}</div>` : '<p class="meta">녹음한 수업이 여기에 남습니다. 보낸 뒤에도 지우기 전까지 남아 있습니다.</p>'}
+    <div class="btns" style="margin-top:14px">${S.recs.length ? '<button class="btn" data-act="exportAll">전체 내보내기</button>' : ''}<button class="btn" data-act="importAll">가져오기</button></div>
+    <p class="meta">전사문은 이 기기에만 저장됩니다. 내보내기 파일(.json)을 다른 기기에서 가져오면 보관함이 합쳐집니다.</p>
   </section>`;
 }
 function vRec() {
@@ -380,6 +382,39 @@ const ACT = {
     const url = URL.createObjectURL(new Blob([payload(r)], { type: 'text/plain;charset=utf-8' }));
     const a = document.createElement('a'); a.href = url; a.download = `수업-${r.date}-${r.subject}.txt`;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  },
+  // 백업: 보관함 전체를 파일 하나로. 가져올 때는 없는 녹음만 더한다
+  exportAll: () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ app: 'sabathia.lecture', v: 1, at: new Date().toISOString(), subjects: S.subjects, recs: S.recs }, null, 1)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = `sabathia-lecture-${today()}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(`녹음 ${S.recs.length}개를 내보냈습니다`);
+  },
+  importAll: () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,.json';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      try {
+        const j = JSON.parse(await f.text());
+        if (!j || !Array.isArray(j.recs)) throw 0;
+        const have = new Set(S.recs.map((r) => r.id));
+        let n = 0;
+        for (const x of j.recs) {
+          if (!x || !x.id || have.has(String(x.id)) || !MODE[x.mode] || typeof x.text !== 'string') continue;
+          S.recs.push({ id: String(x.id), mode: x.mode, subject: String(x.subject || ''), date: /^\d{4}-\d{2}-\d{2}$/.test(x.date || '') ? x.date : today(), sec: +x.sec || 0, text: x.text, sent: !!x.sent, at: +x.at || Date.now() });
+          have.add(String(x.id)); n++;
+        }
+        // 파일에만 있는 과목도 더한다
+        if (j.subjects && typeof j.subjects === 'object') {
+          const sub = { ...S.subjects };
+          for (const m of Object.keys(MODE)) sub[m] = [...new Set([...(sub[m] || []), ...(Array.isArray(j.subjects[m]) ? j.subjects[m].map(String) : [])])];
+          S.subjects = sub; store.set('subjects', sub);
+        }
+        if (n) { S.recs.sort((a, b) => (b.at || 0) - (a.at || 0)); saveRecs(); }
+        render(); toast(n ? `녹음 ${n}개를 가져왔습니다` : '새로 가져올 녹음이 없습니다');
+      } catch { toast('수업 녹음 내보내기 파일이 아닙니다'); }
+    };
+    inp.click();
   },
   del: (v, b) => arm(b, () => { S.recs = S.recs.filter((r) => r.id !== S.cur); saveRecs(); go('home'); toast('삭제했습니다'); }, '삭제 확인'),
 };

@@ -215,6 +215,18 @@ button { cursor: pointer; }
 .log { border-top: 0; }
 .log-h { font-size: 15px; font-weight: 600; }
 .sh-title { font-size: 20px; font-weight: 700; }
+.chip.due { background: var(--soft-2); color: var(--ink); }
+.chip.due.soon { background: var(--accent-soft); color: var(--accent); }
+.chip.due.late { background: var(--warn); color: var(--on-warn); }
+/* 맨 아래: 동기화 상태 · 백업 */
+.foot { margin-top: 24px; padding-bottom: 88px; display: grid; gap: 10px; font-size: 13px; line-height: 18px; color: var(--muted); }
+.foot .sync { margin: 0; display: flex; gap: 8px; align-items: flex-start; }
+.foot .sync i { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--map-pending); }
+.foot .sync.ok i { background: var(--ok); }
+.foot .sync.bad i { background: var(--warn); }
+.foot .sync a { color: var(--accent); font-weight: 600; }
+.foot-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.foot-btns button { min-height: 40px; padding: 0 14px; border: 1px solid var(--hair); background: var(--card); color: var(--ink); font-size: 13px; font-weight: 600; border-radius: 10px; }
 </style>
 </head>
 <body>
@@ -228,6 +240,7 @@ button { cursor: pointer; }
         <option value="status">상태순</option>
         <option value="priority">우선순위순</option>
         <option value="progress">진행률순</option>
+        <option value="due">마감 가까운 순</option>
       </select>
     </label>
   </header>
@@ -239,6 +252,15 @@ button { cursor: pointer; }
     <button data-f="done" aria-pressed="false">완료<span class="c"></span></button>
   </nav>
   <ul class="list" id="list"></ul>
+  <footer class="foot">
+    <p class="sync" id="sync" role="status"><i></i><span id="syncMsg">이 기기에 저장됨</span></p>
+    <div class="foot-btns">
+      <button type="button" id="exp">내보내기</button>
+      <button type="button" id="imp">가져오기</button>
+      <button type="button" id="syncNow">지금 동기화</button>
+      <input type="file" id="impFile" accept="application/json,.json" hidden>
+    </div>
+  </footer>
 </div>
 
 <button class="fab" id="add" aria-label="프로젝트 추가">+</button>
@@ -254,6 +276,7 @@ button { cursor: pointer; }
       <label class="field"><span>코드</span><input name="code" maxlength="10" placeholder="EXP-01"></label>
       <label class="field"><span>상태</span><select name="status"><option value="active">진행</option><option value="paused">멈춤</option><option value="done">완료</option></select></label>
       <label class="field"><span>우선순위</span><select name="pri"><option value="1">높음</option><option value="2" selected>보통</option><option value="3">낮음</option></select></label>
+      <label class="field wide"><span>마감</span><input name="due" type="date"><small>날짜를 넣으면 일정 앱에 '마감'으로 올라간다. 비우면 일정에서 빠진다</small></label>
       <label class="field wide"><span>단계</span><textarea name="steps" placeholder="한 줄에 한 단계. 끝난 단계는 앞에 x"></textarea><small>맨 위의 안 끝난 단계가 '다음 할 일'. 진행률은 단계 수로 계산한다.</small></label>
       <label class="field"><span>일정</span><input name="events" type="number" min="0" inputmode="numeric" value="0"></label>
       <label class="field"><span>논문</span><input name="papers" type="number" min="0" inputmode="numeric" value="0"></label>
@@ -279,14 +302,20 @@ button { cursor: pointer; }
   const pad = (n) => String(n).padStart(2, '0');
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
+  const json = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch { return d; } };
+  const put = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const dayDiff = (a, b) => { const f = (x) => { const [y, m, d] = x.split('-').map(Number); return new Date(y, m - 1, d); }; return Math.round((f(a) - f(b)) / 864e5); };
+
   // 처음 열면 시안의 예시 프로젝트로 시작한다. 지우거나 고쳐 쓰면 된다
+  // 예시(demo)는 서버에 올리지 않고, 진짜 프로젝트가 하나라도 생기면 사라진다. 고치면 진짜 프로젝트가 된다
   function seed() {
     const now = Date.now(), h = 3600e3, d = 24 * h;
     const mk = (code, name, desc, status, pri, upd, total, done, steps, ev, pa, de) => {
       const st = [];
       for (let i = 0; i < total; i++) st.push({ t: steps[i - done] || `단계 ${i + 1}`, done: i < done });
       for (let i = 0; i < done; i++) st[i].t = `단계 ${i + 1}`;
-      return { id: uid(), code, name, desc, status, pri, updated: now - upd, steps: st, events: ev, papers: pa, decisions: de, log: [] };
+      return { id: uid(), code, name, desc, status, pri, updated: now - upd, steps: st, events: ev, papers: pa, decisions: de, log: [], demo: true };
     };
     return [
       mk('EXP-01', 'DeepFold 구조', '하이브리드 확산으로 매크로사이클 펩타이드 결합 예측 파이프라인', 'active', 1, 2 * h, 18, 12, ['CASP15 세트로 결합 에너지 벤치마크'], 3, 6, 9),
@@ -299,21 +328,35 @@ button { cursor: pointer; }
 
   let data;
   try { data = JSON.parse(localStorage.getItem(KEY)); } catch {}
-  if (!Array.isArray(data)) { data = seed(); save(); }
+  if (!Array.isArray(data)) { data = seed(); store(); }
+  else {
+    // 동기화가 생기기 전에 만들어진 예시(손대지 않은 것)를 찾아 demo로 표시한다. 기기마다 예시가 겹쳐 올라가지 않게
+    const sig = (p) => [p.code, p.name, p.desc, p.steps.length, p.steps.filter((x) => x.done).length].join('|');
+    const seeds = new Set(seed().map(sig));
+    let hit = false;
+    for (const p of data) if (!p.demo && !(p.log || []).length && !p.due && Array.isArray(p.steps) && seeds.has(sig(p))) { p.demo = true; hit = true; }
+    if (hit) store();
+  }
+  let gone = json('projects.gone', {});     // 지운 프로젝트 { id: 지운 시각 } — 서버에 알릴 때까지 들고 있는다
+  let evdel = json('projects.evdel', []);   // 일정에서 지울 마감 id
 
   let filter = 'all';
   let sort = 'updated';
   try { sort = localStorage.getItem('projects.sort') || 'updated'; } catch {}
   $('#sort').value = sort;
 
-  function save() {
+  function store() {
     try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
     report();
   }
+  // 고친 뒤 부른다: 이 기기에 저장하고 조금 뒤 서버와 맞춘다
+  function save() { store(); syncSoon(); }
+  // 고친 프로젝트는 예시가 아니다
+  const touch = (p) => { delete p.demo; p.updated = Date.now(); };
 
   // 홈 아이콘: 진행 중 프로젝트 단계 합계 진행률, 배지는 멈춘 프로젝트 수
   function report() {
-    if (!window.Sabathia) return;
+    if (!window.Sabathia || !data) return;
     const act = data.filter((p) => p.status === 'active');
     let n = 0, dn = 0;
     for (const p of act) { n += p.steps.length; dn += p.steps.filter((s) => s.done).length; }
@@ -375,7 +418,8 @@ button { cursor: pointer; }
       status: (a, b) => ORDER[a.status] - ORDER[b.status] || b.updated - a.updated,
       priority: (a, b) => a.pri - b.pri || b.updated - a.updated,
       progress: (a, b) => pctOf(b) - pctOf(a),
-    }[sort];
+      due: (a, b) => (a.due || '9999').localeCompare(b.due || '9999') || b.updated - a.updated,
+    }[sort] || ((a, b) => b.updated - a.updated);
     rows = rows.slice().sort(cmp);
 
     $('#list').innerHTML = rows.length ? rows.map(card).join('') : `<li class="empty">${filter === 'all' ? '프로젝트가 없다. + 로 추가' : '해당 프로젝트 없음'}</li>`;
@@ -399,7 +443,7 @@ button { cursor: pointer; }
     }
     const top = p.status === 'done'
       ? `<span class="chip done">완료</span><span class="upd">${ago(p.updated)} 보관</span>`
-      : `<span class="chip ${p.status}">${ST[p.status]}</span>${p.pri === 1 ? '<span class="chip pri">우선</span>' : ''}<span class="upd">${ago(p.updated)}</span>`;
+      : `<span class="chip ${p.status}">${ST[p.status]}</span>${p.pri === 1 ? '<span class="chip pri">우선</span>' : ''}${dueChip(p)}<span class="upd">${ago(p.updated)}</span>`;
     return `<li class="card ${p.status}" data-id="${p.id}">
       ${contactMap(p.name, 6, pct)}
       <div class="body">
@@ -411,6 +455,14 @@ button { cursor: pointer; }
         <div class="links"><span>일정 <b>${p.events | 0}</b></span><span>논문 <b>${p.papers | 0}</b></span><span>결정 <b>${p.decisions | 0}</b></span></div>
       </div>
     </li>`;
+  }
+
+  // 마감 칩: D-3 / D-DAY / 지남
+  function dueChip(p) {
+    if (!p.due) return '';
+    const n = dayDiff(p.due, ymd(new Date()));
+    const label = n > 0 ? `D-${n}` : n === 0 ? 'D-DAY' : `마감 ${-n}일 지남`;
+    return `<span class="chip due${n < 0 ? ' late' : n <= 3 ? ' soon' : ''}" title="마감 ${p.due}">${label}</span>`;
   }
 
   function nextRow(p, on, label, text) {
@@ -426,7 +478,7 @@ button { cursor: pointer; }
     const s = nextOf(p);
     if (!s) return;
     s.done = true;
-    p.updated = Date.now();
+    touch(p);
     p.lastDone = { t: s.t, at: Date.now() };
     p.log = [{ at: Date.now(), t: `끝냄 — ${s.t}` }, ...(p.log || [])].slice(0, 50);
     save(); render();
@@ -435,11 +487,13 @@ button { cursor: pointer; }
   }
 
   function reopen(p, s) {
+    // 그 사이 다른 기기 내용으로 바뀌었으면 같은 이름의 단계를 다시 찾는다
+    if (s && !p.steps.includes(s)) s = [...p.steps].reverse().find((x) => x.done && x.t === s.t);
     s = s || (p.lastDone && [...p.steps].reverse().find((x) => x.done && x.t === p.lastDone.t));
     if (!s) return;
     s.done = false;
     p.lastDone = null;
-    p.updated = Date.now();
+    touch(p);
     p.log = [{ at: Date.now(), t: `되돌림 — ${s.t}` }, ...(p.log || [])].slice(0, 50);
     save(); render();
     toast('다음 할 일을 되돌림');
@@ -489,9 +543,9 @@ button { cursor: pointer; }
     $('#shTitle').textContent = p ? '프로젝트 고치기' : '새 프로젝트';
     $('#del').hidden = !p;
     const nums = data.map((x) => parseInt((x.code || '').split('-')[1], 10) || 0);
-    const v = p || { name: '', desc: '', code: `EXP-${pad(Math.max(0, ...nums) + 1)}`, status: 'active', pri: 2, steps: [], events: 0, papers: 0, decisions: 0 };
+    const v = p || { name: '', desc: '', code: `EXP-${pad(Math.max(0, ...nums) + 1)}`, status: 'active', pri: 2, steps: [], events: 0, papers: 0, decisions: 0, due: '' };
     form.name.value = v.name; form.desc.value = v.desc || ''; form.code.value = v.code || '';
-    form.status.value = v.status; form.pri.value = String(v.pri);
+    form.status.value = v.status; form.pri.value = String(v.pri); form.due.value = v.due || '';
     form.steps.value = v.steps.map((s) => (s.done ? 'x ' : '') + s.t).join('\n');
     form.events.value = v.events | 0; form.papers.value = v.papers | 0; form.decisions.value = v.decisions | 0;
     const log = (p && p.log) || [];
@@ -519,7 +573,7 @@ button { cursor: pointer; }
       .map((l) => (/^x\s+/i.test(l) ? { t: l.replace(/^x\s+/i, ''), done: true } : { t: l, done: false }));
     const v = {
       name, desc: form.desc.value.trim(), code: form.code.value.trim().toUpperCase(),
-      status: form.status.value, pri: +form.pri.value, steps,
+      status: form.status.value, pri: +form.pri.value, steps, due: /^\d{4}-\d{2}-\d{2}$/.test(form.due.value) ? form.due.value : '',
       events: Math.max(0, +form.events.value | 0), papers: Math.max(0, +form.papers.value | 0), decisions: Math.max(0, +form.decisions.value | 0),
       updated: Date.now(),
     };
@@ -527,6 +581,9 @@ button { cursor: pointer; }
       if (editing.status !== v.status) editing.log = [{ at: Date.now(), t: `상태 — ${ST[v.status]}` }, ...(editing.log || [])].slice(0, 50);
       Object.assign(editing, v);
       editing.lastDone = null;
+      delete editing.demo;
+      // 고치는 사이 다른 기기에서 지워졌으면 되살린다
+      if (!data.includes(editing)) { data.push(editing); delete gone[editing.id]; put('projects.gone', gone); }
     } else {
       data.push({ id: uid(), log: [{ at: Date.now(), t: '만듦' }], ...v });
     }
@@ -535,15 +592,170 @@ button { cursor: pointer; }
   };
   $('#del').onclick = () => {
     if (!editing || !confirm(`'${editing.name}' 을(를) 지울까?`)) return;
-    const gone = editing, at = data.indexOf(gone);
-    data = data.filter((x) => x !== gone);
+    const p = editing, at = data.indexOf(p);
+    data = data.filter((x) => x !== p);
+    if (!p.demo) { gone[p.id] = Date.now(); put('projects.gone', gone); }
+    if (p.dueSynced) { evdel = [...new Set([...evdel, 'prj-' + p.id])]; put('projects.evdel', evdel); }
     save(); render(); closeSheet();
-    toast('지움', () => { data.splice(at, 0, gone); save(); render(); });
+    toast('지움', () => {
+      // 되돌리기: 지운 표시보다 나중에 고친 것으로 만들어 다른 기기에서도 되살아나게 한다
+      delete gone[p.id]; put('projects.gone', gone);
+      evdel = evdel.filter((x) => x !== 'prj-' + p.id); put('projects.evdel', evdel);
+      if (!p.demo) { p.updated = Date.now(); p.dueSynced = ''; }
+      data.splice(Math.min(at, data.length), 0, p); save(); render();
+    });
+  };
+
+  /* ---------- 기기 간 동기화 (/api/projects/sync) ----------
+     이 기기 저장(localStorage)이 먼저고, 고칠 때마다 조금 뒤 서버와 맞춘다. 연결이 안 되면 이 기기에만 두었다가 다음에 올린다.
+     충돌은 프로젝트 단위로 나중에 고친 쪽이 이긴다. 주소·토큰은 일정 앱 설정(sab.base, sab.token)을 같이 쓴다 */
+  const cfg = () => ({ base: (json('sab.base', '') || location.origin).replace(/\/+$/, ''), token: json('sab.token', '') });
+  async function api(path, opt = {}) {
+    const c = cfg();
+    const headers = { 'content-type': 'application/json' };
+    if (c.token) headers.authorization = 'Bearer ' + c.token;
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 12000);
+    let r;
+    try { r = await fetch(c.base + path, { ...opt, headers, cache: 'no-store', signal: ctl.signal }); }
+    catch { throw Object.assign(new Error('offline'), { status: 0 }); }
+    finally { clearTimeout(timer); }
+    let body = null;
+    try { body = await r.json(); } catch {}
+    if (!r.ok || !body) throw Object.assign(new Error((body && body.error) || `서버 응답 ${r.status}`), { status: r.status });
+    return body;
+  }
+
+  function setSync(kind, html) {
+    $('#sync').className = 'sync' + (kind ? ' ' + kind : '');
+    $('#syncMsg').innerHTML = html;
+  }
+  const hm = (t) => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+
+  // 서버 목록을 이 기기 목록에 합친다. 화면이 들고 있는 프로젝트 객체는 그대로 두고 내용만 바꾼다
+  function merge(list) {
+    const local = new Map(data.map((p) => [p.id, p]));
+    const next = [];
+    for (const s of list) {
+      const l = local.get(s.id);
+      local.delete(s.id);
+      if (s.deleted) { if (l && !l.demo && l.updated > s.updated) next.push(l); continue; }
+      if (l && l.updated > s.updated) { next.push(l); continue; }
+      if (l) { for (const k of Object.keys(l)) delete l[k]; Object.assign(l, s); next.push(l); } else next.push(s);
+    }
+    const demos = [];
+    for (const l of local.values()) (l.demo ? demos : next).push(l); // 서버가 아직 모르는 이 기기 프로젝트
+    data = next.length ? next : demos;
+  }
+
+  // 마감을 일정 앱에 올린다: 프로젝트마다 일정 하나(id prj-<프로젝트 id>, 종류 마감). 마감을 비우거나 지우면 일정에서도 뺀다
+  async function linkEvents() {
+    let changed = false;
+    for (const id of [...evdel]) {
+      try { await api('/api/events/' + encodeURIComponent(id), { method: 'DELETE' }); }
+      catch (e) { if (e.status !== 404) continue; }
+      evdel = evdel.filter((x) => x !== id); put('projects.evdel', evdel);
+    }
+    for (const p of data) {
+      if (p.demo) continue;
+      const want = p.due ? `${p.due}|${p.name}|${p.status === 'done' ? 1 : 0}` : '';
+      if (want === (p.dueSynced || '')) continue;
+      try {
+        if (want) {
+          await api('/api/events', { method: 'POST', body: JSON.stringify({ id: 'prj-' + p.id, title: `${p.name} 마감`, date: p.due, kind: 'deadline', source: '장부', done: p.status === 'done' }) });
+        } else {
+          try { await api('/api/events/prj-' + encodeURIComponent(p.id), { method: 'DELETE' }); } catch (e) { if (e.status !== 404) throw e; }
+        }
+        p.dueSynced = want; p.updated = Date.now(); changed = true;
+      } catch {}
+    }
+    return changed;
+  }
+
+  let syncing = false, again = false, syncT = 0, lastSync = 0;
+  function syncSoon() { clearTimeout(syncT); syncT = setTimeout(sync, 1500); }
+  async function sync() {
+    clearTimeout(syncT);
+    if (syncing) { again = true; return; }
+    syncing = true;
+    try {
+      const sentGone = { ...gone };
+      const body = {
+        projects: [
+          ...data.filter((p) => !p.demo),
+          ...Object.entries(sentGone).map(([id, at]) => ({ id, updated: at, deleted: true })),
+        ],
+      };
+      const j = await api('/api/projects/sync', { method: 'POST', body: JSON.stringify(body) });
+      // 서버가 받았으니 지운 표시는 내려놓는다 (보내는 사이 새로 지운 것은 남긴다)
+      for (const id of Object.keys(sentGone)) if (gone[id] === sentGone[id]) delete gone[id];
+      put('projects.gone', gone);
+      merge(j.projects || []);
+      if (await linkEvents()) again = true;
+      store(); render();
+      lastSync = Date.now();
+      setSync('ok', `기기 간 동기화됨 · ${hm(lastSync)}`);
+    } catch (e) {
+      if (e.status === 401) setSync('bad', '토큰이 없거나 맞지 않아 이 기기에만 저장됩니다. <a href="/schedule/#prefs">일정 앱 설정</a>에 토큰을 넣으면 기기 간에 맞춰집니다.');
+      else if (e.status === 0) setSync('', '오프라인 — 이 기기에 저장해 두고, 연결되면 올립니다.');
+      else setSync('bad', `동기화하지 못했습니다. ${esc(e.message)}`);
+    } finally {
+      syncing = false;
+      if (again) { again = false; syncSoon(); }
+    }
+  }
+  $('#syncNow').onclick = async () => { setSync('', '동기화 중…'); await sync(); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - lastSync > 30000) sync(); });
+  addEventListener('online', sync);
+
+  /* ---------- 백업: 내보내기 · 가져오기 ---------- */
+  $('#exp').onclick = () => {
+    const real = data.filter((p) => !p.demo);
+    if (!real.length) { toast('내보낼 프로젝트가 없다'); return; }
+    const blob = new Blob([JSON.stringify({ app: 'sabathia.projects', v: 1, at: new Date().toISOString(), projects: real }, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sabathia-projects-${ymd(new Date())}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast(`프로젝트 ${real.length}개를 내보냄`);
+  };
+  $('#imp').onclick = () => $('#impFile').click();
+  $('#impFile').onchange = async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      const list = Array.isArray(j) ? j : j && j.projects;
+      if (!Array.isArray(list)) throw 0;
+      let n = 0;
+      for (const x of list) {
+        if (!x || typeof x !== 'object' || !x.name || !Array.isArray(x.steps)) continue;
+        const p = {
+          id: /^[\w.-]{1,64}$/.test(String(x.id || '')) ? String(x.id) : uid(), code: String(x.code || ''), name: String(x.name), desc: String(x.desc || ''),
+          status: ST[x.status] ? x.status : 'active', pri: [1, 2, 3].includes(x.pri) ? x.pri : 2,
+          steps: x.steps.filter((st) => st && st.t).map((st) => ({ t: String(st.t), done: !!st.done })),
+          events: x.events | 0, papers: x.papers | 0, decisions: x.decisions | 0,
+          due: /^\d{4}-\d{2}-\d{2}$/.test(x.due || '') ? x.due : '', log: Array.isArray(x.log) ? x.log.slice(0, 50) : [],
+          updated: Number.isFinite(x.updated) ? x.updated : Date.now(),
+        };
+        const cur = data.find((q) => q.id === p.id);
+        if (cur && !cur.demo && cur.updated >= p.updated) continue; // 이 기기 것이 같거나 더 새롭다
+        // 가져온 것은 지금 고친 것으로 쳐서 다른 기기에도 퍼지게 한다 (지웠던 것도 되살아난다)
+        p.updated = Date.now(); delete gone[p.id];
+        if (cur) { for (const k of Object.keys(cur)) delete cur[k]; Object.assign(cur, p); } else data.push(p);
+        n++;
+      }
+      put('projects.gone', gone);
+      if (n) { data = data.filter((p) => !p.demo); save(); render(); }
+      toast(n ? `프로젝트 ${n}개를 가져옴` : '새로 가져올 프로젝트가 없다');
+    } catch { toast('장부 내보내기 파일이 아니다'); }
   };
 
   render();
   report();
   addEventListener('pageshow', render);
+  sync();
 })();
 </script>
 </body>
