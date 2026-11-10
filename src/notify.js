@@ -38,8 +38,10 @@ export function parseSettings(v) {
    repeats  repeats 테이블의 켜진 줄
    events   오늘·내일의 끝나지 않은 일정 (events 테이블 줄 모양: end_time)
    overdue  날짜가 지난 미완료 할 일·마감 수 (아침 요약에만 쓴다)
+   stale    진행 중인데 7일 넘게 손대지 않은 장부 프로젝트 이름 (아침 요약에만 쓴다)
    돌려주는 값: [{ key, title, body, url, tag }] — key는 push_log에 남겨 중복을 막는다 */
-export function candidates(k, tomorrow, set, repeats, events, overdue = 0) {
+export const STALE_DAYS = 7;
+export function candidates(k, tomorrow, set, repeats, events, overdue = 0, stale = []) {
   const out = [];
   const byTime = (a, b) => (a.time || '99:99').localeCompare(b.time || '99:99') || a.title.localeCompare(b.title);
   const line = (e) => (e.time ? `${e.time} ${e.title}` : e.title);
@@ -80,9 +82,12 @@ export function candidates(k, tomorrow, set, repeats, events, overdue = 0) {
     if (t.length) parts.push(`할 일 ${t.length}`);
     if (ev.length) parts.push(`일정 ${ev.length}`);
     if (overdue) parts.push(`지연 ${overdue}`);
+    const st = stale.length ? `${STALE_DAYS}일 넘게 그대로 — ${stale.slice(0, 3).join(', ')}${stale.length > 3 ? ` 외 ${stale.length - 3}개` : ''}` : '';
     if (parts.length) {
       const names = [...d, ...ev, ...t].slice(0, 4).map(line);
-      out.push({ key: `am:${k.date}`, title: '오늘 일정', body: [parts.join(' · '), ...names].join('\n'), url: '/schedule/', tag: 'am' });
+      out.push({ key: `am:${k.date}`, title: '오늘 일정', body: [parts.join(' · '), ...names, st].filter(Boolean).join('\n'), url: '/schedule/', tag: 'am' });
+    } else if (st) {
+      out.push({ key: `am:${k.date}`, title: '장부', body: st, url: '/projects/', tag: 'am' });
     }
   }
 
@@ -137,11 +142,17 @@ export async function tick(env, now = Date.now()) {
 
   const set = parseSettings(setQ.results[0] && setQ.results[0].v);
   let overdue = 0;
+  const stale = [];
   if (set.am && inWindow(k.min, set.am, DIGEST_WINDOW)) {
     const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM events WHERE date < ? AND done = 0 AND kind != 'event'").bind(k.date).first();
     overdue = row ? row.n : 0;
+    // 장부: 진행 중인데 오래 손대지 않은 프로젝트
+    const { results } = await env.DB.prepare('SELECT data FROM projects WHERE deleted = 0 AND updated < ? ORDER BY updated').bind(now - STALE_DAYS * 864e5).all();
+    for (const r of results) {
+      try { const p = JSON.parse(r.data); if (p && p.status === 'active' && !p.demo && p.name) stale.push(String(p.name)); } catch {}
+    }
   }
-  const cands = candidates(k, tomorrow, set, repQ.results, evQ.results, overdue);
+  const cands = candidates(k, tomorrow, set, repQ.results, evQ.results, overdue, stale);
   let fresh = [];
   if (cands.length) {
     const res = await env.DB.batch(cands.map((c) => env.DB.prepare('INSERT OR IGNORE INTO push_log (k, at) VALUES (?, ?)').bind(c.key, now)));
