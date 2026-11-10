@@ -5,7 +5,7 @@ import { json, httpError, readBody } from './util.js';
 
 const ID_RE = /^[\w.-]{1,64}$/;
 const MAX_PROJECTS = 1000;
-const MAX_BYTES = 40000;          // 프로젝트 하나의 JSON 길이
+const MAX_BYTES = 200000;         // 프로젝트 하나의 JSON 길이 (단계·기록·자료 포함, D1 한 줄 한도 1MB보다 한참 아래)
 const KEEP_DELETED = 180 * 864e5;
 
 export async function projectsApi(req, env, path) {

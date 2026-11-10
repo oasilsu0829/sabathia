@@ -80,6 +80,11 @@ android/            홈 런처 앱(WebView, JS 브리지 window.Jarvis: launch/a
 test/               notify.mjs(알림 고르기), ece.mjs(암호화), vapid.mjs(JWT 서명) 검증 스크립트
 ```
 - 알림(2026-11-10): 일정 앱 설정 → 알림. 구독은 기기마다, 설정(lead 분·am·pm, D1 settings k='notify')과 반복 알림(repeats)은 서버에 하나. 기본값 10분 전 · 07:30 · 20:00. 같은 알림은 push_log 키(lead:<id>:<날짜T시각>, am:<날짜>, pm:<날짜>, rep:<id>:<날짜>)로 한 번만
+- 장부 v2(2026-11-10, 계획서 https://claude.ai/artifact/7NoqWBYbB8WGbQefaufZ3U 1단계): 카드를 누르면 상세(단계·기록·자료 탭). 폰·세로는 화면을 덮는 판(history.pushState로 뒤로가기에 닫힘), 1000px 이상은 왼쪽 목록 440px + 오른쪽 상세
+  - 프로젝트 모양 v: 2 — cat(report·school·academy·research·code·personal, 일정 묶음과 같은 이름), steps[{id,t,done,due,note,doneAt}], log[{id,at,kind(auto·memo·decision·block),t}], links[{id,url,title,kind(paper·link)}]. 숫자 칸(events·papers·decisions)은 없앴고 값이 있었으면 기록에 '예전 숫자 칸' 한 줄
+  - 저장 이름은 projects.v1 그대로(홈 아이콘이 읽음). normalize()가 어떤 모양이 와도 v2로 맞추고 updated는 건드리지 않는다. 처음 옮길 때 projects.v1.bak에 원본
+  - 새 프로젝트는 종류별 기본 단계(TPL)와 코드 접두어(RPT·SCH·ACA·EXP·CODE·PER). 자료 칸은 DOI·PMID만 넣어도 링크로. '논문 리더용으로 복사' = Paper-reader profile/my-projects.md 형식
+  - 서버 프로젝트 한도 200KB(src/projects.js MAX_BYTES). 자동 기록은 100줄까지
 - 장부 동기화(2026-11-10): 이 기기 저장(projects.v1)이 먼저, 고치면 1.5초 뒤 /api/projects/sync. 예시 프로젝트는 demo: true 라 올리지 않고 진짜 프로젝트가 생기면 사라짐. 지운 것은 projects.gone, 마감(due)은 일정에 id prj-<id> 마감으로 올림(dueSynced로 한 번만), 일정에서 지울 것은 projects.evdel
 - 백업: 장부·수업 녹음 화면의 내보내기/가져오기(.json)
 - 토큰 이름은 API_TOKEN 하나(keys.html·gen-keys도 이 이름). 주소·토큰은 일정 앱 설정의 sab.base·sab.token을 홈·장부가 같이 읽는다
