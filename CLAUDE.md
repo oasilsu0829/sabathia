@@ -6,7 +6,7 @@
 - 2026-11-07 사용자 결정: UI를 장부 시안 스타일(옅은 회색 바탕, 흰 둥근 카드, 옅은 그림자, Inter, 파랑 #004ac6)로 전면 교체. `public/theme.css`가 모든 페이지 <head> 끝에서 v1.0 변수를 덮어쓴다. 새 화면은 theme.css 기준. v1.0 문서의 색·글꼴·선·모서리 규칙은 theme.css가 우선
 - 루트 `/` = Sabathia 홈. 예전 CMD 자비스 화면(리마인더 UI·배경화면)은 지웠다. 폰 앱 실행(런처)은 홈의 "폰 앱" 시트로
 - 홈 배치(사용자가 시안에서 고름): 가로 화면 = C(하루 줄 3칸), 폰 = P5(시계 먼저 + 하루 띠), 패드 세로 = P6. 독(작업표시줄)은 어느 쪽에도 두지 않음
-- 앱: 15577 `/plan/`, 어원 단어 `/vocab/`, 일정 `/schedule/`, 사진 PDF `/pdf/`, 수업 녹음 `/lecture/`, 장부 `/projects/`, 집중 `/focus/`. 원본 저장소(Block-planner, llm-wiki-private)의 사본이고 이제 이쪽이 기준
+- 앱: 15577 `/plan/`, 어원 단어 `/vocab/`, 일정 `/schedule/`, 사진 PDF `/pdf/`, 수업 녹음 `/lecture/`, 장부 `/projects/`, 집중 `/focus/`, 시험대비 `/exam/`. 원본 저장소(Block-planner, llm-wiki-private)의 사본이고 이제 이쪽이 기준
 - FFF 대시보드·주간 루틴은 쓰지 않음(사용자 결정). 할 일·일정은 Sabathia 일정(D1)으로
 - 새 앱 추가: `public/<폴더>/index.html` + `public/apps.js`에 한 항목. 앱 페이지는 `/sabathia.js`를 불러오고 맨 위에 `SABATHIA` 줄을 둔다
 
@@ -65,6 +65,13 @@ public/focus/       집중 타이머 Aero Focus (FOC-07). 파일 하나. theme.c
                     - 특별한 날(SDAYS 14개: 새해·설날·밸런타인·삼일절·어린이날·부처님오신날·현충일·광복절·추석·개천절·한글날·핼러윈·크리스마스·12/31). 음력 날짜는 LUNAR에 2026~2028만 적어 둠(이후 해는 추가 필요)
                     - 겨울(12~2월)엔 아델리펭귄 6~10마리가 바다에서 떼로 와서 배로 미끄러지며 돌아다니다 돌아감. 미리보기: 주소 끝 #day=xmas 같은 id, #day=winter, 키 H
                     - 원본은 claude.ai 아티팩트 https://claude.ai/artifact/QBbYAhP3pPsQuKkWmy7dsz (날씨 없는 이전 판). 이제 이쪽이 기준
+public/exam/        시험대비 (EXM-08, 2026-11-10). 2026 1학년 2학기 기말(12/10 시작) 계획을 주차별 Todo로 수행 + 한눈에 보기
+                    - 계획 자체(주차 WEEKS, 과목 SUBJ, 기본 할 일 seeds(), 원칙·목표)는 index.html 위쪽 상수에 적혀 있다. 다음 시험 때는 이 상수를 바꾼다
+                    - 주차: 1주 11/10~13, 2주 11/14~22, 3주 11/23~29, 4주 11/30~12/6, 마무리 12/7~9 (마감선 11/29·12/6이 주 끝에 오게 Claude가 나눔). apps.js exam()에도 같은 날짜
+                    - 탭: 계획(요약 3칸 · 날짜 띠 · 과목×주차 표 · 그 주 할 일 · 마감선 · 한 번만) / 오답(당일·3일·7일 재풀이, 실수 유형 집계) / 과목(목표·전략·시험 날짜·범위·서술형 배점)
+                    - 저장 localStorage exam.v1 = { items, wrongs, subj } (항목마다 u, 지운 것은 del). 기본 할 일은 id 고정 + u: 0
+                    - 동기화 /api/exam/sync (src/exam.js, D1 settings k='exam' 한 줄). 합치기 public/exam/merge.js를 화면·서버가 같이 씀(test/exam.mjs)
+                    - 18:30~19:30에 열면 '고비 시간' 띠(light 표시된 할 일 + 오답 확인)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
@@ -103,6 +110,7 @@ test/               notify.mjs(알림 고르기), merge.mjs(장부 합치기), e
 - 런처 APK는 뒤로가기 때 window.onJarvisBack 만 부른다(WebView history 안 씀). 앱 페이지는 Sabathia.back 으로 시트를 닫고, 없으면 홈으로 간다
 
 ## 다음 기능 (예정)
+- 시험대비: 시안 없이 바로 만들었다. 써 보고 바꿀 곳을 물을 것. 안 한 것 — 백지테스트·마감선·시험 날짜를 일정(알림)에 올리기, 홈 '오늘 하루'에 이번 주 할 일 띄우기, 수요일 10시가 오전인지 밤인지 미확인
 - 장부 3단계(계획서): 주간 돌아보기, 날짜 축 보기, OpenClaw로 단계 추가·수업 노트 과제 보내기. 1·2단계를 2주쯤 써 본 뒤 고르기로 함
 - 장부 상세 화면은 시안 없이 바로 만들었다(사용자가 '코딩 시작'). 써 보고 바꿀 곳을 물을 것
 - 15577 블록 시작 알림(블록은 Firestore·기기에 있어 서버 cron이 모름. 하려면 15577이 오늘 블록을 서버에 올려야 함)
