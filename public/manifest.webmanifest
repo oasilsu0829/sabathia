@@ -1,15 +1,64 @@
 {
   "name": "Sabathia",
   "short_name": "Sabathia",
-  "description": "15577, 어원 단어, 일정, 사진 PDF를 한곳에 모은 학습앱",
+  "description": "15577, 어원 단어, 일정, 사진 PDF, 수업 녹음, 장부, 집중 타이머를 한곳에 모은 학습앱",
   "lang": "ko",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
+  "shortcuts": [
+    {
+      "name": "15577",
+      "short_name": "15577",
+      "url": "/plan/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "일정",
+      "short_name": "일정",
+      "url": "/schedule/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "집중 타이머",
+      "short_name": "집중",
+      "url": "/focus/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "어원 단어",
+      "short_name": "단어",
+      "url": "/vocab/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
