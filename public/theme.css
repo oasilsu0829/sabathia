@@ -1,9 +1,8 @@
 /* Sabathia 테마 v2 (2026-11-07, 장부 시안 스타일)
    모든 앱 페이지의 <head> 끝에서 불러 v1.0 변수를 덮어쓴다. 앱 CSS는 그대로 두고 여기서만 바꾼다.
    - 색: 옅은 회색 바탕 + 흰 카드, 파랑 #004ac6, 초록(진행) #00632b, 빨강 #ba1a1a
-   - 글꼴: Inter + Noto Sans KR (명조·Space Grotesk 대신)
+   - 글꼴: Inter + Noto Sans KR. 글꼴 CSS는 각 페이지 <head>의 <link>로 부른다(@import는 요청이 줄줄이 이어져 느림)
    - 모양: 둥근 모서리(카드 14, 버튼·입력 10), 옅은 그림자, 굵은 검정 선 대신 옅은 구분선 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
 
 :root, :root:not([data-theme="light"]), :root[data-theme="dark"], :root[data-theme="projector"] {
   --body-size: 16px; --tint: 30%;

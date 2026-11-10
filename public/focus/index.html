@@ -316,7 +316,7 @@ function renderCloud(cl,t){const g=cl.g,pal=CLC[cl.S.pal],C=[0,1,2,3].map(i=>{co
   g.fillStyle=C[1];g.fillRect(0,oy+cl.yb-sh*2,cl.c.width,sh);g.globalCompositeOperation='source-over'}
 function drawClouds(layer,t,dt){for(const cl of CL){if(cl.layer!==layer)continue;
   cl.pv=(cl.pv||0)*Math.exp(-dt*.7);cl.py=(cl.py||0)*Math.exp(-dt*.8);cl.x+=(cl.v*(RM?.35:1)*(.6+WS.wind/18)+clamp(cl.pv,-500,500))*dt;if(cl.x+cl.w/2<-W*.3)cl.x=W+cl.w/2;if(cl.x-cl.w/2>W+6){const n=makeCloud(layer,-cl.w/2-Math.random()*W*.25,Math.random);Object.assign(cl,n);renderCloud(cl,t)}
-  if((FR+cl.k)%6===0)renderCloud(cl,t);
+  if((FR+cl.k)%3===0)renderCloud(cl,t);
   const vis=clamp((.22+WS.cloud*.9-cl.rk)*5,0,1);if(vis<=0)continue;ctx.globalAlpha=cl.S.a*vis;ctx.drawImage(cl.c,Math.round(cl.x-cl.ox),Math.round(cl.y+(cl.py||0)-cl.oy));ctx.globalAlpha=1}}
 
 /* ================= SUN, SEA, SHORE, PALMS, GULLS ================= */
@@ -849,7 +849,7 @@ function drawFidget(t,dt,now){
     const fade=n.t>14?Math.max(0,1-(n.t-14)):1;if(fade<=0){IX.nuts.splice(i,1);continue}
     ctx.globalAlpha=fade*.25;ctx.fillStyle='#5a3d18';ctx.beginPath();ctx.ellipse(n.x,n.gy+n.r*.8,n.r*1.3*(1-Math.min(.5,(n.gy-n.y)/(60*G.s))),Math.max(1,n.r*.35),0,0,TAU);ctx.fill();
     ctx.globalAlpha=fade;ctx.fillStyle='#4a2c12';disc(ctx,n.x,n.y,n.r);ctx.fillStyle='#8a5c2c';disc(ctx,n.x-n.r*.35,n.y-n.r*.35,Math.max(1,n.r*.4));ctx.globalAlpha=1}
-  if(smx&&FR%90===0){smx.globalCompositeOperation='destination-out';smx.fillStyle='rgba(0,0,0,.05)';smx.fillRect(0,0,W,H);smx.globalCompositeOperation='source-over'}}
+  if(smx&&FR%45===0){smx.globalCompositeOperation='destination-out';smx.fillStyle='rgba(0,0,0,.05)';smx.fillRect(0,0,W,H);smx.globalCompositeOperation='source-over'}}
 
 /* ================= SCENE ================= */
 let GM=0,FR=0;
@@ -947,14 +947,16 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&T.run)wak
 new ResizeObserver(()=>{const r=cv.getBoundingClientRect();if(Math.abs(r.width-cssW)>.5||Math.abs(r.height-cssH)>.5)resize()}).observe(stage);
 
 let last=performance.now();
-function frame(now){const dt=Math.min(.1,Math.max(0,(now-last)/1000));last=now;FR++;const t=now/1000;
+// 30fps로 그린다(주사율 60~120Hz 화면에서도). 저해상도 픽셀 장면이라 차이가 거의 없고 배터리를 아낀다
+let lastTitle='';
+function frame(now){requestAnimationFrame(frame);if(now-last<31)return;
+  const dt=Math.min(.1,Math.max(0,(now-last)/1000));last=now;FR++;const t=now/1000;
   tickTimer();
   updTOD(dt);updWS(dt);
   if(FX.gl>0)FX.gl=Math.max(0,FX.gl-dt*3.6);
-  if(FR%3===0)AU.seaTick(t);
+  if(FR%2===0)AU.seaTick(t);
   drawScene(t,dt);present(now);updateUI();
-  document.title=T.run?clockStr()+' · Aero Focus':'Aero Focus';
-  requestAnimationFrame(frame)}
+  const ti=T.run?clockStr()+' · Aero Focus':'Aero Focus';if(ti!==lastTitle)document.title=lastTitle=ti}
 updSD();resize();syncUI();syncVol();updateUI();wxLabel();
 setInterval(()=>{const a=SD.day&&SD.day.id;updSD();if((SD.day&&SD.day.id)!==a){DECO.reset();wxLabel()}},30000);
 addEventListener('hashchange',()=>{const h=/[#&]day=([\w-]+)/.exec(location.hash);SD.ov=h?h[1]:null;updSD();DECO.reset();wxLabel()});

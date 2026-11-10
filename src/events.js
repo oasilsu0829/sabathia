@@ -1,6 +1,6 @@
 // 일정 API (/api/events) — OpenClaw 스킬과 /schedule/ 앱이 쓴다.
-// 저장: D1 events 테이블. 처음 요청 때 테이블이 없으면 만든다(대시보드에서 SQL을 따로 돌릴 필요 없음).
-// 인증: Worker에 API_TOKEN 비밀값이 있으면 Authorization: Bearer <토큰> 이 필요하다. 없으면 열려 있다.
+// 저장: D1 events 테이블. 테이블 준비와 토큰 확인은 src/index.js 가 /api/* 전체에 대해 먼저 한다.
+import { json, httpError, readBody } from './util.js';
 
 const KINDS = new Set(['event', 'task', 'deadline']);
 // 묶음: 보고서 제출 / 학교 수행 / 학원 수행 / none(묶지 않음). 빈 값이면 앱이 제목으로 짐작한다.
@@ -10,45 +10,8 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const ID_RE = /^[\w.-]{1,64}$/;
 const KEEP_DAYS = 180; // 이보다 오래된 일정은 추가할 때 정리
 
-const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
-  });
-
-let ready = null;
-function ensureTable(env) {
-  if (!ready) {
-    ready = env.DB.batch([
-      env.DB.prepare(`CREATE TABLE IF NOT EXISTS events (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        date TEXT NOT NULL,
-        time TEXT,
-        end_time TEXT,
-        kind TEXT NOT NULL DEFAULT 'event',
-        done INTEGER NOT NULL DEFAULT 0,
-        note TEXT NOT NULL DEFAULT '',
-        source TEXT NOT NULL DEFAULT '',
-        updated TEXT NOT NULL,
-        cat TEXT NOT NULL DEFAULT ''
-      )`),
-      env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_events_date ON events (date)'),
-    ])
-      // 예전에 만든 테이블에는 cat 열이 없다. 이미 있으면 duplicate column 오류가 나므로 무시한다.
-      .then(() => env.DB.prepare("ALTER TABLE events ADD COLUMN cat TEXT NOT NULL DEFAULT ''").run().catch((e) => {
-        if (!/duplicate column/i.test(String(e && e.message))) throw e;
-      }))
-      .catch((e) => { ready = null; throw e; });
-  }
-  return ready;
-}
-
 export async function eventsApi(req, env, path) {
-  const token = (env.API_TOKEN || "").trim();
-  if (token && !authorized(req, token)) return json({ error: '토큰이 맞지 않습니다' }, 401);
   try {
-    await ensureTable(env);
     return await route(req, env, path);
   } catch (err) {
     return json({ error: err.message || String(err) }, err.status || 400);
@@ -157,27 +120,4 @@ function fromRow(r) {
     id: r.id, title: r.title, date: r.date, time: r.time || null, end: r.end_time || null,
     kind: r.kind, cat: r.cat || '', done: !!r.done, note: r.note || '', source: r.source || '', updated: r.updated,
   };
-}
-
-async function readBody(req) {
-  try {
-    return await req.json();
-  } catch {
-    throw httpError(400, 'JSON 본문을 읽을 수 없습니다');
-  }
-}
-
-function authorized(req, token) {
-  const h = req.headers.get('Authorization') || '';
-  const given = h.startsWith('Bearer ') ? h.slice(7).trim() : '';
-  if (given.length !== token.length) return false;
-  let diff = 0;
-  for (let i = 0; i < token.length; i++) diff |= given.charCodeAt(i) ^ token.charCodeAt(i);
-  return diff === 0;
-}
-
-function httpError(status, message) {
-  const e = new Error(message);
-  e.status = status;
-  return e;
 }
