@@ -6,4 +6,4 @@ const pub = b64u(await c.subtle.exportKey('raw', kp.publicKey));
 const { kty, crv, x, y, d } = await c.subtle.exportKey('jwk', kp.privateKey);
 console.log('VAPID_PUBLIC=' + pub);
 console.log('VAPID_PRIVATE_JWK=' + JSON.stringify({ kty, crv, x, y, d }));
-console.log('APP_TOKEN=' + b64u(c.getRandomValues(new Uint8Array(24))));
+console.log('API_TOKEN=' + b64u(c.getRandomValues(new Uint8Array(24))));

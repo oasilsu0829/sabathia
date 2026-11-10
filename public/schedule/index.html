@@ -180,6 +180,24 @@ button { cursor: pointer; }
   background: var(--bg); font-size: 16px; line-height: 22px;
 }
 .field textarea { min-height: 88px; resize: vertical; }
+.field select { width: 100%; min-height: 44px; padding: 10px; font-size: 16px; line-height: 22px; color: inherit; }
+/* 알림 설정: 요일 고르기 · 반복 알림 줄 */
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.days label { position: relative; }
+.days input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.days input { width: 100%; height: 100%; min-height: 0; padding: 0; }
+.days i { display: block; min-height: 44px; line-height: 44px; text-align: center; font-style: normal; font-size: 14px; color: var(--muted); background: var(--soft); border-radius: var(--radius-sm); }
+.days input:checked + i { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.days input:focus-visible + i { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sub-title { margin: 24px 0 0; font-size: 15px; font-weight: 700; }
+.reps { list-style: none; margin: 4px 0 0; padding: 0; }
+.rep { display: flex; align-items: center; gap: 4px; min-height: 52px; border-bottom: 1px solid var(--hair); font-size: 14px; line-height: 20px; }
+.rep .r-main { flex: 1; min-width: 0; padding-block: 8px; }
+.rep .r-main b { font-family: var(--font-num); font-variant-numeric: tabular-nums; margin-right: 6px; }
+.rep .r-main small { display: block; font-size: 12px; color: var(--muted); }
+.rep.off .r-main { color: var(--muted); }
+.rep button { flex: none; min-height: 44px; padding: 0 10px; border: 0; background: none; font-size: 13px; font-weight: 700; color: var(--accent); }
+.rep button.del { color: var(--warn-text); }
 .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
 .seg { border: 0; padding: 0; margin: 0; min-width: 0; }
 .seg legend { padding: 0; margin-bottom: 6px; }
@@ -385,6 +403,9 @@ button { cursor: pointer; }
     sel: today(),
     month: today().slice(0, 7),
     openGroups: new Set(), // "더 보기"를 연 묶음
+    noti: null,     // 서버의 알림 설정 { settings, repeats, subs, ready }
+    notiErr: '',
+    push: 'check',  // 이 기기: check(확인 중) | unsupported | denied | off | on
   };
   const cfg = () => ({ base: (store.get('base', '') || location.origin).replace(/\/+$/, ''), token: store.get('token', '') });
 
@@ -733,6 +754,7 @@ button { cursor: pointer; }
           <div class="btns"><button class="btn" type="submit">저장하고 연결</button><button class="btn line" type="button" data-act="sync">지금 동기화</button></div>
         </form>
       </section>
+      <section class="sec" aria-labelledby="h-noti" id="noti-sec">${notiHTML()}</section>
       <section class="sec" aria-labelledby="h-theme">
         <div class="sec-head"><h2 class="sec-title" id="h-theme">화면</h2></div>
         <fieldset class="seg" style="margin-top:12px"><legend>모드</legend><div class="seg-opts">
@@ -750,6 +772,120 @@ button { cursor: pointer; }
           <div class="kv"><dt>넣는 방법</dt><dd>OpenClaw에 "내일 4시 반 동아리 회의 넣어줘"처럼 말하면 스킬이 이 앱에 추가합니다.</dd></div>
         </dl>
       </section>`;
+  }
+
+  /* ---------- 알림 (설정 화면) ----------
+     이 기기 구독(웹 푸시)은 기기마다 따로, 언제 보낼지는 서버에 저장해 모든 기기가 같이 쓴다.
+     런처 앱(WebView)은 웹 푸시가 안 되니 크롬에 설치한 Sabathia에서 켠다 */
+  const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+  const LEADS = [[null, '끔'], [0, '정각'], [5, '5분 전'], [10, '10분 전'], [30, '30분 전'], [60, '1시간 전']];
+  const daysText = (days) => days.length === 7 ? '매일'
+    : days.join('') === '12345' ? '평일'
+    : [...days].sort().join('') === '06' ? '주말'
+    : DAY_ORDER.filter((d) => days.includes(d)).map((d) => WD[d]).join(' ');
+  function notiHTML() {
+    const head = '<div class="sec-head"><h2 class="sec-title" id="h-noti">알림</h2></div>';
+    const dev = {
+      check: ['<span class="ex-chip">확인 중</span>', '이 기기의 알림 상태를 확인하고 있습니다.'],
+      unsupported: ['<span class="ex-chip">안 됨</span>', '이 화면에서는 알림을 켤 수 없습니다. 안드로이드는 크롬에 설치한 Sabathia에서, 아이패드는 홈 화면에 추가한 Sabathia에서 켜 주세요. 런처 앱 안에서는 알림이 오지 않습니다.'],
+      denied: ['<span class="err-chip">차단됨</span>', '이 기기에서 알림 권한이 막혀 있습니다. 브라우저의 사이트 설정에서 알림을 허용한 뒤 다시 열어 주세요.'],
+      off: ['<span class="ex-chip">꺼짐</span>', '이 기기는 알림을 받지 않습니다.'],
+      on: ['<span class="ok-chip">켜짐</span>', '이 기기로 알림이 옵니다.'],
+    }[S.push];
+    let h = `${head}<div class="notice">${dev[0]}<p>${dev[1]}${S.noti ? ` 알림 받는 기기 <span class="num">${S.noti.subs}</span>대.` : ''}</p></div>`;
+    if (S.push === 'off' || S.push === 'on') {
+      h += `<div class="btns" style="margin-top:12px">
+        ${S.push === 'on'
+          ? '<button class="btn line" type="button" data-act="push-test">테스트 알림 보내기</button><button class="btn line" type="button" data-act="push-off">이 기기 알림 끄기</button>'
+          : '<button class="btn" type="button" data-act="push-on">이 기기에서 알림 켜기</button>'}
+      </div>`;
+    }
+    if (!S.noti) {
+      return h + `<p class="hint" style="margin-top:12px">${S.notiErr ? esc(S.notiErr) : '알림 설정을 불러오는 중입니다.'}</p>`;
+    }
+    const n = S.noti.settings;
+    if (!S.noti.ready) h += '<p class="hint" style="margin-top:12px">서버에 푸시 키(VAPID_PUBLIC, VAPID_PRIVATE_JWK)가 없어 알림을 보낼 수 없습니다.</p>';
+    h += `<div class="form">
+        <label class="field"><span>시작 전 알림</span><select id="n-lead">${LEADS.map(([v, l]) => `<option value="${v === null ? '' : v}" ${n.lead === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <div class="field-row">
+          <label class="field"><span>아침 요약</span><input id="n-am" type="time" value="${esc(n.am)}"></label>
+          <label class="field"><span>전날 저녁 마감 알림</span><input id="n-pm" type="time" value="${esc(n.pm)}"></label>
+        </div>
+        <p class="hint">시작 전 알림은 시각을 넣은 일정·할 일·마감에 옵니다. 아침에는 오늘 할 것과 지연을, 저녁에는 내일 마감을 모아 알립니다. 시각을 지우면 그 알림은 보내지 않습니다. 이 설정은 모든 기기에 같이 적용됩니다.</p>
+      </div>
+      <h3 class="sub-title">반복 알림</h3>
+      ${S.noti.repeats.length ? `<ul class="reps">${S.noti.repeats.map((r) => `
+        <li class="rep${r.active ? '' : ' off'}">
+          <div class="r-main"><b>${esc(r.time)}</b>${esc(r.title)}<small>${daysText(r.days)}${r.active ? '' : ' · 꺼 둠'}</small></div>
+          <button type="button" data-act="rep-toggle" data-id="${r.id}">${r.active ? '끄기' : '켜기'}</button>
+          <button type="button" class="del" data-act="rep-del" data-id="${r.id}">삭제</button>
+        </li>`).join('')}</ul>` : '<p class="hint" style="margin-top:8px">정한 요일·시각마다 오는 알림입니다. 예: 매일 21:30 어원 단어.</p>'}
+      <form class="form" id="rep-form" autocomplete="off">
+        <div class="field-row">
+          <label class="field"><span>제목</span><input id="r-title" type="text" maxlength="100" placeholder="어원 단어"></label>
+          <label class="field"><span>시각</span><input id="r-time" type="time" value="21:30"></label>
+        </div>
+        <div class="field" role="group" aria-label="요일"><span>요일</span><div class="days">
+          ${DAY_ORDER.map((d) => `<label><input type="checkbox" name="r-day" value="${d}" checked><i>${WD[d]}</i></label>`).join('')}
+        </div></div>
+        <div class="btns"><button class="btn line" type="submit">반복 알림 추가</button></div>
+      </form>`;
+    return h;
+  }
+  // 알림 섹션만 다시 그린다. 그 안에서 입력 중이면 건드리지 않는다
+  function paintNoti(force) {
+    const sec = $('#noti-sec');
+    if (!sec) return;
+    if (!force && sec.contains(document.activeElement) && /^(INPUT|SELECT)$/.test(document.activeElement.tagName)) return;
+    sec.innerHTML = notiHTML();
+  }
+  const pushCapable = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const swReady = () => Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error('서비스 워커가 준비되지 않았습니다. 새로고침한 뒤 다시 해 주세요.')), 5000))]);
+  const keyBytes = (b64) => Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+  async function checkPush() {
+    if (!pushCapable) return (S.push = 'unsupported');
+    if (Notification.permission === 'denied') return (S.push = 'denied');
+    try {
+      const sub = await (await swReady()).pushManager.getSubscription();
+      S.push = sub ? 'on' : 'off';
+      // 서버가 구독을 잃었을 때(DB 초기화 등)를 대비해 하루에 한 번 다시 알려 둔다
+      if (sub && Date.now() - store.get('subAt', 0) > 864e5) {
+        api('/api/subscribe', { method: 'POST', body: JSON.stringify(sub.toJSON()) }).then(() => store.set('subAt', Date.now())).catch(() => {});
+      }
+    } catch { S.push = 'unsupported'; }
+    return S.push;
+  }
+  async function loadNoti() {
+    checkPush().then(() => paintNoti());
+    try { S.noti = await api('/api/notify'); S.notiErr = ''; }
+    catch (err) { S.noti = null; S.notiErr = `알림 설정을 불러오지 못했습니다. ${err.message}`; }
+    paintNoti();
+  }
+  async function pushOn() {
+    const { key } = await api('/api/vapid');
+    if (!key) throw new Error('서버에 푸시 키가 없습니다. /keys.html 에서 만든 값을 Worker 비밀값으로 넣어 주세요.');
+    if ((await Notification.requestPermission()) !== 'granted') { S.push = Notification.permission === 'denied' ? 'denied' : 'off'; paintNoti(true); throw new Error('알림 권한을 허용해야 켤 수 있습니다.'); }
+    const reg = await swReady();
+    let sub = await reg.pushManager.getSubscription();
+    // 서버 키가 바뀌었으면 예전 구독으로는 알림이 오지 않는다. 지우고 새로 구독한다
+    const had = sub && sub.options && sub.options.applicationServerKey;
+    if (had && String(new Uint8Array(had)) !== String(keyBytes(key))) { await sub.unsubscribe(); sub = null; }
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
+    await api('/api/subscribe', { method: 'POST', body: JSON.stringify(sub.toJSON()) });
+    store.set('subAt', Date.now());
+    S.push = 'on';
+  }
+  async function pushOff() {
+    const sub = await (await swReady()).pushManager.getSubscription();
+    if (sub) {
+      await api('/api/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+      await sub.unsubscribe();
+    }
+    S.push = 'off';
+  }
+  async function saveNoti(patch) {
+    const j = await api('/api/notify', { method: 'PUT', body: JSON.stringify(patch) });
+    if (S.noti) S.noti.settings = j.settings;
   }
 
   /* ---------- 시트: 추가 · 상세 ---------- */
@@ -900,7 +1036,7 @@ button { cursor: pointer; }
   const VIEWS = { home: renderHome, calendar: renderCalendar, agenda: renderAgenda, prefs: renderPrefs };
   function render() {
     const view = $('#view');
-    const keepFocus = document.activeElement && view.contains(document.activeElement) && document.activeElement.id;
+    const keepFocus = document.activeElement && view.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
     if (S.tab === 'prefs' && view.dataset.view === 'prefs' && keepFocus) {
       // 설정 입력 중에는 다시 그리지 않는다
       return;
@@ -918,6 +1054,7 @@ button { cursor: pointer; }
     if (location.hash !== '#' + tab) history.replaceState(null, '', '#' + tab);
     render();
     window.scrollTo(0, 0);
+    if (tab === 'prefs') loadNoti();
   }
 
   let toastTimer = 0, toastUndo = null;
@@ -1004,6 +1141,39 @@ button { cursor: pointer; }
         closeSheet(); toast('삭제했습니다');
       }
       else if (act === 'sync') { await load(); toast(S.mode === 'live' ? '동기화했습니다' : '동기화하지 못했습니다'); }
+      else if (act === 'push-on') {
+        el.disabled = true;
+        await pushOn();
+        paintNoti(true); toast('이 기기에서 알림을 켰습니다');
+        loadNoti();
+      }
+      else if (act === 'push-off') {
+        el.disabled = true;
+        await pushOff();
+        paintNoti(true); toast('이 기기 알림을 껐습니다');
+        loadNoti();
+      }
+      else if (act === 'push-test') {
+        el.disabled = true;
+        const j = await api('/api/test', { method: 'POST' });
+        el.disabled = false;
+        toast(j.sent ? `테스트 알림을 ${j.sent}대에 보냈습니다` : '보내지 못했습니다. 알림을 껐다 다시 켜 보세요');
+      }
+      else if (act === 'rep-toggle' || act === 'rep-del') {
+        const id = Number(el.dataset.id), r = S.noti && S.noti.repeats.find((x) => x.id === id);
+        if (!r) return;
+        el.disabled = true;
+        if (act === 'rep-del') {
+          await api('/api/repeats/' + id, { method: 'DELETE' });
+          S.noti.repeats = S.noti.repeats.filter((x) => x.id !== id);
+          toast('반복 알림을 지웠습니다');
+        } else {
+          const j = await api('/api/repeats/' + id, { method: 'PATCH', body: JSON.stringify({ active: !r.active }) });
+          Object.assign(r, j.repeat);
+          toast(r.active ? '반복 알림을 켰습니다' : '반복 알림을 껐습니다');
+        }
+        paintNoti(true);
+      }
       else if (act === 'copy') {
         const node = document.getElementById(el.dataset.target);
         try { await navigator.clipboard.writeText(node.textContent); toast('복사했습니다'); }
@@ -1018,6 +1188,11 @@ button { cursor: pointer; }
   document.addEventListener('change', (ev) => {
     if (ev.target.name === 'theme') { store.set('theme', ev.target.value); applyTheme(); }
     if (ev.target.name === 'a-cat') catTouched = true;
+    if (ev.target.id === 'n-lead' || ev.target.id === 'n-am' || ev.target.id === 'n-pm') {
+      const v = ev.target.value;
+      const patch = ev.target.id === 'n-lead' ? { lead: v === '' ? null : Number(v) } : { [ev.target.id.slice(2)]: v };
+      saveNoti(patch).then(() => toast('알림 설정을 저장했습니다')).catch((err) => { toast(err.message); paintNoti(true); });
+    }
     if (ev.target.name === 'd-cat') {
       const id = ev.target.closest('[data-cat-id]').dataset.catId;
       const cat = ev.target.value;
@@ -1046,6 +1221,21 @@ button { cursor: pointer; }
       $('#view').dataset.view = '';
       await load();
       toast(S.mode === 'live' ? '연결했습니다' : '연결하지 못했습니다');
+      loadNoti();
+    }
+    if (form.id === 'rep-form') {
+      const title = $('#r-title').value.trim(), time = $('#r-time').value;
+      const days = [...form.querySelectorAll('input[name="r-day"]:checked')].map((i) => Number(i.value));
+      const msg = !title ? '반복 알림의 제목을 적어 주세요.' : !time ? '시각을 골라 주세요.' : !days.length ? '요일을 하나 이상 골라 주세요.' : '';
+      if (msg) { toast(msg); return; }
+      const btn = form.querySelector('[type=submit]');
+      btn.disabled = true;
+      try {
+        const j = await api('/api/repeats', { method: 'POST', body: JSON.stringify({ title, time, days }) });
+        if (S.noti) { S.noti.repeats.push(j.repeat); S.noti.repeats.sort((a, b) => a.time.localeCompare(b.time) || a.id - b.id); }
+        document.activeElement && document.activeElement.blur();
+        paintNoti(true); toast('반복 알림을 추가했습니다');
+      } catch (e) { btn.disabled = false; toast(e.message); }
     }
     if (form.id === 'add-form') {
       const err = $('#a-err');
@@ -1077,6 +1267,7 @@ button { cursor: pointer; }
   if (cached) { S.events = cached.events; S.synced = new Date(cached.at); S.mode = 'live'; }
   render();
   load();
+  if (S.tab === 'prefs') loadNoti(); else checkPush();
 
   // 예전 /schedule/ 전용 서비스 워커를 정리한다. 이제 /sw.js 하나가 Sabathia 전체를 맡는다 (sabathia.js 가 등록)
   if ('serviceWorker' in navigator) {

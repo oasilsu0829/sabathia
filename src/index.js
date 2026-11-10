@@ -1,73 +1,28 @@
-import { sendPush } from './webpush.js';
 import { eventsApi } from './events.js';
-
-const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
-
-async function pushAll(env, data) {
-  const { results } = await env.DB.prepare('SELECT * FROM subscriptions').all();
-  let ok = 0;
-  for (const s of results) {
-    const status = await sendPush(s, data, env).catch(() => 0);
-    if (status === 404 || status === 410) await env.DB.prepare('DELETE FROM subscriptions WHERE endpoint = ?').bind(s.endpoint).run();
-    else if (status >= 200 && status < 300) ok++;
-  }
-  return ok;
-}
-
-async function api(req, env, path) {
-  // 인증 없음 (개인용). 주소를 아는 사람은 누구나 API를 쓸 수 있다
-  if (path === '/api/vapid') return json({ key: env.VAPID_PUBLIC });
-
-  const m = req.method;
-  if (path === '/api/subscribe' && m === 'POST') {
-    const sub = await req.json();
-    await env.DB.prepare('INSERT OR REPLACE INTO subscriptions (endpoint, p256dh, auth) VALUES (?, ?, ?)')
-      .bind(sub.endpoint, sub.keys.p256dh, sub.keys.auth).run();
-    return json({ ok: true });
-  }
-
-  if (path === '/api/test' && m === 'POST') {
-    const sent = await pushAll(env, { title: '자비스', body: '테스트 알림입니다.' });
-    return json({ sent });
-  }
-
-  if (path === '/api/reminders' && m === 'GET') {
-    const { results } = await env.DB.prepare('SELECT * FROM reminders WHERE sent = 0 ORDER BY at').all();
-    return json(results);
-  }
-
-  if (path === '/api/reminders' && m === 'POST') {
-    const { title, at } = await req.json();
-    if (!title || !at) return json({ error: 'title, at 필요' }, 400);
-    const r = await env.DB.prepare('INSERT INTO reminders (title, at) VALUES (?, ?) RETURNING *').bind(title, at).first();
-    return json(r, 201);
-  }
-
-  const del = path.match(/^\/api\/reminders\/(\d+)$/);
-  if (del && m === 'DELETE') {
-    await env.DB.prepare('DELETE FROM reminders WHERE id = ?').bind(del[1]).run();
-    return json({ ok: true });
-  }
-
-  return json({ error: 'not found' }, 404);
-}
+import { notifyApi, tick } from './notify.js';
+import { json, authorized, ensureTables } from './util.js';
 
 export default {
   async fetch(req, env) {
     const path = new URL(req.url).pathname;
+    if (!path.startsWith('/api/')) return env.ASSETS.fetch(req);
+
+    // 푸시 공개 키는 누구나 읽어도 된다(구독할 때 브라우저가 쓴다)
+    if (path === '/api/vapid') return json({ key: env.VAPID_PUBLIC || '' });
+
+    // 그 밖의 /api/* 는 Worker에 API_TOKEN 비밀값이 있으면 Bearer 토큰이 필요하다
+    if (!authorized(req, env)) return json({ error: '토큰이 맞지 않습니다' }, 401);
+    try {
+      await ensureTables(env);
+    } catch (err) {
+      return json({ error: err.message || String(err) }, 500);
+    }
     if (path === '/api/events' || path.startsWith('/api/events/')) return eventsApi(req, env, path);
-    if (path.startsWith('/api/')) return api(req, env, path);
-    return env.ASSETS.fetch(req);
+    return notifyApi(req, env, path);
   },
 
-  // 1분마다 실행: 시간이 된 리마인더를 푸시로 발송
+  // 1분마다 실행: 일정 시작 전 알림, 아침 요약, 전날 저녁 마감 알림, 반복 알림, 한 번짜리 리마인더
   async scheduled(_event, env) {
-    const now = new Date().toISOString();
-    const { results } = await env.DB.prepare('SELECT * FROM reminders WHERE sent = 0 AND at <= ?').bind(now).all();
-    for (const r of results) {
-      await pushAll(env, { title: '자비스', body: r.title });
-      await env.DB.prepare('UPDATE reminders SET sent = 1 WHERE id = ?').bind(r.id).run();
-    }
+    await tick(env);
   },
 };
