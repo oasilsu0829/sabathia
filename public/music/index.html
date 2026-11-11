@@ -969,6 +969,11 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     // 앞쪽 판들의 표지를 미리 받아 둔다(판을 갈 때 그림을 기다리지 않게)
     if (window.Deck3D && Deck3D.preload) A.slice(i0, i0 + 3).forEach((x) => Deck3D.preload(x.img));
     if (loggedIn()) A.slice(i0, i0 + 2).forEach((x) => fetchTracks(uriOf(x)).catch(() => {}));
+    // 지금 고른 판은 3D 새 판·슬리브까지 미리 만들어 둔다(누르는 순간 바로 모션)
+    if (a && window.Deck3D && Deck3D.prebuild) {
+      const k2 = uriOf(a), mk = () => Deck3D.prebuild({ ...a, tracks: gapsOf(tkDone.get(k2)) }, isPl(a) && !a.sealed);
+      clearTimeout(S.preT); S.preT = setTimeout(() => { mk(); if (loggedIn() && !tkDone.has(k2)) fetchTracks(k2).then(mk).catch(() => {}); }, 150);
+    }
     $('pickT').textContent = a ? a.name : c.name;
     $('pickA').textContent = a ? metaLine(a) + (a.p ? ` · ${a.p}번 들음` : '') : '앨범 0장';
     $('crateIdx').textContent = A.length ? `${i0 + 1}/${A.length}` : '0/0';
@@ -1122,9 +1127,10 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   }
   // 트랙 목록 캐시: 판 key → 곡 배열(Promise). 크레이트 앞쪽 판은 미리 받아 둔다(판 갈 때 무음 홈을 바로 그리게)
   const tkCache = new Map();
+  const tkDone = new Map(); // 다 받은 트랙 목록(바로 쓴다)
   function fetchTracks(key) {
     if (tkCache.has(key)) return tkCache.get(key);
-    const pr = fetchTracksNow(key).then((t) => { if (!t.length) tkCache.delete(key); return t; });
+    const pr = fetchTracksNow(key).then((t) => { if (!t.length) tkCache.delete(key); else tkDone.set(key, t); return t; });
     tkCache.set(key, pr); return pr;
   }
   const gapsOf = (t) => {
@@ -1450,9 +1456,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     const use3d = !!(window.Deck3D && Deck3D.ok);
     if (use3d) {
       // 트랙 목록이 이미 있으면 새 판에 무음 홈을 그려서 꺼낸다(없으면 받아지는 대로 다시 그림)
-      Deck3D.prepare && Deck3D.prepare();
-      const pr = fetchTracks(key); let done = null; pr.then((t) => { done = t; }).catch(() => {});
-      Promise.race([pr, new Promise((r) => setTimeout(r, 60))]).then(() => Deck3D.drop({ ...a, tracks: gapsOf(done) }, slam));
+      // 기다리지 않고 바로(트랙 목록을 이미 받아 뒀으면 무음 홈까지)
+      Deck3D.drop({ ...a, tracks: gapsOf(tkDone.get(key)) }, slam);
     }
     D.hidden = use3d; document.body.classList.add('changing');
     render();
