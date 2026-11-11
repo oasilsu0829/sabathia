@@ -171,7 +171,11 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .recs { position: absolute; inset: 0; perspective: 900px; perspective-origin: 50% -10%; }
 .lp { position: absolute; left: 19%; width: 62%; aspect-ratio: 1; bottom: 6%; transform-origin: 50% 100%; border-radius: 3px; background: #2b2b30 center/cover no-repeat; box-shadow: 0 -3px 10px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.14); transition: transform .5s cubic-bezier(.2,.8,.2,1), filter .5s, opacity .35s; will-change: transform; backface-visibility: hidden; }
 .lp::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; border-radius: 3px 3px 0 0; background: linear-gradient(90deg, rgba(255,255,255,.1), rgba(255,255,255,.45), rgba(255,255,255,.1)); }
-.lp::after { content: ''; position: absolute; inset: 7%; border-radius: 50%; border: 1px solid rgba(255,255,255,.13); box-shadow: 0 0 0 1px rgba(0,0,0,.05); pointer-events: none; }
+.lp::after { content: ''; position: absolute; inset: 7%; border-radius: 50%; border: calc(1px + var(--w, 0) * 3px) solid rgba(255,252,245, calc(.13 + var(--w, 0) * .4)); box-shadow: 0 0 0 1px rgba(0,0,0,.05); pointer-events: none; }
+/* 낡은 슬리브: 많이 들을수록(--w 0~1) 모서리가 하얗게 닳고 링 자국이 진해진다 */
+.lp:not(.cb):not(.note) { box-shadow: 0 -3px 10px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.14), inset 0 0 calc(var(--w, 0) * 18px) rgba(255,248,235, calc(var(--w, 0) * .55)); }
+.cb .cb-paper { background: linear-gradient(rgba(214,180,120, calc(var(--w, 0) * .22)), rgba(214,180,120, calc(var(--w, 0) * .22))), #fbfaf5; }
+.cb-stain { position: absolute !important; right: 14%; bottom: 12%; width: 30%; aspect-ratio: 1; border-radius: 50%; border: 2.2cqw solid rgba(120,72,30, calc((var(--w, 0) - .25) * .6)); background: rgba(120,72,30, calc((var(--w, 0) - .25) * .1)); transform: rotate(18deg); clip-path: polygon(0 0, 100% 0, 100% 85%, 60% 100%, 0 100%); pointer-events: none; }
 .lp .bk { display: none; }
 .lp.back { background: linear-gradient(135deg, #d8c8aa, #c8b58f 60%, #b9a47d) !important; box-shadow: 0 6px 14px rgba(0,0,0,.35); }
 .lp.back .bk { display: flex; position: absolute; inset: 0; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .2em; color: rgba(60,40,20,.55); }
@@ -234,6 +238,32 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 #findTabs { align-self: flex-start; max-width: 100%; overflow-x: auto; }
 .sfxrow { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; font-family: var(--sans) !important; font-size: 13px !important; letter-spacing: 0 !important; color: var(--ink-2) !important; min-height: 36px; }
 .sfxrow input { width: 18px; height: 18px; accent-color: var(--ink); }
+/* 밤 조명: 턴테이블 칸만 어둡게, 3D는 스트로브 등·판 위 조명만 남는다 */
+.deckp { transition: background .8s, border-color .8s; }
+body.night .deckp { background: radial-gradient(120% 90% at 45% 45%, #1c1d22, #0a0a0c 70%); border-color: #1d1e23; color: #e4e4e7; }
+body.night .deckp .strip { border-color: #24252b; }
+body.night .deckp .seg, body.night .deckp .readout, body.night .deckp .seek, body.night .deckp .go { background: #141519; border-color: #2a2b31; color: #e4e4e7; box-shadow: none; }
+body.night .deckp .seg button[aria-pressed="true"] { background: #2a2b31; color: #fff; }
+body.night .deckp .seg button { color: #9ca3af; }
+body.night .deckp .hint, body.night .deckp .go small, body.night .deckp .readout span:first-child { color: #8b8f98; }
+body.night .deckp .armtag { background: #141519; border-color: #2a2b31; color: #d4d4d8; }
+body.night .deckp input[type="range"]::-webkit-slider-runnable-track { background: linear-gradient(#e4e4e7, #e4e4e7) 0/var(--p, 0%) 100% no-repeat, #2a2b31; }
+/* 밀봉 신보: 위클리·데이리스트가 새로 나오면 크레이트 위에 비닐째 뜬다. 비닐을 손가락으로 그어 찢는다 */
+.seal { position: absolute; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; background: rgba(17,24,39,.55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); border-radius: 12px; }
+.seal-h { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .2em; color: #fff; display: flex; align-items: center; gap: 8px; }
+.seal-h .led { background: var(--red); box-shadow: 0 0 8px var(--red); animation: blink 1.2s infinite; }
+@keyframes blink { 50% { opacity: .3; } }
+.seal-card { position: relative; width: min(78%, 300px); aspect-ratio: 1; border-radius: 3px; box-shadow: 0 30px 50px -12px rgba(0,0,0,.6); touch-action: none; cursor: crosshair; user-select: none; }
+.seal-card.open { cursor: pointer; }
+.seal-art { position: absolute; inset: 0; border-radius: 3px; background: #222 center/cover no-repeat; overflow: hidden; }
+.seal-art::after { content: ''; position: absolute; inset: 7%; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); }
+.seal-film { position: absolute; inset: -3px; width: calc(100% + 6px); height: calc(100% + 6px); border-radius: 4px; pointer-events: none; }
+.seal-stk { position: absolute; right: 7%; top: 7%; z-index: 3; width: 22%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff5a4a, #d4001a 70%); color: #fff; display: grid; place-items: center; text-align: center; font-family: var(--mono); font-size: clamp(8px, 2.6vw, 11px); font-weight: 700; line-height: 1.1; box-shadow: 0 2px 6px rgba(0,0,0,.35); transform: rotate(12deg); pointer-events: none; }
+.seal-t { color: #fff; text-align: center; display: flex; flex-direction: column; gap: 3px; }
+.seal-t b { font-size: 16px; }
+.seal-t span { font-family: var(--mono); font-size: 10px; color: #d4d4d8; letter-spacing: .06em; }
+.seal-acts { display: flex; gap: 8px; }
+.seal-acts .btn { min-height: 40px; }
 .tk-none { padding: 14px 8px; font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: center; }
 
 /* LP 꺼내기: 슬리브가 들어오고, 판이 빠져나와 플래터에 앉는다(3초) */
@@ -392,12 +422,13 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 </header>
 
 <main>
-  <section class="panel" aria-label="턴테이블">
+  <section class="panel deckp" aria-label="턴테이블">
     <div class="strip">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="seg" role="group" aria-label="재생 방식">
           <button type="button" id="shufBtn" aria-pressed="false"><span class="led"></span>셔플</button>
           <button type="button" id="repBtn" aria-pressed="false"><span class="led"></span><span id="repTxt">반복</span></button>
+          <button type="button" id="nightBtn" aria-pressed="false" title="방 불 끄기(밤 9시~새벽 6시는 저절로)"><span class="led"></span>조명</button>
         </div>
         <span class="hint">SPOTIFY CONNECT</span>
       </div>
@@ -463,6 +494,16 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   </section>
 
   <section class="panel" aria-label="크레이트">
+    <div class="seal" id="seal" hidden>
+      <div class="seal-h"><span class="led"></span><span id="sealH">NEW ARRIVAL</span></div>
+      <div class="seal-card" id="sealCard" role="button" aria-label="비닐을 손가락으로 그어 뜯기">
+        <div class="seal-art" id="sealArt"></div>
+        <span class="seal-stk" id="sealStk">NEW</span>
+        <canvas class="seal-film" id="sealFilm"></canvas>
+      </div>
+      <div class="seal-t"><b id="sealT">-</b><span id="sealS">비닐을 손가락으로 죽 그어 뜯으세요</span></div>
+      <div class="seal-acts"><button class="btn dark" type="button" id="sealPlay" hidden><svg class="ico"><use href="#i-play"/></svg>판 꺼내기</button><button class="btn" type="button" id="sealLater">나중에</button></div>
+    </div>
     <div class="strip cstrip">
       <svg class="ico" aria-hidden="true"><use href="#i-crate"/></svg>
       <div class="crates" id="crates" role="group" aria-label="크레이트 고르기"></div>
@@ -540,6 +581,10 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     <p class="note" id="sdkNote"></p>
     <label class="sfxrow"><input type="checkbox" id="sfxOn"> 효과음 (크레이트 넘김 · 판 갈아 끼우기)</label>
     <p class="note" id="syncNote"></p>
+    <h3 style="margin:6px 0 0;font-size:14px">밀봉 신보</h3>
+    <p class="note" style="margin-top:-6px">Spotify 앱에서 위클리·데이리스트를 열고 공유 → 링크 복사 후 붙여넣기. 새로 나오는 날(위클리는 월요일, 데이리스트는 아침·오후·저녁·밤마다) 처음 열면 비닐에 싸인 판으로 뜹니다.</p>
+    <label>위클리 링크<input type="text" id="lkWeekly" autocomplete="off" spellcheck="false" placeholder="https://open.spotify.com/playlist/…"></label>
+    <label>데이리스트 링크<input type="text" id="lkDaylist" autocomplete="off" spellcheck="false" placeholder="https://open.spotify.com/playlist/…"></label>
     <p class="note">비밀번호는 Spotify 화면에서만 입력합니다. 이 앱은 Client ID와 로그인 토큰만 이 기기에 저장합니다. 브라우저 안에서 바로 재생하려면 Premium이 필요하고, 폰·아이패드 브라우저는 Spotify가 바로 재생을 막아 두어 그 기기의 Spotify 앱을 조작하는 방식으로 씁니다.</p>
   </div>
 </dialog>
@@ -789,7 +834,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   const isPl = (a) => a && a.k === 'pl';
   // 클립보드 그리기: 집게 · 종이(제목 · 만든 사람 · 곡 수 · 표지) · 곡 줄
   function fillClip(el, a) {
-    el.innerHTML = '<i class="cb-clip"></i><div class="cb-paper"><span class="cb-img"></span><b class="cb-t"></b><span class="cb-a"></span><span class="cb-lines"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>';
+    el.innerHTML = '<i class="cb-clip"></i><div class="cb-paper"><span class="cb-img"></span><b class="cb-t"></b><span class="cb-a"></span><span class="cb-lines"><i></i><i></i><i></i><i></i><i></i><i></i></span><i class="cb-stain"></i></div>';
     el.querySelector('.cb-t').textContent = a.name || '플레이리스트';
     el.querySelector('.cb-a').textContent = [a.artist, a.n ? a.n + '곡' : ''].filter(Boolean).join(' · ') || 'PLAYLIST';
     el.querySelector('.cb-img').style.backgroundImage = bg(a.img);
@@ -855,7 +900,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     e.style.transform = d < 0 ? `translateY(${4 - d * 3}%) rotateX(-74deg)`
       : d === 0 ? 'translateY(var(--lift, 0%)) rotateX(-3deg)'
       : `translateY(${-d * 7}%) scale(${(1 - d * 0.035).toFixed(3)}) rotateX(${5 + d}deg)`;
-    e.style.filter = d > 0 ? `brightness(${(1 - d * 0.12).toFixed(2)})` : '';
+    const w = +(e.style.getPropertyValue('--w') || 0);
+    e.style.filter = (d > 0 ? `brightness(${(1 - d * 0.12).toFixed(2)}) ` : '') + (w ? `saturate(${(1 - w * 0.35).toFixed(2)})` : '') || '';
     e.setAttribute('aria-hidden', String(d !== 0));
   }
   function renderCrate(reset) {
@@ -888,11 +934,12 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
         e.getBoundingClientRect();
       }
       place(e, d);
+      e.style.setProperty('--w', Math.min(1, (a.p || 0) / 20).toFixed(2));
     }
     for (const [k, e] of have) if (!want.has(k)) e.remove();
     const a = A[i0];
     $('pickT').textContent = a ? a.name : c.name;
-    $('pickA').textContent = a ? metaLine(a) : '앨범 0장';
+    $('pickA').textContent = a ? metaLine(a) + (a.p ? ` · ${a.p}번 들음` : '') : '앨범 0장';
     $('crateIdx').textContent = A.length ? `${i0 + 1}/${A.length}` : '0/0';
     $('prevLp').disabled = i0 <= 0; $('nextLp').disabled = i0 >= A.length - 1;
     $('playLp').disabled = $('pullLp').disabled = !a;
@@ -1058,7 +1105,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       try { const j = await api('/albums/' + id + '/tracks?limit=50'); t = (j && j.items) || []; } catch {}
     }
     if (S.tracksFor !== key) return;
-    S.tracks = t; renderTracks(true);
+    S.tracks = t; renderTracks(true); render();
   }
   async function refreshDevices() {
     if (!loggedIn()) return [];
@@ -1142,6 +1189,25 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       try { await api('/me/player/volume?volume_percent=' + v, { method: 'PUT' }); } catch (e) { fail(e); }
     }, 250);
   }
+  // 판 잡기(3D): 잡는 동안 스크래치 소리, 놓으면 잡은 시점 + 돌린 만큼으로 이동(잡고 있던 동안은 멈춘 셈)
+  let scr = null;
+  function onScratch(kind, a, b) {
+    const st = S.st, it = st && st.item;
+    if (kind === 'start') {
+      let pos = st ? st.progress_ms || 0 : 0; if (st && st.is_playing) pos += Date.now() - st.at;
+      scr = { pos, it }; sfx.scratch('start'); return;
+    }
+    if (kind === 'move') { sfx.scratch('move', a); return; }
+    if (kind === 'end') {
+      sfx.scratch('end');
+      const s0 = scr; scr = null;
+      if (!s0 || !s0.it || !it || it.id !== s0.it.id) return;
+      if (b < 0.35 && Math.abs(a) < 0.3) return; // 살짝 건드린 건 무시
+      const ms = Math.max(0, Math.min(it.duration_ms - 1500, Math.round(s0.pos + a * 1000)));
+      S.st.progress_ms = ms; S.st.at = Date.now(); tick();
+      api('/me/player/seek?position_ms=' + ms, { method: 'PUT' }).catch(fail).then(() => schedulePoll(600));
+    }
+  }
   async function seekTo(frac) {
     const it = S.st && S.st.item; if (!it) return;
     const ms = Math.round(frac * it.duration_ms);
@@ -1224,6 +1290,34 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       },
       // 슬리브를 휙 찢듯 빼냄
       rip(d) { if (get()) noise(at(d), 0.14, { f: 1500, f2: 6000, q: 0.6, g: 0.3, a: 0.01 }); },
+      // 비닐 바스락
+      crinkle() { if (!get()) return; const t = at(); for (let i = 0; i < 3; i++) noise(t + Math.random() * 0.04, 0.02 + Math.random() * 0.03, { type: 'highpass', f: 3000 + Math.random() * 4000, g: 0.05 + Math.random() * 0.08, a: 0.001 }); },
+      // 스크래치: 판을 잡고 있는 동안 계속 나는 소리. v = 돌리는 속도(1 = 정상, 음수 = 거꾸로)
+      scratch(kind, v) {
+        if (kind === 'start') {
+          if (!get()) return;
+          const c = ctx, s = c.createBufferSource(); s.buffer = nb; s.loop = true;
+          const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2.5; f.frequency.value = 500;
+          const g = c.createGain(); g.gain.value = 0.0001;
+          const hum = c.createOscillator(); hum.type = 'sawtooth'; hum.frequency.value = 90; const hg = c.createGain(); hg.gain.value = 0.0001;
+          s.connect(f); f.connect(g); g.connect(out); hum.connect(hg); hg.connect(out); s.start(); hum.start();
+          this._s = { s, f, g, hum, hg };
+          noise(at(), 0.03, { type: 'lowpass', f: 600, g: 0.25 }); // 손이 판에 닿는 소리
+          return;
+        }
+        const X = this._s; if (!X) return;
+        const t = ctx.currentTime;
+        if (kind === 'move') {
+          const a = Math.min(4, Math.abs(v || 0));
+          X.f.frequency.setTargetAtTime(350 + a * 1500 * (v < 0 ? 0.8 : 1), t, 0.02);
+          X.s.playbackRate.setTargetAtTime(0.4 + a * 0.6, t, 0.02);
+          X.g.gain.setTargetAtTime(Math.min(0.55, a * 0.22), t, 0.02);
+          X.hum.frequency.setTargetAtTime(60 + a * 260, t, 0.02);
+          X.hg.gain.setTargetAtTime(Math.min(0.06, a * 0.025), t, 0.02);
+          return;
+        }
+        if (kind === 'end') { X.g.gain.setTargetAtTime(0.0001, t, 0.04); X.hg.gain.setTargetAtTime(0.0001, t, 0.04); X.s.stop(t + 0.3); X.hum.stop(t + 0.3); this._s = null; }
+      },
     };
   })();
 
@@ -1231,12 +1325,23 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   let dropAnims = [], dropT = [];
   function stopDrop() { dropAnims.forEach((x) => x.cancel()); dropAnims = []; dropT.forEach(clearTimeout); dropT = []; }
   function cancelDrop() { stopDrop(); document.body.classList.remove('changing', 'handoff'); $('drop').hidden = true; S.pending = null; S.animFor = ''; render(); }
+  // 들은 횟수(p): 판을 갈아 끼울 때마다 그 판이 꽂힌 크레이트 항목에 +1(기기 사이에도 맞춰짐). 많이 들을수록 슬리브가 낡는다
+  function bumpPlays(key) {
+    let n = 0;
+    for (const c of live()) {
+      const e = c.albums.find((x) => uriOf(x) === key);
+      if (e) { e.p = (e.p || 0) + 1; n = e.p; touch(c); }
+    }
+    if (n) { renderCrate(); }
+    return n;
+  }
   function dropLP(a) {
     const key = uriOf(a);
+    const n = bumpPlays(key); if (n) a = { ...a, p: n };
     S.pending = { ...a, key, at: Date.now() }; S.animFor = key; S.lastKey = key;
     stopDrop();
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { render(); return; }
-    const slam = isPl(a);
+    const slam = isPl(a) && !a.sealed; // 밀봉 신보는 플레이리스트여도 판(슬리브) 모션
     const D = $('drop'), sl = $('dSleeve'), di = $('dDisc');
     // 3D 턴테이블이 떠 있으면 판 갈기는 3D가 하고(소리·흔들림 시각은 같다), 아니면 예전 CSS 모션
     const use3d = !!(window.Deck3D && Deck3D.ok);
@@ -1371,7 +1476,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     $('labA').textContent = L ? L.artist : (loggedIn() ? '크레이트에서 고르세요' : '설정에서 로그인');
     $('label').classList.toggle('art', !!(L && L.img));
     $('label').style.backgroundImage = bg(L && L.img);
-    if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img } : null);
+    if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img, tracks: key && S.tracksFor === key ? trackGaps() : null } : null);
     $('topLed').classList.toggle('on', on);
     $('topState').textContent = !loggedIn() ? 'OFFLINE' : on ? 'PLAYING' : it ? 'PAUSED' : 'STANDBY';
     $('goLed').classList.toggle('on', on);
@@ -1403,6 +1508,26 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       Sabathia.report('music', { title: it ? it.name : '', artist: it ? artists(it) : '', album: alb ? alb.name : '', playing: on });
     }
   }
+  // 앨범(플레이리스트) 전체에서 지금 어디쯤인지 0~1. 바늘이 판 바깥에서 안쪽으로 앨범 길이만큼 들어간다
+  function trackIndex(it) {
+    if (!it || !S.tracks || !S.tracks.length) return -1;
+    return S.tracks.findIndex((t) => t.id === it.id || (t.linked_from && t.linked_from.id === it.id) || (!t._no && t.name === it.name && t.track_number === it.track_number));
+  }
+  function albumProgress(it, pos, dur) {
+    const i = trackIndex(it);
+    if (i < 0) return dur ? pos / dur : 0;
+    let before = 0, total = 0;
+    S.tracks.forEach((t, k) => { total += t.duration_ms || 0; if (k < i) before += t.duration_ms || 0; });
+    return total ? (before + pos) / total : 0;
+  }
+  // 곡 사이 무음 홈 자리(누적 비율, 처음·끝 빼고)
+  function trackGaps() {
+    if (!S.tracks || S.tracks.length < 2) return null;
+    const total = S.tracks.reduce((x, t) => x + (t.duration_ms || 0), 0); if (!total) return null;
+    let acc = 0; const out = [];
+    for (let k = 0; k < S.tracks.length - 1; k++) { acc += S.tracks[k].duration_ms || 0; out.push(acc / total); }
+    return out;
+  }
   function tick() {
     const st = S.st, it = st && st.item;
     const dur = it ? it.duration_ms : 0;
@@ -1411,7 +1536,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     pos = Math.min(pos, dur);
     if (st && st.is_playing && dur && pos >= dur) schedulePoll(400);
     $('tDur').textContent = mmss(dur);
-    if (window.Deck3D && Deck3D.ok) Deck3D.setPlaying(!!(st && st.is_playing), dur ? pos / dur : 0);
+    if (window.Deck3D && Deck3D.ok) Deck3D.setPlaying(!!(st && st.is_playing), albumProgress(it, pos, dur));
     if (!S.seeking) {
       $('tCur').textContent = mmss(pos);
       $('seek').value = dur ? Math.round(pos / dur * 1000) : 0;
@@ -1489,6 +1614,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (!$('dlg').open) $('dlg').showModal();
   }
   Sabathia.back = () => {
+    if (!$('seal').hidden) { S.sealLater = true; closeSeal(); return true; }
     for (const id of ['cdlg', 'find', 'dlg']) if ($(id).open) { $(id).close(); return true; }
     if (!$('devs').hidden) { $('devs').hidden = true; return true; }
     return false;
@@ -1579,7 +1705,154 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (Date.now() - lastSync > 30000) sync();
   });
   addEventListener('online', sync);
+  // 조명: 저장값(켬/끔)이 없으면 밤 9시~새벽 6시에 저절로 켠다. 버튼을 누르면 그 값으로 고정
+  function nightOn() { const v = LS.get('music.night'); if (v === true || v === false) return v; const h = new Date().getHours(); return h >= 21 || h < 6; }
+  function applyNight() {
+    const on = nightOn();
+    document.body.classList.toggle('night', on);
+    $('nightBtn').setAttribute('aria-pressed', String(on));
+    if (window.Deck3D && Deck3D.ok) Deck3D.setNight(on);
+  }
+  $('nightBtn').addEventListener('click', () => { LS.set('music.night', !nightOn()); applyNight(); sfx.flip(); });
+  setInterval(applyNight, 60000);
+  // 3D가 뜨면 조명·판 잡기를 연결
+  (function hook3d() {
+    if (window.Deck3D && Deck3D.ok) { Deck3D.onScratch = onScratch; applyNight(); render(); return; }
+    setTimeout(hook3d, 400);
+  })();
+  applyNight();
   setInterval(() => { if (playing() && document.visibilityState === 'visible') tick(); }, 500);
+
+  // ---------- 밀봉 신보 (위클리 · 데이리스트) ----------
+  // 링크는 설정 창에서 붙여넣는다(music.special). 나온 회차 키가 지난번에 뜯은 키(music.opened)와 다르면 비닐째 띄운다
+  const SPECIAL = {
+    weekly: { name: '위클리', sub: () => { const m = mondayOf(new Date()); const e = new Date(m); e.setDate(e.getDate() + 6); return `${fmtMD(m)} — ${fmtMD(e)}`; }, key: () => ymdOf(mondayOf(new Date())), colors: ['#1e3a8a', '#0f766e', '#a3e635'] },
+    daylist: { name: '데이리스트', sub: () => slotOf(new Date()).name, key: () => ymdOf(new Date()) + '-' + slotOf(new Date()).id, colors: null },
+  };
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const ymdOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const fmtMD = (d) => `${d.getMonth() + 1}.${d.getDate()}`;
+  function mondayOf(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+  function slotOf(d) {
+    const h = d.getHours();
+    return h < 6 ? { id: 'night', name: '밤', colors: ['#0b1026', '#312e81', '#7c3aed'] } : h < 12 ? { id: 'am', name: '아침', colors: ['#fde68a', '#fb923c', '#f43f5e'] }
+      : h < 18 ? { id: 'pm', name: '오후', colors: ['#bae6fd', '#38bdf8', '#facc15'] } : { id: 'eve', name: '저녁', colors: ['#f472b6', '#7c3aed', '#1e1b4b'] };
+  }
+  const plId = (v) => { const m = String(v || '').match(/playlist[/:]([A-Za-z0-9]{22})/) || String(v || '').trim().match(/^([A-Za-z0-9]{22})$/); return m ? m[1] : ''; };
+  // 슬리브 그림: 플레이리스트 표지를 못 읽으면(Spotify가 자동 플레이리스트를 막아 둔 경우) 이름·회차로 그린다
+  function sealArt(kind, title, sub) {
+    const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+    const col = SPECIAL[kind].colors || slotOf(new Date()).colors;
+    const gr = g.createLinearGradient(0, 0, 512, 512); col.forEach((x, i) => gr.addColorStop(i / (col.length - 1), x));
+    g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
+    g.globalAlpha = 0.18; for (let i = 0; i < 9; i++) { g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(256, 256, 60 + i * 24, 0, 7); g.stroke(); } g.globalAlpha = 1;
+    g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
+    g.font = '700 74px "Space Grotesk", "Noto Sans KR", sans-serif'; g.fillText(kind === 'weekly' ? 'WEEKLY' : 'DAYLIST', 34, 420);
+    g.font = '700 30px "Noto Sans KR", sans-serif'; g.fillText(title, 38, 462);
+    g.font = '600 22px "JetBrains Mono", monospace'; g.globalAlpha = 0.85; g.fillText(sub, 38, 494); g.globalAlpha = 1;
+    g.font = '700 18px "JetBrains Mono", monospace'; g.fillText('SABATHIA DIGS', 34, 50);
+    return c.toDataURL('image/jpeg', 0.86);
+  }
+  // 비닐: 반투명 광택 + 가장자리 주름. 찢은 자국은 그 위에 그린다
+  function drawFilm(cv, path) {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    const W = cv.width = Math.round(r.width * dpr), H = cv.height = Math.round(r.height * dpr);
+    const g = cv.getContext('2d');
+    g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(0, 0, W, H);
+    const sh = g.createLinearGradient(0, 0, W, H);
+    sh.addColorStop(0.15, 'rgba(255,255,255,0)'); sh.addColorStop(0.28, 'rgba(255,255,255,.32)'); sh.addColorStop(0.34, 'rgba(255,255,255,0)');
+    sh.addColorStop(0.6, 'rgba(255,255,255,0)'); sh.addColorStop(0.66, 'rgba(255,255,255,.16)'); sh.addColorStop(0.7, 'rgba(255,255,255,0)');
+    g.fillStyle = sh; g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.2 * dpr;
+    for (let i = 0; i < 14; i++) { const x = (i * 97) % W, y = (i * 53) % 18 * dpr; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 20 * dpr, y + 6 * dpr); g.stroke(); g.beginPath(); g.moveTo(W - y, x % H); g.lineTo(W - y - 6 * dpr, x % H + 22 * dpr); g.stroke(); }
+    g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2 * dpr; g.strokeRect(dpr, dpr, W - 2 * dpr, H - 2 * dpr);
+    if (path && path.length > 1) {
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 7 * dpr; g.beginPath(); path.forEach(([x, y], i) => (i ? g.lineTo(x * dpr, y * dpr + 2 * dpr) : g.moveTo(x * dpr, y * dpr + 2 * dpr))); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 3 * dpr; g.beginPath(); path.forEach(([x, y], i) => (i ? g.lineTo(x * dpr, y * dpr) : g.moveTo(x * dpr, y * dpr))); g.stroke();
+    }
+  }
+  let sealCur = null; // { kind, key, entry, path, open }
+  function pendingSeal() {
+    const sp = LS.get('music.special') || {}, op = LS.get('music.opened') || {};
+    for (const kind of ['weekly', 'daylist']) { const id = plId(sp[kind]); if (id && op[kind] !== SPECIAL[kind].key()) return { kind, id }; }
+    return null;
+  }
+  async function showSeal() {
+    if (sealCur || !loggedIn() || S.sealLater) return;
+    const pnd = pendingSeal(); if (!pnd) return;
+    const K = SPECIAL[pnd.kind], sub = K.sub();
+    let title = K.name, img = '';
+    try { const pl = await api('/playlists/' + pnd.id + '?fields=name,images'); if (pl) { title = pl.name || title; img = pickImg(pl.images, 300); } } catch {}
+    if (!img) img = sealArt(pnd.kind, title, sub);
+    const entry = { k: 'pl', id: pnd.id, name: title, artist: K.name + ' · ' + sub, img, sealed: true };
+    meta['spotify:playlist:' + pnd.id] = entry; // 판 라벨·트랙 머리에 이 이름·그림을 쓴다
+    sealCur = { kind: pnd.kind, key: K.key(), entry, path: [], open: false, span: [1e9, -1e9] };
+    $('sealH').textContent = pnd.kind === 'weekly' ? 'NEW ARRIVAL · 이번 주 위클리' : 'NEW ARRIVAL · ' + sub + ' 데이리스트';
+    $('sealT').textContent = title; $('sealS').textContent = '비닐을 손가락으로 죽 그어 뜯으세요';
+    $('sealStk').innerHTML = pnd.kind === 'weekly' ? 'NEW<br>WEEK' : 'NEW<br>' + sub;
+    $('sealArt').style.backgroundImage = bg(img);
+    $('sealPlay').hidden = true; $('sealCard').classList.remove('open');
+    const film = $('sealFilm'); film.style.cssText = ''; film.hidden = false;
+    $('seal').hidden = false;
+    requestAnimationFrame(() => drawFilm(film, []));
+  }
+  function peel() {
+    const C = sealCur; if (!C || C.open) return;
+    C.open = true;
+    const film = $('sealFilm');
+    const ys = C.path.map((p) => p[1]), ty = ys.reduce((a, b) => a + b, 0) / ys.length / film.getBoundingClientRect().height;
+    // 찢은 선 위·아래 두 조각이 떨어져 나간다
+    const top = film.cloneNode(), bot = film.cloneNode();
+    for (const [el, up] of [[top, true], [bot, false]]) {
+      el.removeAttribute('id'); el.getContext('2d').drawImage(film, 0, 0);
+      el.style.clipPath = up ? `polygon(0 0, 100% 0, 100% ${ty * 100}%, 0 ${ty * 100}%)` : `polygon(0 ${ty * 100}%, 100% ${ty * 100}%, 100% 100%, 0 100%)`;
+      film.parentNode.appendChild(el);
+      el.animate([{ transform: 'none', opacity: 1 }, { transform: up ? 'translate(-18%,-55%) rotate(-24deg)' : 'translate(22%,60%) rotate(18deg)', opacity: 0 }], { duration: 650, easing: 'cubic-bezier(.4,0,.8,.6)', fill: 'forwards' }).onfinish = () => el.remove();
+    }
+    film.hidden = true;
+    sfx.rip(0); sfx.slide(0.1, 0.35);
+    const op = LS.get('music.opened') || {}; op[C.kind] = C.key; LS.set('music.opened', op);
+    $('sealCard').classList.add('open'); $('sealPlay').hidden = false;
+    $('sealS').textContent = '슬리브를 누르면 판을 꺼내 올립니다';
+    $('sealStk').innerHTML = 'NEW';
+  }
+  function closeSeal() { $('seal').hidden = true; sealCur = null; }
+  function playSeal() { const C = sealCur; if (!C) return; closeSeal(); playAlbum(C.entry); setTimeout(showSeal, 4000); }
+  (function sealEvents() {
+    const card = $('sealCard');
+    let down = false, lastSnd = 0;
+    card.addEventListener('pointerdown', (e) => {
+      if (!sealCur) return;
+      if (sealCur.open) { playSeal(); return; }
+      down = true; card.setPointerCapture(e.pointerId);
+      const r = card.getBoundingClientRect(); sealCur.path = [[e.clientX - r.left, e.clientY - r.top]];
+      sfx.unlock();
+    });
+    card.addEventListener('pointermove', (e) => {
+      if (!down || !sealCur || sealCur.open) return;
+      const r = card.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      sealCur.path.push([x, y]); sealCur.span = [Math.min(sealCur.span[0], x), Math.max(sealCur.span[1], x)];
+      drawFilm($('sealFilm'), sealCur.path);
+      if (performance.now() - lastSnd > 45) { lastSnd = performance.now(); sfx.crinkle(); }
+      if (sealCur.span[1] - sealCur.span[0] > r.width * 0.7) { down = false; peel(); }
+    });
+    const up = () => { if (!down) return; down = false; if (sealCur && !sealCur.open) { sealCur.path = []; drawFilm($('sealFilm'), []); } };
+    card.addEventListener('pointerup', up); card.addEventListener('pointercancel', up);
+    $('sealPlay').addEventListener('click', playSeal);
+    $('sealLater').addEventListener('click', () => { S.sealLater = true; closeSeal(); });
+    // 설정: 링크 저장
+    for (const [id, kind] of [['lkWeekly', 'weekly'], ['lkDaylist', 'daylist']]) {
+      const inp = $(id); inp.value = (LS.get('music.special') || {})[kind] || '';
+      inp.addEventListener('change', () => {
+        const sp = LS.get('music.special') || {}; const v = inp.value.trim();
+        if (v && !plId(v)) { toast('플레이리스트 링크가 아닙니다'); return; }
+        sp[kind] = v; LS.set('music.special', sp); toast(v ? '저장했습니다. 다음 회차부터(지금 회차도) 비닐로 뜹니다' : '지웠습니다', 2500);
+        S.sealLater = false; setTimeout(showSeal, 300);
+      });
+    }
+    setInterval(showSeal, 60000);
+  })();
 
   // ---------- 시작 ----------
   (async () => {
@@ -1591,6 +1864,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (!loggedIn()) { if (!clientId()) openDlg(); return; }
     loadSdk();
     loadMe(); refreshDevices(); poll();
+    setTimeout(showSeal, 1200);
   })();
 })();
 </script>

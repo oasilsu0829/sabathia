@@ -18,11 +18,12 @@ const PLATE = 0.024;                                   // 본체 윗면 높이
 const PL_R = 0.645, PL_TOP = 0.066;                    // 플래터 반지름·윗면
 const MAT_R = 0.62, MAT_TOP = PL_TOP + 0.004;          // 고무 매트
 const REC_R = 0.6, REC_Y = MAT_TOP + 0.004;            // 판(12인치) 반지름·가운데 높이
-const YAW_PLAY = -0.355, YAW_END = -0.65;              // 톤암: 판 바깥 홈(반지름 0.56) ~ 안쪽(0.3)
 const LIFT_ON = 0, LIFT_UP = 0.05;                     // 톤암 들림(라디안): 판 위(바늘이 판에 닿음) · 옮길 때
 const ARM_H = 0.15;                                   // 톤암 관 높이(축 기준 세계 높이)
 const HEAD = new THREE.Vector3(-0.165, 0, 0.92);        // 축에서 바늘까지(톤암 관절 좌표)
 const RPS = 33.333 / 60;                               // 33⅓ rpm
+const GO_PX = 491, GI_PX = 222;                        // 판 그림(1024px)에서 소리 홈 바깥·안쪽 반지름
+const GO_R = REC_R * GO_PX / 512, GI_R = REC_R * GI_PX / 512;
 
 let renderer;
 try {
@@ -41,6 +42,11 @@ function start() {
   const scene = new THREE.Scene();
   scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
   const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(-1.5, 3, 1.5); scene.add(key);
+  // 밤 조명: 방 불을 끄고 스트로브 등 · 판 위 따뜻한 조명만(night 0→1로 서서히)
+  let night = 0, nightT = 0;
+  const spot = new THREE.SpotLight(0xffd8a8, 0, 3.2, 0.42, 0.65, 1.4); spot.position.set(-0.35, 1.9, 0.55);
+  spot.target.position.set(-0.18, 0, -0.035); scene.add(spot, spot.target);
+  const armLamp = new THREE.PointLight(0xfff1d6, 0, 0.45, 2); armLamp.position.set(0.5, 0.2, 0.42); scene.add(armLamp);
   const cam = new THREE.PerspectiveCamera(26, 1, 0.1, 50);
 
   const deck = new THREE.Group(); scene.add(deck);
@@ -65,8 +71,15 @@ function start() {
     const g = R.c.getContext('2d'), S = 1024, m = S / 2;
     g.clearRect(0, 0, S, S);
     g.fillStyle = '#0b0b0e'; g.beginPath(); g.arc(m, m, m, 0, 7); g.fill();
-    for (let r = 200; r < 505; r += 2.2) { g.strokeStyle = `rgba(255,255,255,${0.018 + (Math.sin(r * 0.37) + 1) * 0.012})`; g.lineWidth = 1; g.beginPath(); g.arc(m, m, r, 0, 7); g.stroke(); }
-    for (const rr of [300, 380, 450]) { g.strokeStyle = 'rgba(0,0,0,.8)'; g.lineWidth = 4; g.beginPath(); g.arc(m, m, rr, 0, 7); g.stroke(); }
+    // 소리 홈(GO_PX ~ GI_PX). 곡 사이 무음 홈은 실제 곡 길이 비율 자리에 매끈한 띠로
+    for (let r = GI_PX; r < GO_PX; r += 2.2) { g.strokeStyle = `rgba(255,255,255,${0.02 + (Math.sin(r * 0.37) + 1) * 0.013})`; g.lineWidth = 1; g.beginPath(); g.arc(m, m, r, 0, 7); g.stroke(); }
+    const gaps = (L && L.tracks) || [];
+    for (const f of gaps) {
+      const r = GO_PX - f * (GO_PX - GI_PX);
+      g.strokeStyle = '#050507'; g.lineWidth = 7; g.beginPath(); g.arc(m, m, r, 0, 7); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 2; g.beginPath(); g.arc(m, m, r + 1.5, 0, 7); g.stroke();
+    }
+    g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 8; g.beginPath(); g.arc(m, m, GO_PX + 7, 0, 7); g.stroke(); // 들어가는 홈
     const LR = 188;
     g.save(); g.beginPath(); g.arc(m, m, LR, 0, 7); g.clip();
     if (img) { g.drawImage(img, m - LR, m - LR, LR * 2, LR * 2); g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(0, 0, S, S); }
@@ -105,10 +118,27 @@ function start() {
   }
 
   // 슬리브(앨범 표지)와 클립보드(플레이리스트)
-  function coverMat(img) {
+  // 낡음 w(0~1, 많이 들을수록): 링 자국 진하게 · 모서리 하얗게 닳음 · 긁힘
+  function wearOn(g, W, H, w, seed) {
+    if (!w) return;
+    let x = seed || 7; const rnd = () => ((x = (x * 16807) % 2147483647) / 2147483647);
+    g.save();
+    g.strokeStyle = `rgba(255,252,245,${0.1 + w * 0.45})`; g.lineWidth = 3 + w * 9; g.beginPath(); g.arc(W / 2, H / 2, W * 0.43, 0, 7); g.stroke();
+    const eg = (x0, y0, x1, y1) => { const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, `rgba(255,250,240,${w * 0.7})`); gr.addColorStop(1, 'rgba(255,250,240,0)'); return gr; };
+    const e = 10 + w * 26;
+    g.fillStyle = eg(0, 0, e, 0); g.fillRect(0, 0, e, H); g.fillStyle = eg(W, 0, W - e, 0); g.fillRect(W - e, 0, e, H);
+    g.fillStyle = eg(0, 0, 0, e); g.fillRect(0, 0, W, e); g.fillStyle = eg(0, H, 0, H - e); g.fillRect(0, H - e, W, e);
+    g.strokeStyle = `rgba(255,255,255,${w * 0.35})`; g.lineWidth = 1.5;
+    for (let i = 0; i < w * 40; i++) { const a = rnd() * W, b = rnd() * H, l = 10 + rnd() * 50, t = rnd() * 6.28; g.beginPath(); g.moveTo(a, b); g.lineTo(a + Math.cos(t) * l, b + Math.sin(t) * l); g.stroke(); }
+    g.restore();
+  }
+  const wearOf = (a) => Math.min(1, ((a && a.p) || 0) / 20);
+  const seedOf = (a) => [...String((a && a.id) || 'x')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 2147483647, 7) || 7;
+  function coverMat(img, a) {
     const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
     g.fillStyle = '#2b2b30'; g.fillRect(0, 0, 512, 512); if (img) g.drawImage(img, 0, 0, 512, 512);
     g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 3; g.beginPath(); g.arc(256, 256, 220, 0, 7); g.stroke();
+    wearOn(g, 512, 512, wearOf(a), seedOf(a));
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     return new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 });
   }
@@ -126,6 +156,9 @@ function start() {
     g.fillStyle = '#b9c0cb'; [0.78, 0.62, 0.84, 0.55, 0.7, 0.48, 0.66].forEach((w, i) => g.fillRect(80, 232 + i * 34, 360 * w, 9));
     const cg = g.createLinearGradient(0, 0, 0, 64); cg.addColorStop(0, '#fafafa'); cg.addColorStop(0.5, '#a1a1aa'); cg.addColorStop(1, '#e4e4e7');
     g.fillStyle = cg; g.beginPath(); g.roundRect(170, 0, 172, 62, 14); g.fill();
+    // 많이 튼 플레이리스트: 커피 자국
+    const w = wearOf(a);
+    if (w > 0.25) { g.strokeStyle = `rgba(120,72,30,${0.15 + w * 0.3})`; g.lineWidth = 8; g.beginPath(); g.arc(360, 380, 62, 0.3, 5.9); g.stroke(); g.fillStyle = `rgba(120,72,30,${w * 0.08})`; g.beginPath(); g.arc(360, 380, 58, 0, 7); g.fill(); }
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     return new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 });
   }
@@ -161,7 +194,7 @@ function start() {
     lampBody.position.set(lampAt.x, PLATE + 0.025, lampAt.z); deck.add(lampBody);
     const lens = new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff3a2a, emissive: 0xff2010, emissiveIntensity: 1.6 }));
     lens.position.set(lampAt.x + 0.018, PLATE + 0.04, lampAt.z - 0.017); deck.add(lens);
-    const glow = new THREE.PointLight(0xff3020, 0.35, 0.5, 2); glow.position.set(lampAt.x + 0.03, PLATE + 0.05, lampAt.z - 0.03); deck.add(glow);
+    const glow = new THREE.PointLight(0xff3020, 0.35, 0.5, 2); glow.position.set(lampAt.x + 0.03, PLATE + 0.05, lampAt.z - 0.03); deck.add(glow); D._glow = glow;
     const lip = new THREE.Mesh(new THREE.TorusGeometry(PL_R - 0.003, 0.004, 8, 128), alu); lip.rotation.x = Math.PI / 2; lip.position.y = PL_TOP - 0.001; node.add(lip);
     const mat = new THREE.Mesh(new THREE.CylinderGeometry(MAT_R, MAT_R, 0.004, 128), new THREE.MeshStandardMaterial({ color: 0x1c1d21, roughness: 0.95 }));
     mat.position.y = PL_TOP + 0.002; node.add(mat);
@@ -220,6 +253,7 @@ function start() {
   let parts = null, record = null, label = null, labelKey = '';
   let playing = false, progress = 0, spin = 0, vel = 0, yaw = 0, lift = 0;
   let drop = null; // { t0, slam, sleeve, disc, done }
+  let grab = null;  // { phi, spin0, t, last, v } 판을 손으로 잡은 상태
   let shakeT = -1;
 
   new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(new URL('./deck.glb', import.meta.url).href, (g) => {
@@ -242,11 +276,20 @@ function start() {
   }, undefined, (e) => { D.ok = false; console.error('deck3d', e); });
 
   function applyLabel(target = record) {
-    const L = label, key = L ? [L.name, L.artist, L.img].join('|') : '';
+    const L = label, key = L ? [L.name, L.artist, L.img, (L.tracks || []).map((f) => f.toFixed(3)).join(',')].join('|') : '';
     if (target === record && key === labelKey) return;
     if (target === record) labelKey = key;
     drawRecord(target.userData.R, L, null);
     loadImg(L && L.img).then((img) => { if (img && (target !== record || labelKey === key)) drawRecord(target.userData.R, L, img); });
+  }
+
+  // 바늘 끝이 판 중심에서 반지름 r에 오는 톤암 각(이분법). 각이 작아질수록(음수 쪽) 안쪽으로 간다
+  function yawFor(r) {
+    const piv = parts.yaw.position;
+    const rad = (th) => { const c = Math.cos(th), s2 = Math.sin(th); const x = piv.x + HEAD.x * c + HEAD.z * s2, z = piv.z - HEAD.x * s2 + HEAD.z * c; return Math.hypot(x - PLATTER.x, z - PLATTER.z); };
+    let lo = -1.2, hi = 0;
+    for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (rad(mid) > r) hi = mid; else lo = mid; }
+    return (lo + hi) / 2;
   }
 
   function resize() {
@@ -263,6 +306,48 @@ function start() {
   }
   new ResizeObserver(resize).observe(host);
 
+  // 판 잡기: 판을 누르면 멈추고, 돌리는 만큼 판이 따라 돈다(스크래치 소리). 놓으면 모터가 다시 돌린다
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
+  function recordAngle(e) {
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, cam);
+    plane.constant = -(REC_Y + 0.004 + deck.position.y);
+    if (!ray.ray.intersectPlane(plane, hit)) return null;
+    const dx = hit.x - PLATTER.x, dz = hit.z - PLATTER.z, d = Math.hypot(dx, dz);
+    return { phi: Math.atan2(dz, dx), d };
+  }
+  const el = renderer.domElement;
+  el.style.touchAction = 'none';
+  el.addEventListener('pointerdown', (e) => {
+    if (!parts || drop || !record) return;
+    const a = recordAngle(e); if (!a || a.d > REC_R || a.d < 0.04) return;
+    e.preventDefault(); el.setPointerCapture(e.pointerId);
+    grab = { phi: a.phi, spin0: spin, t: performance.now(), last: performance.now(), v: 0 };
+    el.style.cursor = 'grabbing';
+    D.onScratch && D.onScratch('start');
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!grab) { const a = parts && recordAngle(e); el.style.cursor = a && a.d < REC_R && a.d > 0.04 && !drop ? 'grab' : ''; return; }
+    const a = recordAngle(e); if (!a) return;
+    let dphi = a.phi - grab.phi; if (dphi > Math.PI) dphi -= 2 * Math.PI; if (dphi < -Math.PI) dphi += 2 * Math.PI;
+    grab.phi = a.phi;
+    const now = performance.now(), dts = Math.max(0.008, (now - grab.last) / 1000); grab.last = now;
+    spin -= dphi; // 점의 각이 φ면 돌린 뒤 각은 φ - spin 쪽이라 반대로 더한다
+    grab.v = grab.v * 0.6 + (-dphi / dts) * 0.4;
+    D.onScratch && D.onScratch('move', grab.v / (RPS * Math.PI * 2)); // 1 = 정상 속도, 음수 = 거꾸로
+  });
+  const release = () => {
+    if (!grab) return;
+    // 앞으로 돈 각(시계 방향이 앞) → 초. 한 바퀴 = 1.8초(33⅓ rpm)
+    const sec = (-(spin - grab.spin0)) / (Math.PI * 2) * (60 / 33.333);
+    const held = (performance.now() - grab.t) / 1000;
+    vel = Math.max(0, grab.v * 0.5);
+    grab = null; el.style.cursor = '';
+    D.onScratch && D.onScratch('end', sec, held);
+  };
+  el.addEventListener('pointerup', release); el.addEventListener('pointercancel', release);
+
   const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
   const easeIn = (t) => t * t * t, easeOut = (t) => 1 - (1 - t) ** 3;
   const lerp = THREE.MathUtils.lerp, clamp01 = (t) => Math.min(1, Math.max(0, t));
@@ -274,11 +359,10 @@ function start() {
     const busy = !!drop;
     // 플래터: 재생 중이면 33⅓ rpm까지 0.8초에 올라가고, 멈추면 천천히 선다
     const target = playing && !busy ? RPS * Math.PI * 2 : 0;
-    vel += (target - vel) * Math.min(1, dt * (target ? 2.6 : 1.6));
-    spin -= vel * dt;
+    if (!grab) { vel += (target - vel) * Math.min(1, dt * (target ? 2.6 : 1.6)); spin -= vel * dt; }
     parts.platter.rotation.y = spin;
     // 톤암: 판을 가는 중엔 쉼 자리, 재생 중이면 곡 진행에 따라 안쪽으로. 움직이는 동안엔 들려 있다
-    const yawT = playing && !busy ? lerp(YAW_PLAY, YAW_END, clamp01(progress)) : 0;
+    const yawT = playing && !busy && !grab ? yawFor(GO_R - clamp01(progress) * (GO_R - GI_R)) : grab ? yaw : playing && !busy ? yaw : 0;
     const far = Math.abs(yawT - yaw) > 0.012;
     // 들림: 옮길 땐 LIFT_UP, 판 위에선 LIFT_ON(판 높이만큼), 쉴 땐 0
     const liftT = far ? LIFT_UP : yawT !== 0 ? LIFT_ON : 0;
@@ -287,6 +371,13 @@ function start() {
     parts.yaw.rotation.y = yaw;
     parts.lift.rotation.x = -lift;
     if (drop) stepDrop(now);
+    night += (nightT - night) * Math.min(1, dt * 2.2);
+    scene.environmentIntensity = lerp(1, 0.1, night);
+    key.intensity = lerp(1.1, 0.06, night);
+    spot.intensity = lerp(0, 3.2, night);
+    armLamp.intensity = lerp(0, 0.5, night);
+    if (D._glow) { D._glow.intensity = lerp(0.35, 1.6, night); D._glow.distance = lerp(0.5, 1.1, night); }
+    renderer.toneMappingExposure = lerp(1.05, 1.25, night);
     // 쾅 흔들림
     if (shakeT >= 0) {
       const t = (now - shakeT) / 380;
@@ -349,15 +440,17 @@ function start() {
     const disc = makeRecord();
     const L = { name: a.name, artist: a.artist, img: a.img };
     drawRecord(disc.userData.R, L, img); if (!img) loadImg(a.img).then((im) => im && drawRecord(disc.userData.R, L, im));
-    const sleeve = new THREE.Mesh(new THREE.BoxGeometry(slam ? 1.24 : 1.26, slam ? 1.3 : 1.26, slam ? 0.03 : 0.012), slam ? [side, side, side, side, clipMat(a, img), side] : [side, side, side, side, coverMat(img), side]);
+    const sleeve = new THREE.Mesh(new THREE.BoxGeometry(slam ? 1.24 : 1.26, slam ? 1.3 : 1.26, slam ? 0.03 : 0.012), slam ? [side, side, side, side, clipMat(a, img), side] : [side, side, side, side, coverMat(img, a), side]);
     scene.add(sleeve); scene.add(disc); sleeve.visible = false; disc.visible = false;
     // 옛 판: 플래터에서 떼어 장면에 두고 사라지게
     let old = null;
     if (record) { old = record; const wpos = new THREE.Vector3(); old.getWorldPosition(wpos); old.parent.remove(old); old.position.copy(wpos); scene.add(old); record = null; }
     label = L;
-    drop = { t0: performance.now(), slam: !!slam, sleeve, disc, old, handed: false, key: [L.name, L.artist, L.img].join('|') };
+    drop = { t0: performance.now(), slam: !!slam, sleeve, disc, old, handed: false, key: [L.name, L.artist, L.img, ''].join('|') };
   };
   D.setPlaying = (on, prog) => { playing = !!on; if (Number.isFinite(prog)) progress = prog; };
+  D.setNight = (on) => { nightT = on ? 1 : 0; };
+  D.grabbing = () => !!grab;
   D.setLabel = (L) => { label = L; if (!drop && record) applyLabel(); };
   D.shake = () => { shakeT = performance.now(); };
   D._dbg = () => ({ scene, parts, record, cam });
