@@ -410,28 +410,28 @@ function start() {
   const ctl = {};
   function buildControls() {
     // START/STOP: 크고 납작한 사각 버튼
-    const sb = new THREE.Group(); sb.position.set(-0.575, PLATE, 0.632); deck.add(sb);
-    const bez = new THREE.Mesh(new RoundedBoxGeometry(0.186, 0.008, 0.126, 2, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); bez.position.y = 0.004; sb.add(bez);
-    const well = new THREE.Mesh(new THREE.BoxGeometry(0.172, 0.01, 0.112), darkM); well.position.y = 0.005; sb.add(well);
+    const sb = new THREE.Group(); sb.position.set(-0.615, PLATE, 0.645); deck.add(sb);
+    const bez = new THREE.Mesh(new RoundedBoxGeometry(0.142, 0.006, 0.07, 2, 0.008), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); bez.position.y = 0.004; sb.add(bez);
+    const well = new THREE.Mesh(new THREE.BoxGeometry(0.132, 0.008, 0.06), darkM); well.position.y = 0.004; sb.add(well);
     // 전원 LED(재생 중 초록)
-    const pled = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 8), new THREE.MeshStandardMaterial({ color: 0x1b3a22, emissive: 0x33ff77, emissiveIntensity: 0 })); pled.position.set(-0.07, 0.008, -0.075); sb.add(pled); ctl.pled = pled;
-    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.02, 0.095), [satinM, satinM, new THREE.MeshStandardMaterial({ map: labelTex(['START·STOP'], 256, 128, 30), metalness: 0.4, roughness: 0.45 }), satinM, satinM, satinM]);
+    const pled = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 8), new THREE.MeshStandardMaterial({ color: 0x1b3a22, emissive: 0x33ff77, emissiveIntensity: 0 })); pled.position.set(-0.058, 0.006, -0.05); sb.add(pled); ctl.pled = pled;
+    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.014, 0.05), [satinM, satinM, new THREE.MeshStandardMaterial({ map: labelTex(['START·STOP'], 256, 108, 34), metalness: 0.4, roughness: 0.45 }), satinM, satinM, satinM]);
     btn.position.y = 0.012; btn.userData.act = 'start'; sb.add(btn); clickables.push(btn); ctl.start = btn;
     // 33 / 45: 둥근 버튼 + 불 들어오는 테
     ctl.speed = {};
-    for (const [k, x] of [['s33', -0.418], ['s45', -0.335]]) {
-      const g = new THREE.Group(); g.position.set(x, PLATE, 0.655); deck.add(g);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.004, 8, 32), new THREE.MeshStandardMaterial({ color: 0x3a3c42, emissive: 0xff5a2a, emissiveIntensity: 0 }));
+    for (const [k, x] of [['s33', -0.5], ['s45', -0.44]]) {
+      const g = new THREE.Group(); g.position.set(x, PLATE, 0.645); deck.add(g);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0245, 0.003, 8, 32), new THREE.MeshStandardMaterial({ color: 0x3a3c42, emissive: 0xff5a2a, emissiveIntensity: 0 }));
       ring.rotation.x = Math.PI / 2; ring.position.y = 0.004; g.add(ring);
-      const bz = new THREE.Mesh(new THREE.TorusGeometry(0.037, 0.0035, 10, 40), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); bz.rotation.x = Math.PI / 2; bz.position.y = 0.006; g.add(bz);
-      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.016, 32), [satinM, new THREE.MeshStandardMaterial({ map: labelTex([k === 's33' ? '33' : '45'], 128, 128, 56), metalness: 0.4, roughness: 0.45 }), satinM]);
-      b.position.y = 0.009; b.userData.act = k; g.add(b); clickables.push(b); ctl.speed[k] = { b, ring };
+      const bz = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.0028, 10, 40), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); bz.rotation.x = Math.PI / 2; bz.position.y = 0.006; g.add(bz);
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.014, 32), [satinM, new THREE.MeshStandardMaterial({ map: labelTex([k === 's33' ? '33' : '45'], 128, 128, 56), metalness: 0.4, roughness: 0.45 }), satinM]);
+      b.position.y = 0.008; b.userData.act = k; g.add(b); clickables.push(b); ctl.speed[k] = { b, ring };
     }
-    engrave('SPEED', -0.377, 0.7, 0.16, 30);
+    engrave('SPEED', -0.47, 0.6, 0.08, 34);
     // 전원 노브(왼쪽 앞 구석): 돌리는 손잡이 + 크롬 테 + ON/OFF 표시. 누르면 딸깍 돌아간다(장식)
     {
-      const pk = new THREE.Group(); pk.position.set(-0.775, PLATE, 0.628); deck.add(pk);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.047, 0.004, 10, 48), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.004; pk.add(ring);
+      const pk = new THREE.Group(); pk.position.set(-0.77, PLATE, 0.645); deck.add(pk);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.0028, 10, 48), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.004; pk.add(ring);
       const kc = document.createElement('canvas'); kc.width = kc.height = 256; const kg = kc.getContext('2d');
       const kgr = kg.createRadialGradient(128, 128, 10, 128, 128, 128); kgr.addColorStop(0, '#e8eaee'); kgr.addColorStop(1, '#a9adb3'); kg.fillStyle = kgr; kg.beginPath(); kg.arc(128, 128, 128, 0, 7); kg.fill();
       for (let r = 20; r < 128; r += 4) { kg.strokeStyle = 'rgba(255,255,255,.18)'; kg.lineWidth = 1; kg.beginPath(); kg.arc(128, 128, r, 0, 7); kg.stroke(); }
@@ -439,10 +439,10 @@ function start() {
       const kt = new THREE.CanvasTexture(kc); kt.colorSpace = THREE.SRGBColorSpace;
       const knurl = document.createElement('canvas'); knurl.width = 512; knurl.height = 32; const ng = knurl.getContext('2d'); for (let i = 0; i < 128; i++) { ng.fillStyle = i % 2 ? '#eef0f3' : '#7d8188'; ng.fillRect(i * 4, 0, 2, 32); }
       const nt = new THREE.CanvasTexture(knurl); nt.colorSpace = THREE.SRGBColorSpace;
-      const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.041, 0.034, 48), [new THREE.MeshStandardMaterial({ map: nt, metalness: 0.9, roughness: 0.3 }), new THREE.MeshStandardMaterial({ map: kt, metalness: 0.85, roughness: 0.25 }), satinM]);
-      knob.position.y = 0.019; knob.rotation.y = -0.6; knob.userData.act = 'power'; pk.add(knob); clickables.push(knob); ctl.power = knob;
+      const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.024, 0.02, 48), [new THREE.MeshStandardMaterial({ map: nt, metalness: 0.9, roughness: 0.3 }), new THREE.MeshStandardMaterial({ map: kt, metalness: 0.85, roughness: 0.25 }), satinM]);
+      knob.position.y = 0.011; knob.rotation.y = -0.6; knob.userData.act = 'power'; pk.add(knob); clickables.push(knob); ctl.power = knob;
       // ON · OFF 표시(본체에 새김)
-      const on = engrave('ON', -0.738, 0.574, 0.045, 40), off = engrave('OFF', -0.812, 0.574, 0.05, 40); void on; void off;
+      const on = engrave('ON', -0.735, 0.6, 0.03, 40), off = engrave('OFF', -0.805, 0.6, 0.036, 40); void on; void off;
     }
     // QUARTZ 표시등(속도가 맞으면 초록)
     {
@@ -457,7 +457,30 @@ function start() {
     const knob = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.04), [satinM, satinM, new THREE.MeshStandardMaterial({ color: 0xe6e8ea, metalness: 0.9, roughness: 0.25 }), satinM, satinM, satinM]);
     knob.position.y = 0.018; knob.userData.act = 'slider'; sl.add(knob); clickables.push(knob); ctl.knob = knob; ctl.slider = sl;
     const kl = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.002, 0.006), new THREE.MeshStandardMaterial({ color: 0xc8102e })); kl.position.y = 0.034; knob.add(kl); kl.position.set(0, 0.016, 0);
-    engrave('VOLUME', 0.8, 0.6, 0.16, 30);
+    engrave('VOLUME', 0.8, 0.578, 0.1, 34);
+    // 오른쪽 아래: 앰버 시간 표시창 · 템포 범위 버튼(8/16, 장식) · RESET(볼륨 50)
+    {
+      const dc = document.createElement('canvas'); dc.width = 512; dc.height = 192; const dg = dc.getContext('2d');
+      const dt = new THREE.CanvasTexture(dc); dt.colorSpace = THREE.SRGBColorSpace;
+      const win = new THREE.Mesh(new RoundedBoxGeometry(0.13, 0.006, 0.05, 2, 0.006), [darkM, darkM, new THREE.MeshStandardMaterial({ map: dt, emissiveMap: dt, emissive: 0xffffff, emissiveIntensity: 1, roughness: 0.15, metalness: 0.1 }), darkM, darkM, darkM]);
+      win.position.set(0.545, PLATE + 0.004, 0.645); deck.add(win);
+      const bz = new THREE.Mesh(new RoundedBoxGeometry(0.142, 0.005, 0.062, 2, 0.008), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); bz.position.set(0.545, PLATE + 0.002, 0.645); deck.add(bz);
+      ctl.lcd = { c: dc, g: dg, t: dt, last: '' };
+      engrave('TIME', 0.545, 0.6, 0.06, 34);
+      ctl.range = 8;
+      for (const [k, x] of [['r8', 0.655], ['r16', 0.715]]) {
+        const b = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.014, 32), [satinM, new THREE.MeshStandardMaterial({ map: labelTex([k === 'r8' ? '8' : '16'], 128, 128, 56), metalness: 0.4, roughness: 0.45 }), satinM]);
+        const bzr = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.0028, 10, 40), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); bzr.rotation.x = Math.PI / 2; bzr.position.set(x, PLATE + 0.006, 0.645); deck.add(bzr);
+        b.position.set(x, PLATE + 0.009, 0.645); b.userData.act = k; deck.add(b); clickables.push(b);
+        const led = new THREE.Mesh(new THREE.SphereGeometry(0.005, 10, 8), new THREE.MeshStandardMaterial({ color: 0x3a2a10, emissive: 0xffa030, emissiveIntensity: 0 })); led.position.set(x, PLATE + 0.006, 0.605); deck.add(led);
+        ctl[k] = { b, led };
+      }
+      engrave('RANGE ±%', 0.685, 0.686, 0.08, 34);
+      const rb = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.014, 32), [satinM, new THREE.MeshStandardMaterial({ map: labelTex(['R'], 128, 128, 56), metalness: 0.4, roughness: 0.45 }), satinM]);
+      rb.position.set(0.795, PLATE + 0.009, 0.645); rb.userData.act = 'reset'; deck.add(rb); clickables.push(rb); ctl.reset = rb;
+      const rbz = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.0028, 10, 40), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); rbz.rotation.x = Math.PI / 2; rbz.position.set(0.795, PLATE + 0.006, 0.645); deck.add(rbz);
+      engrave('RESET', 0.795, 0.686, 0.05, 34);
+    }
     // 큐 레버: 톤암 받침 앞, 올리면 바늘이 들린다
     const cue = new THREE.Group(); cue.position.set(PIV.x + 0.105, PLATE, PIV.z + 0.16); deck.add(cue);
     const cb = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.06), satinM); cb.position.y = 0.015; cue.add(cb);
@@ -570,8 +593,8 @@ function start() {
     buildFx();
     // 후광: 스트로브 등 · 33/45 불 · 전원 LED · 바늘 조명
     halo(deck, D._glow.position.clone().add(new THREE.Vector3(-0.012, -0.01, 0.013)), 0xff4a30, 0.16, () => 0.55 + night * 0.4);
-    halo(ctl.speed.s33.ring.parent, new THREE.Vector3(0, 0.01, 0), 0xff7a3a, 0.12, () => (speed45 ? 0 : 0.45));
-    halo(ctl.speed.s45.ring.parent, new THREE.Vector3(0, 0.01, 0), 0xff7a3a, 0.12, () => (speed45 ? 0.45 : 0));
+    halo(ctl.speed.s33.ring.parent, new THREE.Vector3(0, 0.01, 0), 0xff7a3a, 0.08, () => (speed45 ? 0 : 0.45));
+    halo(ctl.speed.s45.ring.parent, new THREE.Vector3(0, 0.01, 0), 0xff7a3a, 0.08, () => (speed45 ? 0.45 : 0));
     halo(ctl.pled.parent, ctl.pled.position.clone(), 0x44ff88, 0.07, () => (playing ? 0.8 : 0));
     halo(ctl.target.pop, new THREE.Vector3(0, 0.075, 0), 0xffd9a0, 0.06, () => night * 0.45);
     record = makeRecord(); record.position.set(0, REC_Y, 0); platter.add(record);
@@ -655,6 +678,8 @@ function start() {
       e.preventDefault();
       if (act === 'start') { press(ctl.start); D.onSound && D.onSound('click'); D.onButton && D.onButton('start'); }
       else if (act === 's33' || act === 's45') { press(ctl.speed[act].b); speed45 = act === 's45'; RPS = (speed45 ? 45 : 33.333) / 60; D.onSound && D.onSound('click'); }
+      else if (act === 'r8' || act === 'r16') { press(ctl[act].b); ctl.range = act === 'r8' ? 8 : 16; D.onSound && D.onSound('click'); }
+      else if (act === 'reset') { press(ctl.reset); D.onSound && D.onSound('click'); D.onButton && D.onButton('reset'); }
       else if (act === 'power') { ctl.power.rotation.y += ctl.power.rotation.y < 0 ? 1.2 : -1.2; D.onSound && D.onSound('click'); }
       else if (act === 'cue') { D.onSound && D.onSound('cue'); D.onButton && D.onButton('cue'); }
       else if (act === 'slider' || act === 'dial') { dragCtl = { act, x: e.clientX, y: e.clientY, rot: ctl.dial.rotation.y }; el.setPointerCapture(e.pointerId); }
@@ -735,6 +760,7 @@ function start() {
     clips.forEach((c) => { c.m.rotation.z += ((rest ? 0 : c.sgn * 0.9) - c.m.rotation.z) * Math.min(1, dt * 5); });
     halos.forEach((h) => { h.sp.material.opacity = h.fn(); });
     ctl.pled.material.emissiveIntensity = playing ? 2 : 0;
+    ctl.r8.led.material.emissiveIntensity = ctl.range === 8 ? 2 : 0; ctl.r16.led.material.emissiveIntensity = ctl.range === 16 ? 2 : 0;
     ctl.quartz.material.emissiveIntensity = playing && !grab && Math.abs(vel - RPS * Math.PI * 2) < 0.05 ? 2 : 0;
     // 33/45 불
     ctl.speed.s33.ring.material.emissiveIntensity = speed45 ? 0 : 1.6; ctl.speed.s45.ring.material.emissiveIntensity = speed45 ? 1.6 : 0;
@@ -832,10 +858,10 @@ function start() {
   D.drop = async (a, slam) => {
     const my = ++preparing; idle = 0; coverT = 0;
     if (drop) { scene.remove(drop.sleeve); if (!drop.handed) scene.remove(drop.disc); drop = null; }
-    const img = await Promise.race([loadImg(a.img), new Promise((r) => setTimeout(() => r(null), 250))]);
+    const img = await Promise.race([loadImg(a.img), new Promise((r) => setTimeout(() => r(null), 120))]);
     if (my !== preparing) return; // 그 사이 다른 판으로 또 바뀜
     const disc = makeRecord();
-    const L = { name: a.name, artist: a.artist, img: a.img };
+    const L = { name: a.name, artist: a.artist, img: a.img, tracks: a.tracks || null };
     drawRecord(disc.userData.R, L, img); if (!img) loadImg(a.img).then((im) => im && drawRecord(disc.userData.R, L, im));
     const sleeve = new THREE.Mesh(new THREE.BoxGeometry(slam ? 1.24 : 1.26, slam ? 1.3 : 1.26, slam ? 0.03 : 0.012), slam ? [side, side, side, side, clipMat(a, img), side] : [side, side, side, side, coverMat(img, a), side]);
     scene.add(sleeve); scene.add(disc); sleeve.visible = false; disc.visible = false;
@@ -843,7 +869,7 @@ function start() {
     let old = null;
     if (record) { old = record; const wpos = new THREE.Vector3(); old.getWorldPosition(wpos); old.parent.remove(old); old.position.copy(wpos); scene.add(old); record = null; }
     label = L;
-    drop = { t0: performance.now(), slam: !!slam, sleeve, disc, old, handed: false, key: [L.name, L.artist, L.img, ''].join('|') };
+    drop = { t0: performance.now(), slam: !!slam, sleeve, disc, old, handed: false, key: [L.name, L.artist, L.img, (L.tracks || []).map((f) => f.toFixed(3)).join(',')].join('|') };
     preparing = 0;
   };
   D.setPlaying = (on, prog) => { playing = !!on; if (Number.isFinite(prog)) progress = prog; };
@@ -853,6 +879,19 @@ function start() {
   D.setTint = (hex) => { tintC.copy(warm).lerp(new THREE.Color(hex || '#ffd8a8'), 0.45); };
   D.grabbing = () => !!grab;
   D.setLabel = (L) => { label = L; if (!drop && !preparing && record) applyLabel(); };
+  D.preload = (url) => { if (url) loadImg(url); };
+  // 판 갈기 직전에 불러 옛 판 라벨을 잠근다(drop이 조금 늦게 불려도)
+  D.prepare = () => { if (!preparing) preparing = 1; };
+  // 앰버 7세그먼트 느낌 표시창: 곡 번호 + 지난 시간
+  D.setTime = (txt, no) => {
+    const L = ctl.lcd; if (!L) return;
+    const s2 = `${no > 0 ? String(no).padStart(2, '0') : '--'} ${txt}`; if (s2 === L.last) return; L.last = s2;
+    const g = L.g; g.fillStyle = '#0b0906'; g.fillRect(0, 0, 512, 192);
+    g.font = '700 118px "JetBrains Mono", monospace'; g.textBaseline = 'middle'; g.textAlign = 'center';
+    g.fillStyle = 'rgba(255,150,40,.12)'; g.fillText('88 88:88', 256, 100);
+    g.shadowColor = 'rgba(255,150,40,.9)'; g.shadowBlur = 18; g.fillStyle = '#ffae42'; g.fillText(s2, 256, 100); g.shadowBlur = 0;
+    L.t.needsUpdate = true;
+  };
   D.shake = () => { shakeT = performance.now(); };
   D._dbg = () => ({ scene, parts, record, cam });
   D.setVolume = (v) => { if (!dragCtl) volume = v; };
