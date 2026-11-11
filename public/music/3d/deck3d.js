@@ -1,6 +1,7 @@
 /* 음악 앱 3D 턴테이블 (MUS-09).
-   deck.glb = AI로 만든 턴테이블을 손본 것: 노드 base(본체) · platter(돌아가는 원판) · armYaw(톤암 좌우 관절) > armLift(톤암 들림 관절)
-   만든 법: 로고 지우기, 뒤쪽 뭉개진 면 지우기, 플래터·톤암 떼어 관절 원점으로 옮기기, 면 22%로 줄이기, 텍스처 1024 webp, meshopt 압축
+   deck.glb = AI로 만든 턴테이블을 손본 것(scripts/deck-model.mjs): 노드 base(본체) · platter(빈 노드 = 회전축) · armYaw(톤암 좌우 관절) > armLift(톤암 들림 관절)
+   만든 법: 로고 지우기, 뒤쪽 뭉개진 면 지우기, 플래터 둘레 비탈 펴기, 톤암 떼어 관절 원점으로 옮기기, 면 22%로 줄이기, 텍스처 1024 webp, meshopt 압축
+   플래터(알루미늄 + 옆면 스트로브 점 4줄) · 고무 매트 · 축 · 판은 여기서 코드로 만든다(AI 플래터는 울퉁불퉁해서 버림)
    좌표: +Y 위, +Z 화면 앞. 판 지름 1.77 × 1.44
    바깥(index.html)에서 쓰는 것: window.Deck3D = { ok, setPlaying(bool, progress), setLabel({name, artist, img}), drop(a, slam), shake() }
    WebGL이 안 되면 ok = false 로 두고 예전 CSS 턴테이블을 그대로 쓴다 */
@@ -13,8 +14,12 @@ import { RoundedBoxGeometry } from './geometries/RoundedBoxGeometry.js';
 const host = document.getElementById('deck3d');
 const D = (window.Deck3D = { ok: false });
 const PLATTER = new THREE.Vector3(-0.18, 0, -0.035);   // 플래터 중심(세계 좌표)
-const REC_R = 0.555, REC_Y = 0.094;                    // 판 반지름·높이(테두리 위에 얹힌다)
-const YAW_PLAY = -0.42, YAW_END = -0.6;                // 톤암: 판 바깥 홈 ~ 안쪽
+const PLATE = 0.024;                                   // 본체 윗면 높이
+const PL_R = 0.645, PL_TOP = 0.066;                    // 플래터 반지름·윗면
+const MAT_R = 0.62, MAT_TOP = PL_TOP + 0.004;          // 고무 매트
+const REC_R = 0.6, REC_Y = MAT_TOP + 0.004;            // 판(12인치) 반지름·가운데 높이
+const YAW_PLAY = -0.355, YAW_END = -0.65;              // 톤암: 판 바깥 홈(반지름 0.56) ~ 안쪽(0.3)
+const LIFT_ON = 0.03, LIFT_UP = 0.075;                 // 톤암 들림(라디안): 판 위에 얹혔을 때 · 옮길 때
 const RPS = 33.333 / 60;                               // 33⅓ rpm
 
 let renderer;
@@ -89,8 +94,8 @@ function start() {
     const R = recordTexture();
     const black = new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: 0.45 });
     const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(REC_R, REC_R, 0.008, 96), black);
-    const top = new THREE.Mesh(new THREE.CircleGeometry(REC_R, 96), new THREE.MeshPhysicalMaterial({ map: R.t, roughness: 0.55, metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 0.35 }));
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(REC_R, REC_R, 0.008, 128), black);
+    const top = new THREE.Mesh(new THREE.CircleGeometry(REC_R, 128), new THREE.MeshPhysicalMaterial({ map: R.t, roughness: 0.55, metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 0.35 }));
     top.rotation.x = -Math.PI / 2; top.position.y = 0.0042;
     g.add(body, top);
     g.userData.R = R; g.userData.mats = [black, top.material];
@@ -124,6 +129,36 @@ function start() {
   }
   const side = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.8 });
 
+  // 플래터: 알루미늄 원판(옆면에 스트로브 점 4줄) + 고무 매트 + 가운데 축 + 밑 그림자
+  function strobeTexture() {
+    const c = document.createElement('canvas'); c.width = 4096; c.height = 128; const g = c.getContext('2d');
+    const al = g.createLinearGradient(0, 0, 0, 128); al.addColorStop(0, '#f2f3f5'); al.addColorStop(0.5, '#b9bdc3'); al.addColorStop(1, '#8d9197');
+    g.fillStyle = al; g.fillRect(0, 0, 4096, 128);
+    [[180, 22], [183, 48], [135, 74], [133, 100]].forEach(([n, y]) => {
+      const w = 4096 / n;
+      for (let i = 0; i < n; i++) { g.fillStyle = '#2b2d33'; g.fillRect(i * w + w * 0.3, y - 8, w * 0.4, 16); g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(i * w + w * 0.3, y - 8, w * 0.4, 3); }
+    });
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  }
+  function buildPlatter(node) {
+    const H = PL_TOP - PLATE - 0.006;
+    const alu = new THREE.MeshStandardMaterial({ color: 0xd9dce0, metalness: 0.85, roughness: 0.32 });
+    const sideM = new THREE.MeshStandardMaterial({ map: strobeTexture(), metalness: 0.75, roughness: 0.35 });
+    const pl = new THREE.Mesh(new THREE.CylinderGeometry(PL_R, PL_R - 0.006, H, 128, 1), [sideM, alu, alu]);
+    pl.position.y = PL_TOP - H / 2; node.add(pl);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(PL_R - 0.003, 0.004, 8, 128), alu); lip.rotation.x = Math.PI / 2; lip.position.y = PL_TOP - 0.001; node.add(lip);
+    const mat = new THREE.Mesh(new THREE.CylinderGeometry(MAT_R, MAT_R, 0.004, 128), new THREE.MeshStandardMaterial({ color: 0x1c1d21, roughness: 0.95 }));
+    mat.position.y = PL_TOP + 0.002; node.add(mat);
+    const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.012, 0.04, 24), new THREE.MeshStandardMaterial({ color: 0xe6e8ea, metalness: 0.95, roughness: 0.2 }));
+    spindle.position.y = REC_Y + 0.02; node.add(spindle);
+    // 본체 위 접지 그림자(돌지 않게 deck에 붙인다)
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+    const rg = g.createRadialGradient(128, 128, 100, 128, 128, 128); rg.addColorStop(0, 'rgba(0,0,0,.42)'); rg.addColorStop(0.85, 'rgba(0,0,0,.12)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = rg; g.fillRect(0, 0, 256, 256);
+    const shd = new THREE.Mesh(new THREE.PlaneGeometry(PL_R * 2.3, PL_R * 2.3), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+    shd.rotation.x = -Math.PI / 2; shd.position.set(PLATTER.x, PLATE + 0.0015, PLATTER.z); deck.add(shd);
+  }
+
   let parts = null, record = null, label = null, labelKey = '';
   let playing = false, progress = 0, spin = 0, vel = 0, yaw = 0, lift = 0;
   let drop = null; // { t0, slam, sleeve, disc, done }
@@ -131,9 +166,11 @@ function start() {
 
   new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(new URL('./deck.glb', import.meta.url).href, (g) => {
     const root = g.scene;
-    root.traverse((o) => { if (o.isMesh) { o.material.side = THREE.FrontSide; o.material.envMapIntensity = 0.9; } });
+    // AI 텍스처의 잔주름(노멀맵)이 지저분해 보여 약하게
+    root.traverse((o) => { if (o.isMesh) { o.material.side = THREE.FrontSide; o.material.envMapIntensity = 0.9; o.material.normalScale && o.material.normalScale.set(0.3, 0.3); } });
     deck.add(root);
     parts = { platter: root.getObjectByName('platter'), yaw: root.getObjectByName('armYaw'), lift: root.getObjectByName('armLift') };
+    buildPlatter(parts.platter);
     record = makeRecord(); record.position.set(0, REC_Y, 0); parts.platter.add(record);
     applyLabel();
     D.ok = true;
@@ -181,11 +218,12 @@ function start() {
     // 톤암: 판을 가는 중엔 쉼 자리, 재생 중이면 곡 진행에 따라 안쪽으로. 움직이는 동안엔 들려 있다
     const yawT = playing && !busy ? lerp(YAW_PLAY, YAW_END, clamp01(progress)) : 0;
     const far = Math.abs(yawT - yaw) > 0.012;
-    const liftT = far ? 1 : 0;
+    // 들림: 옮길 땐 LIFT_UP, 판 위에선 LIFT_ON(판 높이만큼), 쉴 땐 0
+    const liftT = far ? LIFT_UP : yawT !== 0 ? LIFT_ON : 0;
     lift += (liftT - lift) * Math.min(1, dt * 7);
-    if (!far || lift > 0.85) yaw += (yawT - yaw) * Math.min(1, dt * (far ? 3.2 : 1.5));
+    if (!far || lift > LIFT_UP * 0.85) yaw += (yawT - yaw) * Math.min(1, dt * (far ? 3.2 : 1.5));
     parts.yaw.rotation.y = yaw;
-    parts.lift.rotation.x = -0.045 * lift;
+    parts.lift.rotation.x = -lift;
     if (drop) stepDrop(now);
     // 쾅 흔들림
     if (shakeT >= 0) {
@@ -246,7 +284,7 @@ function start() {
     const disc = makeRecord();
     const L = { name: a.name, artist: a.artist, img: a.img };
     drawRecord(disc.userData.R, L, img); if (!img) loadImg(a.img).then((im) => im && drawRecord(disc.userData.R, L, im));
-    const sleeve = new THREE.Mesh(new THREE.BoxGeometry(slam ? 1.14 : 1.16, slam ? 1.18 : 1.16, slam ? 0.03 : 0.012), slam ? [side, side, side, side, clipMat(a, img), side] : [side, side, side, side, coverMat(img), side]);
+    const sleeve = new THREE.Mesh(new THREE.BoxGeometry(slam ? 1.24 : 1.26, slam ? 1.3 : 1.26, slam ? 0.03 : 0.012), slam ? [side, side, side, side, clipMat(a, img), side] : [side, side, side, side, coverMat(img), side]);
     scene.add(sleeve); scene.add(disc); sleeve.visible = false; disc.visible = false;
     // 옛 판: 플래터에서 떼어 장면에 두고 사라지게
     let old = null;

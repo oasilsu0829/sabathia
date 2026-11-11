@@ -1,6 +1,7 @@
 // 사용: npm i @gltf-transform/core@4 @gltf-transform/extensions@4 @gltf-transform/functions@4 meshoptimizer sharp 후
 //   node scripts/deck-model.mjs base_basic_pbr.glb public/music/3d/deck.glb
-// 좌표 상수(PLATE, PC, PR, PIV, ARM, LOGOS)는 원본 모델에 맞춰 잰 값이다. 모델을 바꾸면 다시 잴 것
+// 좌표 상수(PLATE, PC, PR, PIV, ARM, LOGOS, FLAT_R)는 원본 모델에 맞춰 잰 값이다. 모델을 바꾸면 다시 잴 것
+// 플래터는 AI 것이 울퉁불퉁해서 버리고(빈 노드 platter만 남김) deck3d.js가 새로 만든다. 플래터 둘레 비탈은 평평하게 펴서 판 색으로 칠한다
 // AI 턴테이블 모델 손보기: 로고 지우기 · 뒤쪽 쓰레기 지우기 · 플래터/톤암 떼어 관절 노드로 · 가볍게
 import { NodeIO, Document } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -14,7 +15,7 @@ const sp = src.getRoot().listMeshes()[0].listPrimitives()[0];
 const P = sp.getAttribute('POSITION').getArray().slice(), N = sp.getAttribute('NORMAL').getArray().slice(), UV = sp.getAttribute('TEXCOORD_0').getArray();
 const I = sp.getIndices().getArray();
 const mat0 = sp.getMaterial();
-const PLATE = 0.024, PC = [-0.18, 0.755], PR = 0.636, PIV = [0.645, 1.12];
+const FLAT_R = 0.745, PLATE = 0.024, PC = [-0.18, 0.755], PR = 0.636, PIV = [0.645, 1.12];
 
 // ---- 1. 로고: 굴곡은 평평하게, 그림은 주변 색으로 덮기
 const LOGOS = [
@@ -78,10 +79,12 @@ const cent = (t) => [0, 1, 2].map((k) => (P[I[t] * 3 + k] + P[I[t + 1] * 3 + k] 
 for (let t = 0; t < I.length; t += 3) {
   const [x, y, z] = cent(t);
   if (z < 0) continue;
-  if (inLogo(x, y)) { fillTri(C, t, plateCol); fillTri(NM, t, [128, 128, 255]); fillTri(MR, t, plateMR); }
+  if (Math.hypot(x - PC[0], y - PC[1]) < FLAT_R) { fillTri(C, t, plateCol); fillTri(NM, t, [128, 128, 255]); fillTri(MR, t, plateMR); }
+  else if (inLogo(x, y)) { fillTri(C, t, plateCol); fillTri(NM, t, [128, 128, 255]); fillTri(MR, t, plateMR); }
   else if (armDist(x, y) < 0.012 && Math.hypot(x - PIV[0], y - PIV[1]) > 0.13 && z <= 0.034) { fillTri(C, t, plateCol); fillTri(NM, t, [128, 128, 255]); fillTri(MR, t, plateMR); for (let j = 0; j < 3; j++) { const v = I[t + j] * 3; P[v + 2] = PLATE; N[v] = 0; N[v + 1] = 0; N[v + 2] = 1; } }
   else if (inMatLogo(x, y) && z < 0.08) { fillTri(C, t, matCol); fillTri(NM, t, [128, 128, 255]); fillTri(MR, t, matMR); }
 }
+for (let i = 0; i < P.length; i += 3) if (Math.hypot(P[i] - PC[0], P[i + 1] - PC[1]) < FLAT_R && P[i + 2] > -0.012) { P[i + 2] = PLATE; N[i] = 0; N[i + 1] = 0; N[i + 2] = 1; }
 for (let i = 0; i < P.length; i += 3) if (inMatLogo(P[i], P[i + 1]) && P[i + 2] > 0) { P[i + 2] = 0.04; N[i] = 0; N[i + 1] = 0; N[i + 2] = 1; }
 
 // ---- 2. 삼각형 나누기: 뒤쪽 쓰레기 / 플래터 / 톤암 / 본체
@@ -93,7 +96,7 @@ for (let t = 0; t < I.length; t += 3) {
   const [x, y, z] = cent(t);
   const nearPiv = Math.hypot(x - PIV[0], y - PIV[1]) < 0.09;
   if (armDist(x, y) < 0 && z > (nearPiv ? 0.1 : 0.034)) { groups.arm.push(t); continue; }
-  if (Math.hypot(x - PC[0], y - PC[1]) < PR) { groups.platter.push(t); continue; }
+  if (Math.hypot(x - PC[0], y - PC[1]) < PR) { dropped++; continue; } // 플래터는 deck3d.js가 새로 만든다
   groups.base.push(t);
 }
 console.log('tris', I.length / 3, 'dropped', dropped, Object.fromEntries(Object.entries(groups).map(([k, v]) => [k, v.length])));
@@ -117,7 +120,7 @@ function build(name, tris, origin) {
 }
 const root = out.createNode('deck');
 root.addChild(out.createNode('base').setMesh(build('base', groups.base, [0, 0, 0])));
-root.addChild(out.createNode('platter').setTranslation(PCW).setMesh(build('platter', groups.platter, PCW)));
+root.addChild(out.createNode('platter').setTranslation(PCW));
 const yaw = out.createNode('armYaw').setTranslation(PIVW), lift = out.createNode('armLift');
 lift.setMesh(build('arm', groups.arm, PIVW)); yaw.addChild(lift); root.addChild(yaw);
 out.createScene('deck').addChild(root);
