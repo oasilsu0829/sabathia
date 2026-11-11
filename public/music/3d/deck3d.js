@@ -37,11 +37,15 @@ function start() {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
+  // 실제 그림자(판·톤암·본체가 책상에 떨어뜨리는 그림자)
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
   const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(-1.5, 3, 1.5); scene.add(key);
+  key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -0.0006; key.shadow.normalBias = 0.01; key.shadow.radius = 5;
+  Object.assign(key.shadow.camera, { left: -1.6, right: 1.6, top: 1.6, bottom: -1.6, near: 0.5, far: 7 });
   // 밤 조명: 방 불을 끄고 스트로브 등 · 판 위 따뜻한 조명만(night 0→1로 서서히)
   let night = 0, nightT = 0;
   const spot = new THREE.SpotLight(0xffd8a8, 0, 3.2, 0.42, 0.65, 1.4); spot.position.set(-0.35, 1.9, 0.55);
@@ -51,9 +55,37 @@ function start() {
 
   const deck = new THREE.Group(); scene.add(deck);
 
-  // 받침(본체 밑 두께): AI 모델은 얇은 판이라 하얀 상자를 밑에 댄다
-  const plinth = new THREE.Mesh(new RoundedBoxGeometry(1.79, 0.17, 1.46, 4, 0.03), new THREE.MeshStandardMaterial({ color: 0xe9e9e7, roughness: 0.42, metalness: 0.0 }));
-  plinth.position.set(0, -0.085 + 0.005, 0); deck.add(plinth);
+  // 헤어라인 결(브러시드 알루미늄): 가로로 가는 줄을 촘촘히
+  function brushed() {
+    const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+    g.fillStyle = '#c9ccd1'; g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 2600; i++) { const y = Math.random() * 512, v = 180 + Math.random() * 70 | 0; g.fillStyle = `rgba(${v},${v + 2},${v + 5},${0.12 + Math.random() * 0.2})`; g.fillRect(Math.random() * 512 - 200, y, 120 + Math.random() * 500, 0.6 + Math.random()); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1); return t;
+  }
+  const brush = brushed();
+  // 받침(본체 밑 두께): AI 모델은 얇은 판이라 상자를 밑에 댄다. 하이엔드 느낌으로 헤어라인 알루미늄
+  const plinth = new THREE.Mesh(new RoundedBoxGeometry(1.79, 0.17, 1.46, 4, 0.03), new THREE.MeshPhysicalMaterial({ color: 0xdfe2e6, map: brush, metalness: 0.82, roughness: 0.34, clearcoat: 0.2 }));
+  plinth.position.set(0, -0.085 + 0.005, 0); plinth.castShadow = true; plinth.receiveShadow = true; deck.add(plinth);
+  // 앞면 각인: 글자가 파인 것처럼(어두운 글자 + 아래 밝은 테)
+  {
+    const c = document.createElement('canvas'); c.width = 2048; c.height = 128; const g = c.getContext('2d');
+    const eng = (txt, x, align, size, sp) => {
+      g.font = `600 ${size}px "Space Grotesk", "JetBrains Mono", sans-serif`; g.textAlign = align; g.textBaseline = 'middle';
+      if ('letterSpacing' in g) g.letterSpacing = sp + 'px';
+      g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(txt, x, 66);
+      g.fillStyle = 'rgba(40,42,48,.78)'; g.fillText(txt, x, 63);
+    };
+    eng('SABATHIA', 90, 'left', 54, 14);
+    eng('DIRECT DRIVE TURNTABLE', 520, 'left', 26, 8);
+    eng('33⅓ · 45 RPM', 1958, 'right', 30, 8);
+    g.fillStyle = 'rgba(40,42,48,.35)'; g.fillRect(470, 46, 2, 36);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.106), new THREE.MeshStandardMaterial({ map: t, transparent: true, metalness: 0.6, roughness: 0.4 }));
+    face.position.set(0, -0.08, 0.7305); deck.add(face);
+  }
+  // 책상에 떨어지는 그림자만 그리는 바닥(배경은 비친다)
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({ opacity: 0.22 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.166; floor.receiveShadow = true; deck.add(floor);
   // 바닥 그림자
   const sh = document.createElement('canvas'); sh.width = sh.height = 128;
   const sg = sh.getContext('2d'), gr = sg.createRadialGradient(64, 64, 10, 64, 64, 64);
@@ -112,6 +144,7 @@ function start() {
     const body = new THREE.Mesh(new THREE.CylinderGeometry(REC_R, REC_R, 0.008, 128), black);
     const top = new THREE.Mesh(new THREE.CircleGeometry(REC_R, 128), new THREE.MeshPhysicalMaterial({ map: R.t, roughness: 0.55, metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 0.35 }));
     top.rotation.x = -Math.PI / 2; top.position.y = 0.0042;
+    body.castShadow = true; top.receiveShadow = true;
     g.add(body, top);
     g.userData.R = R; g.userData.mats = [black, top.material];
     return g;
@@ -259,7 +292,8 @@ function start() {
   new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(new URL('./deck.glb', import.meta.url).href, (g) => {
     const root = g.scene;
     // AI 텍스처의 잔주름(노멀맵)이 지저분해 보여 약하게
-    root.traverse((o) => { if (o.isMesh) { o.material.side = THREE.FrontSide; o.material.envMapIntensity = 0.9; o.material.normalScale && o.material.normalScale.set(0.3, 0.3); } });
+    // 본체 윗판도 은색 금속 느낌으로(인쇄된 버튼·글자는 텍스처 그대로)
+    root.traverse((o) => { if (o.isMesh) { const m = o.material; m.side = THREE.FrontSide; m.envMapIntensity = 1; m.normalScale && m.normalScale.set(0.3, 0.3); m.metalnessMap = null; m.metalness = 0.55; m.roughness = 0.36; m.color && m.color.set(0xd9dce1); o.receiveShadow = true; } });
     deck.add(root);
     // 빈 platter 노드는 압축(prune) 때 지워질 수 있어 없으면 만든다
     let platter = root.getObjectByName('platter');
@@ -268,6 +302,9 @@ function start() {
     buildPlatter(parts.platter);
     buildArm(parts.lift, parts.yaw);
     record = makeRecord(); record.position.set(0, REC_Y, 0); parts.platter.add(record);
+    // 그림자: 판·플래터·톤암이 드리우고, 본체·매트가 받는다
+    [parts.platter, parts.yaw, parts.lift].forEach((n) => n.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }));
+    deck.traverse((o) => { if (o.isMesh && o.parent === deck && o !== floor && !o.material.transparent) o.castShadow = true; });
     applyLabel();
     D.ok = true;
     document.body.classList.add('d3');
@@ -374,7 +411,7 @@ function start() {
     night += (nightT - night) * Math.min(1, dt * 2.2);
     scene.environmentIntensity = lerp(1, 0.1, night);
     key.intensity = lerp(1.1, 0.06, night);
-    spot.intensity = lerp(0, 3.2, night);
+    spot.intensity = lerp(0, 3.2, night); spot.color.lerp(tintC, Math.min(1, dt * 1.5));
     armLamp.intensity = lerp(0, 0.5, night);
     if (D._glow) { D._glow.intensity = lerp(0.35, 1.6, night); D._glow.distance = lerp(0.5, 1.1, night); }
     renderer.toneMappingExposure = lerp(1.05, 1.25, night);
@@ -450,6 +487,9 @@ function start() {
   };
   D.setPlaying = (on, prog) => { playing = !!on; if (Number.isFinite(prog)) progress = prog; };
   D.setNight = (on) => { nightT = on ? 1 : 0; };
+  // 앨범 대표색: 밤 조명이 그 색을 조금 머금는다
+  const warm = new THREE.Color(0xffd8a8), tintC = new THREE.Color(0xffd8a8);
+  D.setTint = (hex) => { tintC.copy(warm).lerp(new THREE.Color(hex || '#ffd8a8'), 0.45); };
   D.grabbing = () => !!grab;
   D.setLabel = (L) => { label = L; if (!drop && record) applyLabel(); };
   D.shake = () => { shakeT = performance.now(); };
