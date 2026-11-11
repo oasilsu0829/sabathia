@@ -471,9 +471,13 @@ function start() {
     if (t >= 1) { scene.remove(d.sleeve); drop = null; }
   }
 
+  // 판 갈기 준비 중(표지 그림을 기다리는 동안)에는 플래터 위 옛 판 라벨을 바꾸지 않는다
+  let preparing = 0;
   D.drop = async (a, slam) => {
+    const my = ++preparing;
     if (drop) { scene.remove(drop.sleeve); if (!drop.handed) scene.remove(drop.disc); drop = null; }
     const img = await Promise.race([loadImg(a.img), new Promise((r) => setTimeout(() => r(null), 250))]);
+    if (my !== preparing) return; // 그 사이 다른 판으로 또 바뀜
     const disc = makeRecord();
     const L = { name: a.name, artist: a.artist, img: a.img };
     drawRecord(disc.userData.R, L, img); if (!img) loadImg(a.img).then((im) => im && drawRecord(disc.userData.R, L, im));
@@ -484,6 +488,7 @@ function start() {
     if (record) { old = record; const wpos = new THREE.Vector3(); old.getWorldPosition(wpos); old.parent.remove(old); old.position.copy(wpos); scene.add(old); record = null; }
     label = L;
     drop = { t0: performance.now(), slam: !!slam, sleeve, disc, old, handed: false, key: [L.name, L.artist, L.img, ''].join('|') };
+    preparing = 0;
   };
   D.setPlaying = (on, prog) => { playing = !!on; if (Number.isFinite(prog)) progress = prog; };
   D.setNight = (on) => { nightT = on ? 1 : 0; };
@@ -491,7 +496,7 @@ function start() {
   const warm = new THREE.Color(0xffd8a8), tintC = new THREE.Color(0xffd8a8);
   D.setTint = (hex) => { tintC.copy(warm).lerp(new THREE.Color(hex || '#ffd8a8'), 0.45); };
   D.grabbing = () => !!grab;
-  D.setLabel = (L) => { label = L; if (!drop && record) applyLabel(); };
+  D.setLabel = (L) => { label = L; if (!drop && !preparing && record) applyLabel(); };
   D.shake = () => { shakeT = performance.now(); };
   D._dbg = () => ({ scene, parts, record, cam });
 }
