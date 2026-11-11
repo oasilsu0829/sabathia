@@ -32,4 +32,9 @@ const now = 1e12;
 d = clean({ crates: { a: { name: 'a', u: now + 9e9, albums: [] }, b: { del: 1, u: now - 200 * 864e5 } } }, now);
 assert.equal(d.crates.a.u, now + 300000);
 assert.ok(!('b' in d.crates));
+// 플레이리스트도 꽂을 수 있다
+d = clean({ crates: { a: { name: 'a', u: 1, albums: [{ k: 'pl', id: '37i9dQZF1DXcBWIGoYBM5M', name: 'Today', artist: 'Spotify', n: 50 }, A1] } } });
+assert.equal(d.crates.a.albums[0].k, 'pl');
+assert.equal(d.crates.a.albums[0].uri, 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M');
+assert.ok(!('k' in d.crates.a.albums[1]));
 console.log('music merge ok');

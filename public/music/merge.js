@@ -1,5 +1,5 @@
 /* 음악 크레이트 합치기 — 서버(src/music.js)와 화면(public/music/index.html)이 같이 쓴다.
-   문서 하나: { v: 1, crates: { id: { id, name, o, u, albums: [{ id, uri, name, artist, img, year, n }] } } }
+   문서 하나: { v: 1, crates: { id: { id, name, o, u, albums: [{ id, uri, name, artist, img, year, n, k? }] — k: 'pl' 이면 플레이리스트(앨범 한 장처럼 꽂힘) } } }
    - 크레이트마다 고친 시각 u. 두 기기 것을 합칠 때 크레이트 id마다 u가 늦은 쪽이 이긴다
    - 지운 크레이트는 { id, del: 1, u } 로 남겨 다른 기기에서도 지워지게 한다(180일 뒤 치움)
    - 기본 크레이트(c-main)는 기기마다 같은 id에 u: 0 이라 겹치지 않는다
@@ -17,11 +17,13 @@
   function album(a) {
     a = obj(a);
     if (!AID.test(a.id || '')) return null;
-    const img = str(a.img, 300);
-    return {
-      id: a.id, uri: 'spotify:album:' + a.id, name: str(a.name, 200), artist: str(a.artist, 200),
+    const img = str(a.img, 300), pl = a.k === 'pl';
+    const y = {
+      id: a.id, uri: (pl ? 'spotify:playlist:' : 'spotify:album:') + a.id, name: str(a.name, 200), artist: str(a.artist, 200),
       img: /^https:\/\//.test(img) ? img : '', year: str(a.year, 10), n: Math.max(0, Math.floor(num(a.n))),
     };
+    if (pl) y.k = 'pl';
+    return y;
   }
 
   // 어떤 모양이 와도 문서 모양으로 맞춘다. now를 주면 앞서 있는 시계(u)를 now + 5분으로 누르고 오래된 지운 표시를 치운다

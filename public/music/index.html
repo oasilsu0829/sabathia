@@ -15,7 +15,8 @@
 /* 음악 (MUS-09) · Stitch 시안 "White Deck - iPad Edition"(2026-11-11) 기준. 집중처럼 theme.css를 쓰지 않는 자체 화면
    Layout: 윗줄(SABATHIA · 상태 · 지금 곡 · 설정) → 왼쪽 턴테이블(셔플·반복 · 플래터 · 톤암 · 음량 · 재생/정지 · 위치)
            오른쪽 크레이트(나무 상자에 꽂힌 앨범을 넘겨 고름 · 내 크레이트 여러 개 · 앨범 찾기/담기 · 앨범 트랙) → 아랫줄(이전·재생·다음 · 기기 · 음량)
-   앨범이 바뀌면 3초 동안 슬리브에서 판을 꺼내 플래터에 올린다(dropLP). 크레이트는 music.crates + /api/music/sync
+   판이 바뀌면 dropLP(): 앨범은 3초 동안 슬리브에서 꺼내 올리고, 플레이리스트(클립보드)는 1.9초 동안 턴테이블에 쾅 꽂았다 걷어낸다(흔들림). 소리는 sfx(Web Audio 합성, music.sfx로 끔)
+   크레이트에는 앨범과 플레이리스트(k: 'pl')를 같이 꽂는다. 저장 music.crates + /api/music/sync
    폰·세로 화면은 위아래로 쌓고 아랫줄을 화면 밑에 붙인다
    Spotify: PKCE 로그인(Client ID는 이 기기에만 저장) · Web API로 조작 · Web Playback SDK로 이 브라우저를 'Sabathia' 기기로 */
 :root {
@@ -211,6 +212,28 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .tk span:last-child { font-family: var(--mono); font-size: 10px; color: var(--muted); }
 .tk.on { background: var(--z100); }
 .tk.on b { font-weight: 700; }
+.lp.pl { border-radius: 2px; }
+/* 플레이리스트 = 곡 목록이 적힌 클립보드 */
+.cb { container-type: inline-size; border-radius: 5% !important; background: linear-gradient(180deg, rgba(255,240,220,.12), transparent 30%, rgba(30,15,5,.25)), var(--grain), linear-gradient(135deg, #a3723f, #8b5d31 55%, #77502a) !important; background-size: 100% 100%, 260px 70px, 100% 100% !important; box-shadow: 0 -3px 10px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.12) !important; }
+.cb::before, .cb::after { display: none !important; }
+.cb-clip { position: absolute; left: 31%; width: 38%; top: -1.5%; height: 13%; z-index: 2; border-radius: 10% 10% 26% 26% / 18% 18% 40% 40%; background: linear-gradient(180deg, #fafafa, #b4b4bb 45%, #e4e4e7 70%, #8e8e96); box-shadow: 0 2px 3px rgba(0,0,0,.4), inset 0 1px 0 #fff; }
+.cb-clip::after { content: ''; position: absolute; left: 38%; width: 24%; top: 18%; height: 30%; border-radius: 99px; background: #6b5030; box-shadow: inset 0 1px 2px rgba(0,0,0,.6); }
+.cb-paper { position: absolute; left: 8%; right: 8%; top: 7%; bottom: 5%; background: #fbfaf5; border-radius: 1.5%; box-shadow: 0 1px 3px rgba(0,0,0,.3); padding: 13% 8% 6%; display: flex; flex-direction: column; gap: 1.5cqw; overflow: hidden; color: #1f2430; }
+.cb-paper::before { content: ''; position: absolute; left: 0; right: 0; top: 12%; bottom: 0; background: repeating-linear-gradient(180deg, transparent 0 calc(7cqw - 1px), #d7e1ee calc(7cqw - 1px) 7cqw); pointer-events: none; }
+.cb-paper::after { content: ''; position: absolute; left: 6%; top: 0; bottom: 0; width: 1px; background: rgba(230,0,18,.35); }
+.cb-paper > * { position: relative; }
+.cb-img { position: absolute !important; right: 7%; top: 12%; width: 25%; aspect-ratio: 1; border-radius: 2px; background: #ddd center/cover no-repeat; box-shadow: 0 1px 2px rgba(0,0,0,.3); transform: rotate(3deg); }
+.cb-t { margin-right: 30%; font-size: 7.4cqw; line-height: 1.15; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cb-a { margin-right: 30%; font-family: var(--mono); font-size: 4.4cqw; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-lines { display: flex; flex-direction: column; gap: 3.6cqw; margin-top: 5cqw; }
+.cb-lines i { display: block; height: 2.4cqw; border-radius: 2px; background: #b9c0cb; }
+.cb-lines i:nth-child(1) { width: 78%; } .cb-lines i:nth-child(2) { width: 62%; } .cb-lines i:nth-child(3) { width: 84%; }
+.cb-lines i:nth-child(4) { width: 55%; } .cb-lines i:nth-child(5) { width: 70%; } .cb-lines i:nth-child(6) { width: 48%; }
+.lp.cb.back .cb-paper, .lp.cb.back .cb-clip { display: none; }
+.drop .clip { position: absolute; inset: 0; margin: auto; width: calc((100% - 20px) * .95); height: calc((100% - 20px) * .95); z-index: 3; opacity: 0; box-shadow: 0 22px 40px rgba(0,0,0,.4) !important; }
+#findTabs { align-self: flex-start; max-width: 100%; overflow-x: auto; }
+.sfxrow { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; font-family: var(--sans) !important; font-size: 13px !important; letter-spacing: 0 !important; color: var(--ink-2) !important; min-height: 36px; }
+.sfxrow input { width: 18px; height: 18px; accent-color: var(--ink); }
 .tk-none { padding: 14px 8px; font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: center; }
 
 /* LP 꺼내기: 슬리브가 들어오고, 판이 빠져나와 플래터에 앉는다(3초) */
@@ -395,6 +418,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
           <div class="drop" id="drop" hidden aria-hidden="true">
             <div class="disc" id="dDisc"><div class="grooves"></div><div class="luster"></div><div class="dl" id="dLabel"></div></div>
             <div class="sleeve" id="dSleeve"></div>
+            <div class="clip cb" id="dClip"></div>
           </div>
         </div>
         <div class="arm" aria-hidden="true">
@@ -508,6 +532,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     </div>
     <p class="note" id="who"></p>
     <p class="note" id="sdkNote"></p>
+    <label class="sfxrow"><input type="checkbox" id="sfxOn"> 효과음 (크레이트 넘김 · 판 갈아 끼우기)</label>
     <p class="note" id="syncNote"></p>
     <p class="note">비밀번호는 Spotify 화면에서만 입력합니다. 이 앱은 Client ID와 로그인 토큰만 이 기기에 저장합니다. 브라우저 안에서 바로 재생하려면 Premium이 필요하고, 폰·아이패드 브라우저는 Spotify가 바로 재생을 막아 두어 그 기기의 Spotify 앱을 조작하는 방식으로 씁니다.</p>
   </div>
@@ -516,7 +541,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 <dialog id="find" aria-labelledby="findT">
   <div class="find">
     <div class="find-head">
-      <h2 id="findT">앨범 찾기<button class="icon-btn" type="button" id="findX" aria-label="닫기">✕</button></h2>
+      <h2 id="findT">찾아서 담기<button class="icon-btn" type="button" id="findX" aria-label="닫기">✕</button></h2>
+      <div class="seg" id="findTabs" role="group" aria-label="찾을 것"><button type="button" data-t="album" aria-pressed="true"><span class="led"></span>앨범</button><button type="button" data-t="playlist" aria-pressed="false"><span class="led"></span>플레이리스트</button><button type="button" data-t="mine" aria-pressed="false"><span class="led"></span>내 플레이리스트</button></div>
       <form class="sbox" id="findForm"><input type="search" id="q" placeholder="앨범·아티스트 이름" enterkeyhint="search" autocomplete="off" aria-label="찾을 말"><button class="btn dark" type="submit">찾기</button></form>
       <label class="into">담을 크레이트 <select id="into"></select></label>
     </div>
@@ -556,7 +582,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 
   const S = {
     st: null,          // /me/player 결과 + at(받은 시각)
-    lastAlbum: '', animFor: '', pending: null, tracks: [], tracksFor: '', tkOn: undefined,
+    lastKey: '', animFor: '', pending: null, tracks: [], tracksFor: '', tkOn: undefined,
     devices: [], sdkId: null, sdkErr: '', player: null,
     me: null, seeking: false, volT: 0, volBusy: 0,
   };
@@ -747,6 +773,42 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     id: a.id, name: a.name, artist: (a.artists || []).map((x) => x.name).join(', '),
     img: pickImg(a.images, 300), year: (a.release_date || '').slice(0, 4), n: a.total_tracks,
   });
+  // 플레이리스트도 앨범 한 장처럼 꽂는다 (k: 'pl')
+  const toList = (p) => MM.album({
+    k: 'pl', id: p.id, name: p.name, artist: (p.owner && (p.owner.display_name || p.owner.id)) || '',
+    img: pickImg(p.images, 300), n: ((p.items || p.tracks) || {}).total,
+  });
+  const isPl = (a) => a && a.k === 'pl';
+  // 클립보드 그리기: 집게 · 종이(제목 · 만든 사람 · 곡 수 · 표지) · 곡 줄
+  function fillClip(el, a) {
+    el.innerHTML = '<i class="cb-clip"></i><div class="cb-paper"><span class="cb-img"></span><b class="cb-t"></b><span class="cb-a"></span><span class="cb-lines"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>';
+    el.querySelector('.cb-t').textContent = a.name || '플레이리스트';
+    el.querySelector('.cb-a').textContent = [a.artist, a.n ? a.n + '곡' : ''].filter(Boolean).join(' · ') || 'PLAYLIST';
+    el.querySelector('.cb-img').style.backgroundImage = bg(a.img);
+  }
+  const uriOf = (a) => (isPl(a) ? 'spotify:playlist:' : 'spotify:album:') + a.id;
+  const metaLine = (a) => (isPl(a) ? ['플레이리스트', a.artist, a.n ? a.n + '곡' : ''] : [a.artist, a.year, a.n ? a.n + '곡' : '']).filter(Boolean).join(' · ');
+  // 지금 판 = 플레이리스트로 틀었으면 플레이리스트, 아니면 곡의 앨범
+  const ctxKey = (st) => {
+    const it = st && st.item; if (!it) return '';
+    const c = st.context;
+    if (c && c.type === 'playlist' && c.uri) return c.uri;
+    return it.album && it.album.id ? 'spotify:album:' + it.album.id : '';
+  };
+  const meta = {};
+  function entryFor(key, it) {
+    for (const c of live()) { const a = c.albums.find((x) => uriOf(x) === key); if (a) return a; }
+    const id = key.split(':')[2];
+    if (key.startsWith('spotify:playlist:')) {
+      if (meta[key]) return meta[key];
+      meta[key] = { k: 'pl', id, name: '플레이리스트', artist: '', img: '' };
+      api('/playlists/' + id + '?fields=id,name,images,owner(display_name,id),items(total),tracks(total)')
+        .then((p) => { const e = p && toList({ ...p, id }); if (e) { meta[key] = e; render(); renderTracks(true); } }).catch(() => {});
+      return meta[key];
+    }
+    const alb = it && it.album;
+    return alb ? { id, name: alb.name, artist: (alb.artists || []).map((x) => x.name).join(', '), img: pickImg(alb.images, 300) } : { id, name: '', artist: '', img: '' };
+  }
 
   function renderCrates() {
     const box = $('crates'), cur = crate();
@@ -808,9 +870,9 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       want.add(a.id);
       let e = have.get(a.id);
       if (!e) {
-        e = document.createElement('div'); e.className = 'lp'; e.dataset.k = a.id;
-        e.style.backgroundImage = bg(a.img);
-        e.innerHTML = '<span class="bk">SABATHIA RECORDS</span>';
+        e = document.createElement('div'); e.className = 'lp' + (isPl(a) ? ' pl cb' : ''); e.dataset.k = a.id;
+        if (isPl(a)) fillClip(e, a);
+        else { e.style.backgroundImage = bg(a.img); e.innerHTML = '<span class="bk">SABATHIA RECORDS</span>'; }
         e.style.opacity = '0';
         place(e, d + (d < 0 ? -1 : 1));
         e.style.opacity = '0';
@@ -822,15 +884,17 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     for (const [k, e] of have) if (!want.has(k)) e.remove();
     const a = A[i0];
     $('pickT').textContent = a ? a.name : c.name;
-    $('pickA').textContent = a ? [a.artist, a.year, a.n ? a.n + '곡' : ''].filter(Boolean).join(' · ') : '앨범 0장';
+    $('pickA').textContent = a ? metaLine(a) : '앨범 0장';
     $('crateIdx').textContent = A.length ? `${i0 + 1}/${A.length}` : '0/0';
     $('prevLp').disabled = i0 <= 0; $('nextLp').disabled = i0 >= A.length - 1;
     $('playLp').disabled = $('pullLp').disabled = !a;
+    $('playLp').lastChild.textContent = isPl(a) ? '이 플레이리스트 듣기' : '이 앨범 듣기';
   }
   function flip(d) {
     const c = crate(), n = idxOf(c) + d;
     if (n < 0 || n >= c.albums.length) return;
     pos[c.id] = n; LS.set('music.pos', pos); renderCrate();
+    sfx.flip();
   }
   function pull() {
     const c = crate(), i = idxOf(c), a = c.albums[i];
@@ -881,34 +945,59 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   });
 
   // ---------- 앨범 찾기 (/v1/search type=album) ----------
-  const F = { q: '', off: 0, items: [], total: 0, busy: false, err: '' };
+  // 찾기 종류: album(앨범 검색) · playlist(플레이리스트 검색) · mine(내 플레이리스트, 검색어는 거르기)
+  const F = { type: 'album', q: '', off: 0, items: [], total: 0, busy: false, err: '', mine: null };
   async function search(more) {
     const q = $('q').value.trim();
-    if (!more && !q) return;
     if (!loggedIn()) { toast('먼저 설정에서 Spotify에 로그인하세요'); return; }
+    if (F.type === 'mine') {
+      F.q = q || ' ';
+      if (!F.mine) {
+        F.busy = true; F.err = ''; renderRes();
+        const out = [];
+        try {
+          let url = '/me/playlists?limit=50';
+          while (url && out.length < 300) { const j = await api(url); out.push(...(j.items || []).filter((x) => x && x.id)); url = j.next ? j.next.replace(API, '') : ''; }
+          F.mine = out;
+        } catch (e) { F.err = e.message; }
+        F.busy = false;
+      }
+      const k = q.toLowerCase();
+      F.items = (F.mine || []).filter((p) => !k || (p.name || '').toLowerCase().includes(k));
+      F.total = F.items.length; renderRes(); return;
+    }
+    if (!more && !q) return;
     if (!more) { F.q = q; F.off = 0; F.items = []; F.total = 0; }
     F.busy = true; F.err = ''; renderRes();
+    const T = F.type, key = T + 's';
     try {
-      const j = await api('/search?type=album&limit=10&offset=' + F.off + '&q=' + encodeURIComponent(F.q));
-      const page = ((j && j.albums && j.albums.items) || []).filter((x) => x && x.id);
+      const j = await api('/search?type=' + T + '&limit=10&offset=' + F.off + '&q=' + encodeURIComponent(F.q));
+      if (F.type !== T) return;
+      const page = ((j && j[key] && j[key].items) || []).filter((x) => x && x.id);
       F.items.push(...page); F.off += page.length;
-      F.total = page.length ? (j.albums.total || 0) : F.items.length;
+      F.total = page.length ? (j[key].total || 0) : F.items.length;
     } catch (e) { F.err = e.message; }
     F.busy = false; renderRes();
+  }
+  function setFindType(t) {
+    F.type = t; F.items = []; F.total = 0; F.off = 0; F.err = '';
+    for (const b of document.querySelectorAll('#findTabs button')) b.setAttribute('aria-pressed', String(b.dataset.t === t));
+    $('q').placeholder = t === 'album' ? '앨범·아티스트 이름' : t === 'playlist' ? '플레이리스트 이름·분위기' : '내 플레이리스트에서 거르기';
+    if (t === 'mine') { $('q').value = ''; search(); } else if ($('q').value.trim()) search(false); else { F.q = ''; renderRes(); }
   }
   function renderRes() {
     const box = $('res'), cid = $('into').value || crate().id, c = doc.crates[cid];
     box.innerHTML = '';
     const msg = (t) => { const p = document.createElement('p'); p.className = 'msg'; p.textContent = t; box.appendChild(p); };
-    if (!F.q) { msg('앨범이나 아티스트 이름으로 찾으세요.\n\'담기\'를 누르면 위에서 고른 크레이트에 꽂힙니다.'); return; }
+    if (!F.q && F.type !== 'mine') { msg(F.type === 'album' ? '앨범이나 아티스트 이름으로 찾으세요.\n\'담기\'를 누르면 위에서 고른 크레이트에 꽂힙니다.' : '플레이리스트를 찾아 담으면 앨범 한 장처럼 꽂힙니다.'); return; }
     for (const raw of F.items) {
-      const a = toAlbum(raw); if (!a) continue;
+      const a = F.type === 'album' ? toAlbum(raw) : toList(raw); if (!a) continue;
       const inC = !!(c && c.albums.some((x) => x.id === a.id));
       const row = document.createElement('div'); row.className = 'ar';
       row.innerHTML = '<span class="cv"></span><div class="tx"><b></b><span></span></div><div class="ac"><button type="button" class="btn put"></button><button type="button" class="sq go2" aria-label="바로 듣기"><svg class="ico"><use href="#i-play"/></svg></button></div>';
       row.querySelector('.cv').style.backgroundImage = bg(pickImg(raw.images, 64));
       row.querySelector('b').textContent = a.name;
-      row.querySelector('.tx span').textContent = [a.artist, a.year, a.n ? a.n + '곡' : '', raw.album_type === 'single' ? '싱글' : raw.album_type === 'compilation' ? '모음' : ''].filter(Boolean).join(' · ');
+      row.querySelector('.tx span').textContent = isPl(a) ? metaLine(a) : [a.artist, a.year, a.n ? a.n + '곡' : '', raw.album_type === 'single' ? '싱글' : raw.album_type === 'compilation' ? '모음' : ''].filter(Boolean).join(' · ');
       const put = row.querySelector('.put');
       put.textContent = inC ? '담음' : '담기'; put.classList.toggle('in', inC);
       put.setAttribute('aria-pressed', String(inC));
@@ -918,8 +1007,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     }
     if (F.busy) msg('찾는 중…');
     else if (F.err) msg(F.err);
-    else if (!F.items.length) msg('찾은 앨범이 없습니다');
-    else if (F.items.length < F.total && F.items.length < 100) {
+    else if (!F.items.length) msg(F.type === 'mine' ? '플레이리스트가 없습니다' : '찾은 결과가 없습니다');
+    else if (F.type !== 'mine' && F.items.length < F.total && F.items.length < 100) {
       const m = document.createElement('div'); m.className = 'more';
       m.innerHTML = '<button type="button" class="btn">더 보기</button>';
       m.firstChild.addEventListener('click', () => search(true));
@@ -945,11 +1034,22 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     } catch (e) { if (e.status === 0) return; }
     if (document.visibilityState === 'visible') pollT = setTimeout(poll, S.st && S.st.is_playing ? 3000 : 6000);
   }
-  async function loadTracks(id) {
-    S.tracksFor = id; S.tracks = null; renderTracks(true);
+  async function loadTracks(key) {
+    S.tracksFor = key; S.tracks = null; renderTracks(true);
+    const id = key.split(':')[2];
     let t = [];
-    try { const j = await api('/albums/' + id + '/tracks?limit=50'); t = (j && j.items) || []; } catch {}
-    if (S.tracksFor !== id) return;
+    if (key.startsWith('spotify:playlist:')) {
+      for (const path of ['/items', '/tracks']) {
+        try {
+          const j = await api('/playlists/' + id + path + '?limit=50');
+          t = ((j && j.items) || []).map((x) => x && (x.item || x.track)).filter((x) => x && x.uri).map((x, i) => ({ ...x, _no: i + 1 }));
+          break;
+        } catch {}
+      }
+    } else {
+      try { const j = await api('/albums/' + id + '/tracks?limit=50'); t = (j && j.items) || []; } catch {}
+    }
+    if (S.tracksFor !== key) return;
     S.tracks = t; renderTracks(true);
   }
   async function refreshDevices() {
@@ -986,16 +1086,15 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     } catch (e) { fail(e); }
     schedulePoll(500);
   }
-  // 앨범 단위로 듣는다: 셔플을 끄고 앨범 처음(또는 고른 곡)부터
+  // 앨범(플레이리스트) 단위로 듣는다: 셔플을 끄고 처음(또는 고른 곡)부터. 판이 바뀌면 모션
   async function playAlbum(a, trackUri) {
     if (!loggedIn()) { openDlg(); return; }
-    wake();
-    const it = S.st && S.st.item;
-    if (!(it && it.album && it.album.id === a.id)) dropLP(a);
+    wake(); sfx.unlock();
+    if (ctxKey(S.st) !== uriOf(a)) dropLP(a);
     try {
       const id = encodeURIComponent(await targetDevice());
       if (S.st && S.st.shuffle_state) { S.st.shuffle_state = false; await api('/me/player/shuffle?state=false&device_id=' + id, { method: 'PUT' }).catch(() => {}); }
-      await api('/me/player/play?device_id=' + id, { method: 'PUT', body: { context_uri: 'spotify:album:' + a.id, ...(trackUri ? { offset: { uri: trackUri } } : {}) } });
+      await api('/me/player/play?device_id=' + id, { method: 'PUT', body: { context_uri: uriOf(a), ...(trackUri ? { offset: { uri: trackUri } } : {}) } });
     } catch (e) { fail(e); cancelDrop(); }
     schedulePoll(900);
   }
@@ -1043,14 +1142,93 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     schedulePoll(600);
   }
 
-  // ---------- LP 꺼내기 (앨범이 바뀔 때 3초) ----------
+  // ---------- 효과음 (Web Audio로 합성, 파일 없음) ----------
+  const sfx = (() => {
+    let ctx = null, out = null, nb = null;
+    const on = () => LS.get('music.sfx') !== false;
+    function get() {
+      if (!on()) return null;
+      try {
+        if (!ctx) {
+          ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -12; comp.ratio.value = 6;
+          out = ctx.createGain(); out.gain.value = 0.7; out.connect(comp); comp.connect(ctx.destination);
+          nb = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+          const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        }
+        if (ctx.state === 'suspended') ctx.resume();
+        return ctx;
+      } catch { return null; }
+    }
+    // 잡음 한 줄기: 필터 종류·주파수(끝 주파수)·길이·크기
+    function noise(t, dur, o) {
+      const c = ctx, s = c.createBufferSource(); s.buffer = nb; s.playbackRate.value = o.rate || 1;
+      const f = c.createBiquadFilter(); f.type = o.type || 'bandpass'; f.Q.value = o.q || 0.8;
+      f.frequency.setValueAtTime(o.f, t); if (o.f2) f.frequency.exponentialRampToValueAtTime(o.f2, t + dur);
+      const g = c.createGain(); const a = o.a || 0.004;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.g, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); g.connect(out);
+      s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+    }
+    function tone(t, dur, o) {
+      const c = ctx, s = c.createOscillator(); s.type = o.type || 'sine';
+      s.frequency.setValueAtTime(o.f, t); if (o.f2) s.frequency.exponentialRampToValueAtTime(o.f2, t + dur);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.g, t + (o.a || 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(g); g.connect(out); s.start(t); s.stop(t + dur + 0.05);
+    }
+    const at = (sec) => ctx.currentTime + (sec || 0);
+    const jit = (x) => x * (0.85 + Math.random() * 0.3);
+    return {
+      unlock() { get(); },
+      // 크레이트 넘김: 마분지 슬리브가 앞판에 툭
+      flip() {
+        if (!get()) return;
+        const t = at();
+        noise(t, 0.09, { f: jit(2600), f2: 900, q: 0.7, g: 0.32 });
+        noise(t + 0.012, 0.07, { type: 'lowpass', f: 420, g: 0.35 });
+        tone(t + 0.01, 0.08, { f: jit(140), f2: 70, g: 0.18 });
+      },
+      // 슬리브가 미끄러져 들어옴·나감
+      slide(d, dur) { if (get()) noise(at(d), dur, { f: 700, f2: 2600, q: 0.5, g: 0.12, a: dur * 0.4 }); },
+      // 판이 슬리브에서 빠져나옴(종이와 비닐 마찰)
+      pull(d, dur) { if (!get()) return; noise(at(d), dur, { type: 'highpass', f: 2500, f2: 5000, g: 0.07, a: 0.08 }); noise(at(d), dur * 0.8, { f: 1200, f2: 600, q: 1.2, g: 0.05, a: 0.1 }); },
+      // 플래터에 내려앉음
+      drop(d) { if (!get()) return; const t = at(d); tone(t, 0.22, { f: 120, f2: 50, g: 0.45 }); noise(t, 0.06, { type: 'lowpass', f: 900, g: 0.3 }); },
+      // 바늘이 닿을 때 지직
+      needle(d) {
+        if (!get()) return;
+        const t = at(d);
+        noise(t, 0.05, { type: 'highpass', f: 1800, g: 0.12 });
+        for (let i = 0; i < 14; i++) noise(t + 0.05 + Math.random() * 0.7, 0.012, { type: 'highpass', f: 2500 + Math.random() * 3000, g: 0.03 + Math.random() * 0.05, a: 0.001 });
+        noise(t + 0.04, 0.8, { type: 'lowpass', f: 300, g: 0.03, a: 0.1 });
+      },
+      // 플레이리스트 꽂기: 쾅 + 덜컹 + 스크래치
+      slam(d) {
+        if (!get()) return;
+        const t = at(d);
+        tone(t, 0.45, { f: 85, f2: 32, g: 0.95, a: 0.003 });
+        tone(t, 0.18, { type: 'triangle', f: 180, f2: 60, g: 0.35 });
+        noise(t, 0.16, { type: 'lowpass', f: 1600, f2: 300, g: 0.8, a: 0.002 });
+        noise(t + 0.02, 0.32, { f: 3200, f2: 1400, q: 2, g: 0.22 });
+        noise(t + 0.16, 0.12, { f: 700, f2: 2400, q: 3, g: 0.25, a: 0.02 });
+        noise(t + 0.28, 0.14, { f: 2400, f2: 600, q: 3, g: 0.22, a: 0.02 });
+      },
+      // 슬리브를 휙 찢듯 빼냄
+      rip(d) { if (get()) noise(at(d), 0.14, { f: 1500, f2: 6000, q: 0.6, g: 0.3, a: 0.01 }); },
+    };
+  })();
+
+  // ---------- LP 꺼내기 (판이 바뀔 때). 앨범은 3초 동안 천천히, 플레이리스트는 1.7초에 쾅 꽂는다 ----------
   let dropAnims = [], dropT = [];
   function stopDrop() { dropAnims.forEach((x) => x.cancel()); dropAnims = []; dropT.forEach(clearTimeout); dropT = []; }
   function cancelDrop() { stopDrop(); document.body.classList.remove('changing', 'handoff'); $('drop').hidden = true; S.pending = null; S.animFor = ''; render(); }
   function dropLP(a) {
-    S.pending = { ...a, at: Date.now() }; S.animFor = a.id; S.lastAlbum = a.id;
+    const key = uriOf(a);
+    S.pending = { ...a, key, at: Date.now() }; S.animFor = key; S.lastKey = key;
     stopDrop();
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { render(); return; }
+    const slam = isPl(a);
     const D = $('drop'), sl = $('dSleeve'), di = $('dDisc');
     D.hidden = false; document.body.classList.add('changing');
     render();
@@ -1059,34 +1237,81 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     const lab = $('label').cloneNode(true);
     lab.removeAttribute('id'); lab.querySelectorAll('[id]').forEach((x) => x.removeAttribute('id'));
     di.querySelector('.label, .dl').replaceWith(lab);
-    const T = 'translate', o = { duration: 3000, fill: 'forwards' };
-    dropAnims = [
-      sl.animate([
-        { offset: 0, opacity: 0, transform: `${T}(80%,-34%) rotate(14deg) scale(.62)`, easing: 'cubic-bezier(.2,.8,.2,1)' },
-        { offset: 0.16, opacity: 1, transform: `${T}(30%,-18%) rotate(-4deg) scale(.62)` },
-        { offset: 0.5, opacity: 1, transform: `${T}(33%,-18%) rotate(-3deg) scale(.62)`, easing: 'cubic-bezier(.5,0,.8,.4)' },
-        { offset: 0.7, opacity: 0, transform: `${T}(100%,-4%) rotate(12deg) scale(.62)` },
-        { offset: 1, opacity: 0, transform: `${T}(100%,-4%) rotate(12deg) scale(.62)` },
-      ], o),
-      di.animate([
-        { offset: 0, opacity: 0, transform: `${T}(30%,-18%) scale(.59) rotate(0deg)` },
-        { offset: 0.16, opacity: 1, transform: `${T}(30%,-18%) scale(.59) rotate(0deg)`, easing: 'cubic-bezier(.45,0,.3,1)' },
-        { offset: 0.44, opacity: 1, transform: `${T}(-14%,-18%) scale(.59) rotate(-60deg)`, easing: 'ease-in-out' },
-        { offset: 0.62, opacity: 1, transform: `${T}(-5%,-9%) scale(.84) rotate(-170deg)`, easing: 'ease-in-out' },
-        { offset: 0.76, opacity: 1, transform: `${T}(0%,-2%) scale(1.05) rotate(-280deg)`, easing: 'cubic-bezier(.3,0,.2,1)' },
-        { offset: 0.84, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
-        { offset: 1, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
-      ], o),
-    ];
-    // 2.52초: 판이 0도로 내려앉은 순간 진짜 판(회전도 0도부터 다시)으로 바로 바꿔 끼우고 톤암을 내린다
+    const T = 'translate';
+    let handAt;
+    if (!slam) {
+      const o = { duration: 3000, fill: 'forwards' };
+      dropAnims = [
+        sl.animate([
+          { offset: 0, opacity: 0, transform: `${T}(80%,-34%) rotate(14deg) scale(.62)`, easing: 'cubic-bezier(.2,.8,.2,1)' },
+          { offset: 0.16, opacity: 1, transform: `${T}(30%,-18%) rotate(-4deg) scale(.62)` },
+          { offset: 0.5, opacity: 1, transform: `${T}(33%,-18%) rotate(-3deg) scale(.62)`, easing: 'cubic-bezier(.5,0,.8,.4)' },
+          { offset: 0.7, opacity: 0, transform: `${T}(100%,-4%) rotate(12deg) scale(.62)` },
+          { offset: 1, opacity: 0, transform: `${T}(100%,-4%) rotate(12deg) scale(.62)` },
+        ], o),
+        di.animate([
+          { offset: 0, opacity: 0, transform: `${T}(30%,-18%) scale(.59) rotate(0deg)` },
+          { offset: 0.16, opacity: 1, transform: `${T}(30%,-18%) scale(.59) rotate(0deg)`, easing: 'cubic-bezier(.45,0,.3,1)' },
+          { offset: 0.44, opacity: 1, transform: `${T}(-14%,-18%) scale(.59) rotate(-60deg)`, easing: 'ease-in-out' },
+          { offset: 0.62, opacity: 1, transform: `${T}(-5%,-9%) scale(.84) rotate(-170deg)`, easing: 'ease-in-out' },
+          { offset: 0.76, opacity: 1, transform: `${T}(0%,-2%) scale(1.05) rotate(-280deg)`, easing: 'cubic-bezier(.3,0,.2,1)' },
+          { offset: 0.84, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
+          { offset: 1, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
+        ], o),
+      ];
+      sfx.slide(0, 0.45); sfx.pull(0.5, 0.85); sfx.slide(1.5, 0.55); sfx.drop(2.5);
+      handAt = 2520;
+    } else {
+      // 클립보드가 위에서 날아와 턴테이블에 쾅 → 살짝 튀고 → 옆으로 휙 걷어내면 밑에서 판이 돌고 있다
+      const cl = $('dClip');
+      fillClip(cl, a);
+      const o = { duration: 1900, fill: 'forwards' };
+      dropAnims = [
+        cl.animate([
+          { offset: 0, opacity: 0, transform: `${T}(-75%,-125%) rotate(-38deg) scale(1.55)` },
+          { offset: 0.07, opacity: 1, transform: `${T}(-62%,-105%) rotate(-32deg) scale(1.5)`, easing: 'cubic-bezier(.55,0,1,.45)' },
+          { offset: 0.34, opacity: 1, transform: `${T}(0%,0%) rotate(-4deg) scale(.9)`, easing: 'cubic-bezier(.2,.8,.3,1)' },
+          { offset: 0.41, opacity: 1, transform: `${T}(0%,-3%) rotate(-6deg) scale(.95)`, easing: 'cubic-bezier(.6,0,1,.6)' },
+          { offset: 0.47, opacity: 1, transform: `${T}(0%,0%) rotate(-4deg) scale(.9)` },
+          { offset: 0.55, opacity: 1, transform: `${T}(1%,0%) rotate(-3deg) scale(.9)`, easing: 'cubic-bezier(.5,0,.9,.4)' },
+          { offset: 0.72, opacity: 1, transform: `${T}(150%,25%) rotate(40deg) scale(.85)` },
+          { offset: 0.8, opacity: 0, transform: `${T}(170%,30%) rotate(45deg) scale(.85)` },
+          { offset: 1, opacity: 0, transform: `${T}(170%,30%) rotate(45deg) scale(.85)` },
+        ], o),
+        di.animate([
+          { offset: 0, opacity: 0, transform: `${T}(0%,0%) scale(1) rotate(-160deg)` },
+          { offset: 0.33, opacity: 0, transform: `${T}(0%,0%) scale(1) rotate(-160deg)` },
+          { offset: 0.34, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-160deg)` },
+          { offset: 0.76, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
+          { offset: 1, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
+        ], o),
+      ];
+      const hit = 646;
+      dropT.push(setTimeout(() => {
+        const deck = document.querySelector('.panel');
+        dropAnims.push(deck.animate([
+          { transform: 'translate(0,0)' }, { transform: 'translate(-7px,5px) rotate(-.4deg)' }, { transform: 'translate(6px,-4px) rotate(.35deg)' },
+          { transform: 'translate(-4px,3px)' }, { transform: 'translate(3px,-2px)' }, { transform: 'translate(-1px,1px)' }, { transform: 'translate(0,0)' },
+        ], { duration: 380, easing: 'ease-out' }));
+        const ring = document.querySelector('.platter');
+        dropAnims.push(ring.animate([{ boxShadow: '0 0 0 0 rgba(230,0,18,.55), 0 16px 40px rgba(0,0,0,.18)' }, { boxShadow: '0 0 0 26px rgba(230,0,18,0), 0 16px 40px rgba(0,0,0,.18)' }], { duration: 500, easing: 'ease-out' }));
+        if (navigator.vibrate) try { navigator.vibrate(40); } catch {}
+      }, hit));
+      sfx.slide(0, 0.5); sfx.slam(hit / 1000); sfx.rip(1.05);
+      handAt = 1444;
+    }
+    // 판이 0도로 내려앉은 순간 진짜 판(회전도 0도부터 다시)으로 바로 바꿔 끼우고 톤암을 내린다
     dropT.push(setTimeout(() => {
       const rec = $('record');
       document.body.classList.add('handoff');
       rec.style.animation = 'none'; void rec.offsetWidth; rec.style.animation = '';
       document.body.classList.remove('changing');
-      D.hidden = true; stopDrop(); render();
+      D.hidden = true;
+      dropAnims.slice(0, 2).forEach((x) => x.cancel());
+      render();
       requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('handoff')));
-    }, 2520));
+      if (playing() || S.pending) sfx.needle(slam ? 0.25 : 0.4);
+    }, handAt));
   }
 
   // ---------- 그리기 ----------
@@ -1108,14 +1333,18 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   function render() {
     const st = S.st, it = st && st.item, on = playing();
     const alb = it && it.album && it.album.id ? it.album : null;
-    // 앨범이 바뀌면(다른 기기에서 바꿔도) 판을 갈아 끼운다
-    if (alb && alb.id !== S.lastAlbum) {
-      const first = !S.lastAlbum;
-      S.lastAlbum = alb.id;
-      if (!first && alb.id !== S.animFor) { dropLP({ id: alb.id, name: alb.name, artist: (alb.artists || []).map((x) => x.name).join(', '), img: pickImg(alb.images, 300) }); return; }
+    const key = ctxKey(st);
+    // 판(앨범·플레이리스트)이 바뀌면(다른 기기에서 바꿔도) 판을 갈아 끼운다
+    // 판을 갈아 끼우는 중(S.pending)에는 서버 상태가 아직 예전 판이라 바뀐 걸로 치지 않는다
+    const waiting = S.pending && Date.now() - S.pending.at < 10000;
+    if (S.pending && !waiting) { S.lastKey = key; S.pending = null; } // 10초가 지나도 안 맞으면 지금 판을 그대로 받아들인다
+    if (key && key !== S.lastKey && !waiting) {
+      const first = !S.lastKey;
+      S.lastKey = key;
+      if (!first && key !== S.animFor) { dropLP(entryFor(key, it)); return; }
     }
-    if (alb && alb.id !== S.tracksFor) loadTracks(alb.id);
-    if (!alb && S.tracksFor) { S.tracksFor = ''; S.tracks = []; renderTracks(true); }
+    if (key && key !== S.tracksFor) loadTracks(key);
+    if (!key && S.tracksFor) { S.tracksFor = ''; S.tracks = []; renderTracks(true); }
     document.body.classList.toggle('playing', on);
     const t = it ? it.name : loggedIn() ? '재생 중인 곡 없음' : 'Spotify 연결 안 됨';
     const a = it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '설정에서 로그인';
@@ -1123,9 +1352,9 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     $('botT').textContent = t; $('botA').textContent = a;
     $('nowImg').style.backgroundImage = bg(small(it));
     // 판 가운데 라벨 = 앨범. 판을 갈아 끼우는 중이면 새 앨범
-    const pend = S.pending && (!alb || alb.id !== S.pending.id) && Date.now() - S.pending.at < 10000 ? S.pending : null;
+    const pend = S.pending && key !== S.pending.key && Date.now() - S.pending.at < 10000 ? S.pending : null;
     if (!pend) S.pending = null;
-    const L = pend || (alb ? { name: alb.name, artist: (alb.artists || []).map((x) => x.name).join(', '), img: cover(it) } : it ? { name: it.name, artist: artists(it), img: cover(it) } : null);
+    const L = pend || (key ? entryFor(key, it) : it ? { name: it.name, artist: artists(it), img: cover(it) } : null);
     $('labT').textContent = L ? L.name : 'NO RECORD';
     $('labA').textContent = L ? L.artist : (loggedIn() ? '크레이트에서 고르세요' : '설정에서 로그인');
     $('label').classList.toggle('art', !!(L && L.img));
@@ -1181,24 +1410,24 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (!force && onId === S.tkOn) return;
     S.tkOn = onId;
     box.innerHTML = '';
-    const alb = it && it.album;
-    $('tkHead').textContent = alb ? '앨범 트랙 · ' + alb.name : '앨범 트랙';
+    const E = S.tracksFor ? entryFor(S.tracksFor, it) : null;
+    $('tkHead').textContent = E ? (isPl(E) ? '플레이리스트 · ' : '앨범 트랙 · ') + E.name : '앨범 트랙';
     const none = (t) => { const p = document.createElement('div'); p.className = 'tk-none'; p.textContent = t; box.appendChild(p); };
     if (!S.tracksFor) { none(loggedIn() ? '재생 중인 앨범이 없습니다' : 'Spotify에 연결하면 여기 트랙이 나옵니다'); return; }
     if (!S.tracks) { none('트랙 불러오는 중'); return; }
     if (!S.tracks.length) { none('트랙 정보 없음'); return; }
-    const multi = S.tracks.some((t) => t.disc_number > 1);
+    const multi = !isPl(E) && S.tracks.some((t) => t.disc_number > 1);
     let onEl = null;
     for (const t of S.tracks) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tk';
-      const on = !!it && (t.id === it.id || (t.linked_from && t.linked_from.id === it.id) || (t.name === it.name && t.track_number === it.track_number));
+      const on = !!it && (t.id === it.id || (t.linked_from && t.linked_from.id === it.id) || (!t._no && t.name === it.name && t.track_number === it.track_number));
       b.classList.toggle('on', on);
       b.innerHTML = '<span class="no"></span><b></b><span></span>';
       if (on) b.querySelector('.no').innerHTML = '<span class="led on"></span>';
-      else b.querySelector('.no').textContent = (multi ? t.disc_number + '-' : '') + t.track_number;
+      else b.querySelector('.no').textContent = t._no || (multi ? t.disc_number + '-' : '') + t.track_number;
       b.querySelector('b').textContent = t.name;
       b.lastChild.textContent = mmss(t.duration_ms);
-      b.addEventListener('click', () => playAlbum({ id: S.tracksFor }, t.uri));
+      b.addEventListener('click', () => playAlbum(E, t.uri));
       if (on) onEl = b;
       box.appendChild(b);
     }
@@ -1272,6 +1501,11 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   $('findX').addEventListener('click', () => $('find').close());
   $('findForm').addEventListener('submit', (e) => { e.preventDefault(); $('q').blur(); search(false); });
   $('into').addEventListener('change', renderRes);
+  for (const b of document.querySelectorAll('#findTabs button')) b.addEventListener('click', () => setFindType(b.dataset.t));
+  $('sfxOn').checked = LS.get('music.sfx') !== false;
+  $('sfxOn').addEventListener('change', (e) => { LS.set('music.sfx', e.target.checked); if (e.target.checked) sfx.flip(); });
+  // iOS·안드로이드는 처음 누를 때 소리를 깨워야 한다
+  document.addEventListener('pointerdown', () => sfx.unlock(), { once: true, capture: true });
   $('devBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     const open = $('devs').hidden;
