@@ -265,10 +265,15 @@ function start() {
     pl.position.y = PL_TOP - H / 2; node.add(pl);
     // 스트로브 등(앞 왼쪽 본체 위, 빨간 불이 땡땡이를 비춘다)
     const lampAt = new THREE.Vector3(-0.726, 0, 0.688).multiplyScalar(0.79).add(PLATTER);
-    const lampBody = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.05, 24), new THREE.MeshStandardMaterial({ color: 0xe9e9e7, roughness: 0.4 }));
-    lampBody.position.set(lampAt.x, PLATE + 0.025, lampAt.z); deck.add(lampBody);
+    // 스트로브 등: 크롬 받침 · 홈 파인 몸통 · 위에 빨간 렌즈(플래터 쪽을 본다)
+    const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.043, 0.008, 32), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 }));
+    lampBase.position.set(lampAt.x, PLATE + 0.004, lampAt.z); deck.add(lampBase);
+    const lampBody = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.05, 32), new THREE.MeshStandardMaterial({ color: 0xdcdfe3, metalness: 0.8, roughness: 0.3 }));
+    lampBody.position.set(lampAt.x, PLATE + 0.033, lampAt.z); deck.add(lampBody);
+    for (const yy of [0.02, 0.03, 0.04]) { const gr2 = new THREE.Mesh(new THREE.TorusGeometry(0.0295, 0.0018, 6, 32), new THREE.MeshStandardMaterial({ color: 0x3a3c42, metalness: 0.5, roughness: 0.5 })); gr2.rotation.x = Math.PI / 2; gr2.position.set(lampAt.x, PLATE + yy, lampAt.z); deck.add(gr2); }
+    const cap2 = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.028, 0.008, 32), new THREE.MeshStandardMaterial({ color: 0x1d1f24, roughness: 0.5 })); cap2.position.set(lampAt.x, PLATE + 0.062, lampAt.z); deck.add(cap2);
     const lens = new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff3a2a, emissive: 0xff2010, emissiveIntensity: 1.6 }));
-    lens.position.set(lampAt.x + 0.018, PLATE + 0.04, lampAt.z - 0.017); deck.add(lens);
+    lens.position.set(lampAt.x + 0.02, PLATE + 0.046, lampAt.z - 0.019); deck.add(lens);
     const glow = new THREE.PointLight(0xff3020, 0.35, 0.5, 2); glow.position.set(lampAt.x + 0.03, PLATE + 0.05, lampAt.z - 0.03); deck.add(glow); D._glow = glow;
     const lip = new THREE.Mesh(new THREE.TorusGeometry(PL_R - 0.003, 0.004, 8, 128), alu); lip.rotation.x = Math.PI / 2; lip.position.y = PL_TOP - 0.001; node.add(lip);
     // 고무 매트: 동심원 무늬
@@ -405,16 +410,16 @@ function start() {
   const ctl = {};
   function buildControls() {
     // START/STOP: 크고 납작한 사각 버튼
-    const sb = new THREE.Group(); sb.position.set(-0.62, PLATE, 0.635); deck.add(sb);
-    const bez = new THREE.Mesh(new RoundedBoxGeometry(0.236, 0.008, 0.136, 2, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); bez.position.y = 0.004; sb.add(bez);
-    const well = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.01, 0.12), darkM); well.position.y = 0.005; sb.add(well);
+    const sb = new THREE.Group(); sb.position.set(-0.575, PLATE, 0.632); deck.add(sb);
+    const bez = new THREE.Mesh(new RoundedBoxGeometry(0.186, 0.008, 0.126, 2, 0.01), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); bez.position.y = 0.004; sb.add(bez);
+    const well = new THREE.Mesh(new THREE.BoxGeometry(0.172, 0.01, 0.112), darkM); well.position.y = 0.005; sb.add(well);
     // 전원 LED(재생 중 초록)
-    const pled = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 8), new THREE.MeshStandardMaterial({ color: 0x1b3a22, emissive: 0x33ff77, emissiveIntensity: 0 })); pled.position.set(0.135, 0.008, -0.03); sb.add(pled); ctl.pled = pled;
-    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.1), [satinM, satinM, new THREE.MeshStandardMaterial({ map: labelTex(['START·STOP'], 256, 128, 30), metalness: 0.4, roughness: 0.45 }), satinM, satinM, satinM]);
+    const pled = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 8), new THREE.MeshStandardMaterial({ color: 0x1b3a22, emissive: 0x33ff77, emissiveIntensity: 0 })); pled.position.set(-0.07, 0.008, -0.075); sb.add(pled); ctl.pled = pled;
+    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.02, 0.095), [satinM, satinM, new THREE.MeshStandardMaterial({ map: labelTex(['START·STOP'], 256, 128, 30), metalness: 0.4, roughness: 0.45 }), satinM, satinM, satinM]);
     btn.position.y = 0.012; btn.userData.act = 'start'; sb.add(btn); clickables.push(btn); ctl.start = btn;
     // 33 / 45: 둥근 버튼 + 불 들어오는 테
     ctl.speed = {};
-    for (const [k, x] of [['s33', -0.42], ['s45', -0.335]]) {
+    for (const [k, x] of [['s33', -0.418], ['s45', -0.335]]) {
       const g = new THREE.Group(); g.position.set(x, PLATE, 0.655); deck.add(g);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.004, 8, 32), new THREE.MeshStandardMaterial({ color: 0x3a3c42, emissive: 0xff5a2a, emissiveIntensity: 0 }));
       ring.rotation.x = Math.PI / 2; ring.position.y = 0.004; g.add(ring);
@@ -422,7 +427,29 @@ function start() {
       const b = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.016, 32), [satinM, new THREE.MeshStandardMaterial({ map: labelTex([k === 's33' ? '33' : '45'], 128, 128, 56), metalness: 0.4, roughness: 0.45 }), satinM]);
       b.position.y = 0.009; b.userData.act = k; g.add(b); clickables.push(b); ctl.speed[k] = { b, ring };
     }
-    engrave('SPEED', -0.378, 0.7, 0.16, 30);
+    engrave('SPEED', -0.377, 0.7, 0.16, 30);
+    // 전원 노브(왼쪽 앞 구석): 돌리는 손잡이 + 크롬 테 + ON/OFF 표시. 누르면 딸깍 돌아간다(장식)
+    {
+      const pk = new THREE.Group(); pk.position.set(-0.775, PLATE, 0.628); deck.add(pk);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.047, 0.004, 10, 48), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.004; pk.add(ring);
+      const kc = document.createElement('canvas'); kc.width = kc.height = 256; const kg = kc.getContext('2d');
+      const kgr = kg.createRadialGradient(128, 128, 10, 128, 128, 128); kgr.addColorStop(0, '#e8eaee'); kgr.addColorStop(1, '#a9adb3'); kg.fillStyle = kgr; kg.beginPath(); kg.arc(128, 128, 128, 0, 7); kg.fill();
+      for (let r = 20; r < 128; r += 4) { kg.strokeStyle = 'rgba(255,255,255,.18)'; kg.lineWidth = 1; kg.beginPath(); kg.arc(128, 128, r, 0, 7); kg.stroke(); }
+      kg.fillStyle = '#c8102e'; kg.fillRect(124, 14, 8, 50);
+      const kt = new THREE.CanvasTexture(kc); kt.colorSpace = THREE.SRGBColorSpace;
+      const knurl = document.createElement('canvas'); knurl.width = 512; knurl.height = 32; const ng = knurl.getContext('2d'); for (let i = 0; i < 128; i++) { ng.fillStyle = i % 2 ? '#eef0f3' : '#7d8188'; ng.fillRect(i * 4, 0, 2, 32); }
+      const nt = new THREE.CanvasTexture(knurl); nt.colorSpace = THREE.SRGBColorSpace;
+      const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.041, 0.034, 48), [new THREE.MeshStandardMaterial({ map: nt, metalness: 0.9, roughness: 0.3 }), new THREE.MeshStandardMaterial({ map: kt, metalness: 0.85, roughness: 0.25 }), satinM]);
+      knob.position.y = 0.019; knob.rotation.y = -0.6; knob.userData.act = 'power'; pk.add(knob); clickables.push(knob); ctl.power = knob;
+      // ON · OFF 표시(본체에 새김)
+      const on = engrave('ON', -0.738, 0.574, 0.045, 40), off = engrave('OFF', -0.812, 0.574, 0.05, 40); void on; void off;
+    }
+    // QUARTZ 표시등(속도가 맞으면 초록)
+    {
+      const q = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.006, 16), new THREE.MeshStandardMaterial({ color: 0x1b3a22, emissive: 0x44ff88, emissiveIntensity: 0 }));
+      q.position.set(-0.66, PLATE + 0.006, 0.545); deck.add(q); ctl.quartz = q;
+      const qb = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0025, 8, 24), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 })); qb.rotation.x = Math.PI / 2; qb.position.set(-0.66, PLATE + 0.006, 0.545); deck.add(qb);
+    }
     // 볼륨 슬라이더(피치 슬라이더 자리): 오른쪽 앞, 위(뒤)로 밀수록 크게
     const sl = new THREE.Group(); sl.position.set(0.8, PLATE, 0.3); deck.add(sl);
     const slot = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.006, 0.52), darkM); slot.position.y = 0.002; sl.add(slot);
@@ -628,6 +655,7 @@ function start() {
       e.preventDefault();
       if (act === 'start') { press(ctl.start); D.onSound && D.onSound('click'); D.onButton && D.onButton('start'); }
       else if (act === 's33' || act === 's45') { press(ctl.speed[act].b); speed45 = act === 's45'; RPS = (speed45 ? 45 : 33.333) / 60; D.onSound && D.onSound('click'); }
+      else if (act === 'power') { ctl.power.rotation.y += ctl.power.rotation.y < 0 ? 1.2 : -1.2; D.onSound && D.onSound('click'); }
       else if (act === 'cue') { D.onSound && D.onSound('cue'); D.onButton && D.onButton('cue'); }
       else if (act === 'slider' || act === 'dial') { dragCtl = { act, x: e.clientX, y: e.clientY, rot: ctl.dial.rotation.y }; el.setPointerCapture(e.pointerId); }
       return;
@@ -707,6 +735,7 @@ function start() {
     clips.forEach((c) => { c.m.rotation.z += ((rest ? 0 : c.sgn * 0.9) - c.m.rotation.z) * Math.min(1, dt * 5); });
     halos.forEach((h) => { h.sp.material.opacity = h.fn(); });
     ctl.pled.material.emissiveIntensity = playing ? 2 : 0;
+    ctl.quartz.material.emissiveIntensity = playing && !grab && Math.abs(vel - RPS * Math.PI * 2) < 0.05 ? 2 : 0;
     // 33/45 불
     ctl.speed.s33.ring.material.emissiveIntensity = speed45 ? 0 : 1.6; ctl.speed.s45.ring.material.emissiveIntensity = speed45 ? 1.6 : 0;
     // 볼륨 슬라이더 손잡이
