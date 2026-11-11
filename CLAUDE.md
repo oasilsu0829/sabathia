@@ -79,6 +79,8 @@ public/music/       음악 (MUS-09, 2026-11-11). Spotify 플레이어. Stitch �
                     - 크레이트(2026-11-11 사용자 요청): 오른쪽은 낡은 나무 상자(CSS 나뭇결) 안에 앨범을 세워 꽂고 앞으로 넘겨 고른다(밀기·휠·화살표). 플레이리스트는 뺐고 앨범 단위로 듣는다(재생 때 셔플 끔)
                     - '앨범 찾기' = /v1/search type=album(limit 10, 개발 모드 한도) → 담기. 크레이트 여러 개(만들기·이름·지우기 = 칩을 한 번 더 누름). 저장 music.crates, 동기화 /api/music/sync(src/music.js, D1 settings k='music', 합치기 public/music/merge.js · test/music.mjs, 크레이트 단위로 늦게 고친 쪽)
                     - 앨범이 바뀌면(다른 기기에서 바꿔도) dropLP(): 3초 동안 슬리브가 들어와 판을 꺼내 플래터에 올리고 톤암이 내려옴. 아래는 지금 앨범의 트랙 목록(누르면 그 곡부터)
+                    - 플레이리스트도 크레이트에 꽂음(항목 k: 'pl', 빨간 PLAYLIST 표시). 찾기 창 탭: 앨범 · 플레이리스트 · 내 플레이리스트. 지금 판 = context가 플레이리스트면 그 플레이리스트(ctxKey), 아니면 곡의 앨범. 플레이리스트 트랙은 /playlists/{id}/items(없으면 /tracks)
+                    - 플레이리스트를 틀면 1.7초 '쾅 꽂기' 모션(판을 위로 뽑았다 내리꽂고 턴테이블 판이 흔들림, 진동). 효과음 sfx: 넘김·슬리브·판 꺼냄·내려앉음·바늘 지직·쾅. Web Audio 합성(파일 없음), 설정 창에서 끔(music.sfx)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
