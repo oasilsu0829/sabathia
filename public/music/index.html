@@ -282,6 +282,13 @@ body.night .deckp input[type="range"]::-webkit-slider-runnable-track { backgroun
 .tw.on { opacity: 1; }
 .tw::after { content: '▌'; animation: blink 1s steps(1) infinite; margin-left: 2px; }
 body.night .tw { color: #f4e3c8; text-shadow: 0 0 8px rgba(255,200,140,.5); }
+/* 화면 연출: 먼 쪽(위)을 살짝 흐리게(얕은 심도 흉내) + 가장자리 어둡게(비네팅) */
+.dof { position: absolute; left: 0; right: 0; top: 0; height: 34%; z-index: 4; pointer-events: none; display: none;
+  backdrop-filter: blur(2.2px); -webkit-backdrop-filter: blur(2.2px);
+  -webkit-mask: linear-gradient(#000, rgba(0,0,0,.5) 45%, transparent); mask: linear-gradient(#000, rgba(0,0,0,.5) 45%, transparent); }
+body.d3 .dof { display: block; }
+body.d3 .deckp .stage::after { content: ''; position: absolute; inset: -16px; z-index: 5; pointer-events: none; background: radial-gradient(120% 95% at 50% 55%, transparent 55%, rgba(0,0,0,.18) 100%); }
+body.night.d3 .deckp .stage::after { background: radial-gradient(110% 90% at 48% 55%, transparent 45%, rgba(0,0,0,.55) 100%); }
 .tk-none { padding: 14px 8px; font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: center; }
 
 /* LP 꺼내기: 슬리브가 들어오고, 판이 빠져나와 플래터에 앉는다(3초) */
@@ -456,6 +463,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     <div class="stage">
       <div class="deck3d" id="deck3d" aria-hidden="true"></div>
       <div class="tw" id="tw" aria-live="polite"></div>
+      <div class="dof" aria-hidden="true"></div>
       <div class="tower" aria-hidden="true"><i></i><span>STROBE</span></div>
       <div class="deck">
         <div class="platter">
