@@ -1,15 +1,15 @@
-// Sabathia 서비스 워커. 주소 전체(/)를 맡는다: 홈, 15577, 어원 단어, 일정, 사진 PDF, 수업 녹음, 장부, 집중, 시험대비.
+// Sabathia 서비스 워커. 주소 전체(/)를 맡는다: 홈, 15577, 어원 단어, 일정, 사진 PDF, 수업 녹음, 장부, 집중, 시험대비, 음악.
 // - 앱 파일: 캐시를 먼저 보여 주고 뒤에서 새 파일을 받아 둔다(다음에 열 때 반영). 신호가 약해도 바로 뜨고 오프라인에서도 열린다
 // - 새로고침(당겨서 새로고침)과 앱의 "최신 버전 확인"은 네트워크를 먼저 쓴다
 // - 설치할 때 모든 앱 화면을 미리 받아 둔다. 한 번도 안 연 앱도 오프라인에서 열린다
 // - 글꼴·jsPDF는 따로 캐시해서 VERSION을 올려도 다시 받지 않는다. /api/ 는 건드리지 않는다
 // 공통 파일(theme.css, sabathia.js, today.js, apps.js)이나 여러 화면을 함께 고쳤으면 VERSION을 올린다
-const VERSION = 'sabathia-v11';
+const VERSION = 'sabathia-v12';
 const FONTS = 'sabathia-fonts-1';
 const CDN = 'sabathia-cdn-1';
 const KEEP = [VERSION, FONTS, CDN];
 const SHELL = [
-  '/', '/plan/', '/vocab/', '/schedule/', '/pdf/', '/lecture/', '/projects/', '/focus/', '/exam/',
+  '/', '/plan/', '/vocab/', '/schedule/', '/pdf/', '/lecture/', '/projects/', '/focus/', '/exam/', '/music/',
   '/theme.css', '/sabathia.js', '/today.js', '/apps.js', '/projects/merge.js', '/exam/merge.js', '/manifest.webmanifest', '/icon-192.png',
 ];
 
