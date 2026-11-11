@@ -20,7 +20,7 @@ const MAT_R = 0.62, MAT_TOP = PL_TOP + 0.004;          // 고무 매트
 const REC_R = 0.6, REC_Y = MAT_TOP + 0.004;            // 판(12인치) 반지름·가운데 높이
 const YAW_PLAY = -0.355, YAW_END = -0.65;              // 톤암: 판 바깥 홈(반지름 0.56) ~ 안쪽(0.3)
 const LIFT_ON = 0, LIFT_UP = 0.05;                     // 톤암 들림(라디안): 판 위(바늘이 판에 닿음) · 옮길 때
-const ARM_H = 0.146;                                   // 톤암 관 높이(축 기준 세계 높이)
+const ARM_H = 0.15;                                   // 톤암 관 높이(축 기준 세계 높이)
 const HEAD = new THREE.Vector3(-0.165, 0, 0.92);        // 축에서 바늘까지(톤암 관절 좌표)
 const RPS = 33.333 / 60;                               // 33⅓ rpm
 
@@ -132,13 +132,19 @@ function start() {
   const side = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.8 });
 
   // 플래터: 알루미늄 원판(옆면에 스트로브 점 4줄) + 고무 매트 + 가운데 축 + 밑 그림자
+  // 스트로브 점: 오디오테크니카·테크닉스 플래터 테두리의 땡땡이 4줄(50/60Hz × 33/45). 비스듬한 테두리라 위에서도 보인다
   function strobeTexture() {
-    const c = document.createElement('canvas'); c.width = 4096; c.height = 128; const g = c.getContext('2d');
-    const al = g.createLinearGradient(0, 0, 0, 128); al.addColorStop(0, '#f2f3f5'); al.addColorStop(0.5, '#b9bdc3'); al.addColorStop(1, '#8d9197');
-    g.fillStyle = al; g.fillRect(0, 0, 4096, 128);
-    [[180, 22], [183, 48], [135, 74], [133, 100]].forEach(([n, y]) => {
-      const w = 4096 / n;
-      for (let i = 0; i < n; i++) { g.fillStyle = '#2b2d33'; g.fillRect(i * w + w * 0.3, y - 8, w * 0.4, 16); g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(i * w + w * 0.3, y - 8, w * 0.4, 3); }
+    const c = document.createElement('canvas'); c.width = 4096; c.height = 256; const g = c.getContext('2d');
+    const al = g.createLinearGradient(0, 0, 0, 256); al.addColorStop(0, '#9da1a8'); al.addColorStop(0.5, '#7d8188'); al.addColorStop(1, '#6a6e75');
+    g.fillStyle = al; g.fillRect(0, 0, 4096, 256);
+    [[118, 38], [121, 96], [90, 154], [88, 212]].forEach(([n, y]) => {
+      const w = 4096 / n, dw = w * 0.5, dh = 34;
+      for (let i = 0; i < n; i++) {
+        const x = i * w + (w - dw) / 2;
+        g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x + 2, y - dh / 2 + 3, dw, dh);
+        const dg = g.createLinearGradient(0, y - dh / 2, 0, y + dh / 2); dg.addColorStop(0, '#ffffff'); dg.addColorStop(0.55, '#e4e6ea'); dg.addColorStop(1, '#b8bcc2');
+        g.fillStyle = dg; g.fillRect(x, y - dh / 2, dw, dh);
+      }
     });
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
   }
@@ -146,8 +152,16 @@ function start() {
     const H = PL_TOP - PLATE - 0.006;
     const alu = new THREE.MeshStandardMaterial({ color: 0xd9dce0, metalness: 0.85, roughness: 0.32 });
     const sideM = new THREE.MeshStandardMaterial({ map: strobeTexture(), metalness: 0.75, roughness: 0.35 });
-    const pl = new THREE.Mesh(new THREE.CylinderGeometry(PL_R, PL_R - 0.006, H, 128, 1), [sideM, alu, alu]);
+    // 옆면을 바깥으로 벌려(위 0.645 → 아래 0.69) 땡땡이 테두리가 위에서 보이게
+    const pl = new THREE.Mesh(new THREE.CylinderGeometry(PL_R, PL_R + 0.045, H, 160, 1), [sideM, alu, alu]);
     pl.position.y = PL_TOP - H / 2; node.add(pl);
+    // 스트로브 등(앞 왼쪽 본체 위, 빨간 불이 땡땡이를 비춘다)
+    const lampAt = new THREE.Vector3(-0.726, 0, 0.688).multiplyScalar(0.79).add(PLATTER);
+    const lampBody = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.05, 24), new THREE.MeshStandardMaterial({ color: 0xe9e9e7, roughness: 0.4 }));
+    lampBody.position.set(lampAt.x, PLATE + 0.025, lampAt.z); deck.add(lampBody);
+    const lens = new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff3a2a, emissive: 0xff2010, emissiveIntensity: 1.6 }));
+    lens.position.set(lampAt.x + 0.018, PLATE + 0.04, lampAt.z - 0.017); deck.add(lens);
+    const glow = new THREE.PointLight(0xff3020, 0.35, 0.5, 2); glow.position.set(lampAt.x + 0.03, PLATE + 0.05, lampAt.z - 0.03); deck.add(glow);
     const lip = new THREE.Mesh(new THREE.TorusGeometry(PL_R - 0.003, 0.004, 8, 128), alu); lip.rotation.x = Math.PI / 2; lip.position.y = PL_TOP - 0.001; node.add(lip);
     const mat = new THREE.Mesh(new THREE.CylinderGeometry(MAT_R, MAT_R, 0.004, 128), new THREE.MeshStandardMaterial({ color: 0x1c1d21, roughness: 0.95 }));
     mat.position.y = PL_TOP + 0.002; node.add(mat);
@@ -176,23 +190,26 @@ function start() {
     const gim = add(new THREE.Mesh(new THREE.TorusGeometry(0.044, 0.011, 12, 32), satin), 0, ARM_H, 0); gim.rotation.y = Math.PI / 2;
     add(new THREE.Mesh(new THREE.SphereGeometry(0.026, 16, 12), chrome), 0, ARM_H, 0);
     // 뒤쪽 축대와 무게추
-    const stub = add(new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.17, 16), chrome), 0, ARM_H, -0.1); stub.rotation.x = Math.PI / 2;
+    const stub = add(new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.17, 16), chrome), 0, ARM_H, -0.1); stub.rotation.x = Math.PI / 2;
     const cw = add(new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.095, 32), satin), 0, ARM_H, -0.165); cw.rotation.x = Math.PI / 2;
     const cwr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.014, 32), black), 0, ARM_H, -0.128); cwr.rotation.x = Math.PI / 2;
     // S자 관: 축 → 앞으로 곧게 → 끝에서 안쪽으로 휜다
     const hx = HEAD.x, hz = HEAD.z;
+    // S자: 축에서 곧게 나와 → 가운데에서 바깥(+x)으로 살짝 부풀고 → 앞쪽에서 판 안쪽으로 크게 휘었다가 → 끝에서 다시 펴져 헤드셸에 붙는다
+    const end = new THREE.Vector3(hx + 0.04, ARM_H - 0.016, hz - 0.125);
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, ARM_H, 0.02), new THREE.Vector3(0.012, ARM_H, 0.3), new THREE.Vector3(0.03, ARM_H - 0.004, 0.55),
-      new THREE.Vector3(-0.02, ARM_H - 0.01, 0.74), new THREE.Vector3(hx + 0.035, ARM_H - 0.016, hz - 0.11),
-    ]);
-    lift.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.016, 16, false), chrome));
+      new THREE.Vector3(0, ARM_H, 0.03), new THREE.Vector3(0.004, ARM_H, 0.22), new THREE.Vector3(0.026, ARM_H - 0.002, 0.42),
+      new THREE.Vector3(0.022, ARM_H - 0.005, 0.56), new THREE.Vector3(-0.03, ARM_H - 0.009, 0.68), new THREE.Vector3(-0.09, ARM_H - 0.013, 0.74),
+      new THREE.Vector3(end.x + 0.012, end.y, end.z - 0.03), end,
+    ], false, 'centripetal');
+    lift.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 96, 0.021, 18, false), chrome));
     // 헤드셸(관 끝에서 비스듬히) + 카트리지 + 손잡이
-    const hs = new THREE.Group(); hs.position.set(hx + 0.035, ARM_H - 0.016, hz - 0.11); hs.rotation.y = -0.38; lift.add(hs);
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.013, 0.14), black), 0, 0, 0.07, hs);
-    const cart = add(new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.034, 0.064), new THREE.MeshStandardMaterial({ color: 0xc8102e, roughness: 0.45 })), 0, -0.023, 0.085, hs);
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.014, 0.026), black), 0, -0.044, 0.1, hs);
+    const hs = new THREE.Group(); hs.position.copy(end); hs.rotation.y = -0.4; lift.add(hs);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.084, 0.015, 0.155), black), 0, 0, 0.075, hs);
+    const cart = add(new THREE.Mesh(new THREE.BoxGeometry(0.054, 0.036, 0.07), new THREE.MeshStandardMaterial({ color: 0xc8102e, roughness: 0.45 })), 0, -0.025, 0.092, hs);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.014, 0.028), black), 0, -0.047, 0.108, hs);
     const fl = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.006, 0.016), chrome), 0.05, 0.006, 0.11, hs); fl.rotation.z = 0.35;
-    // 바늘 끝(헤드셸 기준 -0.051)이 판 윗면(REC_Y + 0.004 = 0.078)에 닿도록 ARM_H = 0.078 + 0.016 + 0.051 + 여유
+    // 바늘 끝(헤드셸 기준 -0.054)이 판 윗면(REC_Y + 0.004 = 0.078)에 닿도록 ARM_H = 0.078 + 0.016 + 0.054 + 여유
     void cart;
     // 받침대(쉴 때 관이 얹히는 기둥) — 본체에 고정
     const restW = new THREE.Vector3(0.012, 0, 0.45).add(yawNode.position);
