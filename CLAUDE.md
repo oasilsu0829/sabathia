@@ -80,6 +80,9 @@ public/music/       음악 (MUS-09, 2026-11-11). Spotify 플레이어. Stitch �
                     - '앨범 찾기' = /v1/search type=album(limit 10, 개발 모드 한도) → 담기. 크레이트 여러 개(만들기·이름·지우기 = 칩을 한 번 더 누름). 저장 music.crates, 동기화 /api/music/sync(src/music.js, D1 settings k='music', 합치기 public/music/merge.js · test/music.mjs, 크레이트 단위로 늦게 고친 쪽)
                     - 앨범이 바뀌면(다른 기기에서 바꿔도) dropLP(): 3초 동안 슬리브가 들어와 판을 꺼내 플래터에 올리고 톤암이 내려옴. 아래는 지금 앨범의 트랙 목록(누르면 그 곡부터)
                     - 플레이리스트도 크레이트에 꽂음(항목 k: 'pl'). 플레이리스트는 LP가 아니라 곡 목록이 적힌 클립보드 모양(fillClip, 사용자 결정). 찾기 창 탭: 앨범 · 플레이리스트 · 내 플레이리스트. 지금 판 = context가 플레이리스트면 그 플레이리스트(ctxKey), 아니면 곡의 앨범. 플레이리스트 트랙은 /playlists/{id}/items(없으면 /tracks)
+                    - 3D 턴테이블(2026-11-11): public/music/3d/deck3d.js(three r170, 같은 폴더에 필요한 파일만 둠, importmap으로 'three'). 모델 deck.glb 1.4MB = 사용자가 AI로 만든 모델(Drive 947cec14…zip 안 base_basic_pbr.glb, 23MB)을 Claude가 손봄: 로고 3곳 지움(굴곡 평평 + 텍스처 칠), 뒤쪽 뭉개진 면 삭제, 플래터·톤암 떼어 노드 platter / armYaw > armLift(관절 원점 = 축), 톤암 흔적 지움, 면 22%로, 텍스처 1024 webp, meshopt. 손보는 스크립트 scripts/deck-model.mjs
+                      좌표 +Y 위 +Z 앞, 플래터 중심 (-0.18, 0, -0.035), 톤암 축 (0.645, 0, -0.4), 재생 각 -0.42 ~ -0.6(곡 진행). 얇은 판이라 밑에 RoundedBox 받침을 댐
+                      window.Deck3D { ok, setPlaying(on, 진행 0~1), setLabel, drop(a, slam), shake }. 뜨면 body.d3로 CSS 턴테이블을 숨김. WebGL이 안 되면 CSS 턴테이블 그대로. 판 갈기 모션도 3D(앨범 3초 슬리브, 플레이리스트 1.9초 클립보드), 소리 시각은 그대로
                     - 플레이리스트를 틀면 1.9초 모션: 클립보드가 날아와 턴테이블 위에 쾅(턴테이블 판 흔들림·빨간 충격파·진동) → 옆으로 걷어내면 밑에서 판이 돈다. 효과음 sfx: 넘김·슬리브·판 꺼냄·내려앉음·바늘 지직·쾅. Web Audio 합성(파일 없음), 설정 창에서 끔(music.sfx)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
