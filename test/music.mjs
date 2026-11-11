@@ -37,4 +37,8 @@ d = clean({ crates: { a: { name: 'a', u: 1, albums: [{ k: 'pl', id: '37i9dQZF1DX
 assert.equal(d.crates.a.albums[0].k, 'pl');
 assert.equal(d.crates.a.albums[0].uri, 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M');
 assert.ok(!('k' in d.crates.a.albums[1]));
+// 들은 횟수 p는 남고, 0이면 빠진다
+d = clean({ crates: { a: { name: 'a', u: 1, albums: [{ ...A1, p: 7 }, { ...A2, p: 0 }] } } });
+assert.equal(d.crates.a.albums[0].p, 7);
+assert.ok(!('p' in d.crates.a.albums[1]));
 console.log('music merge ok');
