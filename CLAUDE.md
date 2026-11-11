@@ -76,6 +76,9 @@ public/music/       음악 (MUS-09, 2026-11-11). Spotify 플레이어. Stitch �
                     - 로그인: PKCE(서버 없음). 사용자가 developer.spotify.com에 앱을 만들고 Client ID를 설정 창에 넣는다(localStorage music.cid, 토큰 music.tok). Redirect URI = <주소>/music/
                     - 조작은 Web API(/me/player…), 플레이리스트는 /me/playlists. Web Playback SDK로 이 브라우저를 'Sabathia' 기기로 올림(PC 크롬만. 폰·아이패드 브라우저는 Spotify가 막아서 기기 목록에서 폰 Spotify 앱을 조작)
                     - Premium 계정 필요(사용자 Premium 확인). 개발 모드 앱이라 사용자 본인 계정만 씀
+                    - 크레이트(2026-11-11 사용자 요청): 오른쪽은 낡은 나무 상자(CSS 나뭇결) 안에 앨범을 세워 꽂고 앞으로 넘겨 고른다(밀기·휠·화살표). 플레이리스트는 뺐고 앨범 단위로 듣는다(재생 때 셔플 끔)
+                    - '앨범 찾기' = /v1/search type=album(limit 10, 개발 모드 한도) → 담기. 크레이트 여러 개(만들기·이름·지우기 = 칩을 한 번 더 누름). 저장 music.crates, 동기화 /api/music/sync(src/music.js, D1 settings k='music', 합치기 public/music/merge.js · test/music.mjs, 크레이트 단위로 늦게 고친 쪽)
+                    - 앨범이 바뀌면(다른 기기에서 바꿔도) dropLP(): 3초 동안 슬리브가 들어와 판을 꺼내 플래터에 올리고 톤암이 내려옴. 아래는 지금 앨범의 트랙 목록(누르면 그 곡부터)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
