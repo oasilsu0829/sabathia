@@ -15,7 +15,7 @@
 /* 음악 (MUS-09) · Stitch 시안 "White Deck - iPad Edition"(2026-11-11) 기준. 집중처럼 theme.css를 쓰지 않는 자체 화면
    Layout: 윗줄(SABATHIA · 상태 · 지금 곡 · 설정) → 왼쪽 턴테이블(셔플·반복 · 플래터 · 톤암 · 음량 · 재생/정지 · 위치)
            오른쪽 크레이트(나무 상자에 꽂힌 앨범을 넘겨 고름 · 내 크레이트 여러 개 · 앨범 찾기/담기 · 앨범 트랙) → 아랫줄(이전·재생·다음 · 기기 · 음량)
-   판이 바뀌면 dropLP(): 앨범은 3초 동안 슬리브에서 꺼내 올리고, 플레이리스트는 1.7초에 위에서 쾅 꽂는다(흔들림). 소리는 sfx(Web Audio 합성, music.sfx로 끔)
+   판이 바뀌면 dropLP(): 앨범은 3초 동안 슬리브에서 꺼내 올리고, 플레이리스트(클립보드)는 1.9초 동안 턴테이블에 쾅 꽂았다 걷어낸다(흔들림). 소리는 sfx(Web Audio 합성, music.sfx로 끔)
    크레이트에는 앨범과 플레이리스트(k: 'pl')를 같이 꽂는다. 저장 music.crates + /api/music/sync
    폰·세로 화면은 위아래로 쌓고 아랫줄을 화면 밑에 붙인다
    Spotify: PKCE 로그인(Client ID는 이 기기에만 저장) · Web API로 조작 · Web Playback SDK로 이 브라우저를 'Sabathia' 기기로 */
@@ -213,8 +213,24 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .tk.on { background: var(--z100); }
 .tk.on b { font-weight: 700; }
 .lp.pl { border-radius: 2px; }
-.lp .pltag { position: absolute; left: 8px; top: 8px; z-index: 1; padding: 2px 6px; border-radius: 3px; background: var(--red); color: #fff; font-family: var(--mono); font-size: 8px; font-weight: 700; letter-spacing: .12em; }
-.lp.back .pltag { display: none; }
+/* 플레이리스트 = 곡 목록이 적힌 클립보드 */
+.cb { container-type: inline-size; border-radius: 5% !important; background: linear-gradient(180deg, rgba(255,240,220,.12), transparent 30%, rgba(30,15,5,.25)), var(--grain), linear-gradient(135deg, #a3723f, #8b5d31 55%, #77502a) !important; background-size: 100% 100%, 260px 70px, 100% 100% !important; box-shadow: 0 -3px 10px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.12) !important; }
+.cb::before, .cb::after { display: none !important; }
+.cb-clip { position: absolute; left: 31%; width: 38%; top: -1.5%; height: 13%; z-index: 2; border-radius: 10% 10% 26% 26% / 18% 18% 40% 40%; background: linear-gradient(180deg, #fafafa, #b4b4bb 45%, #e4e4e7 70%, #8e8e96); box-shadow: 0 2px 3px rgba(0,0,0,.4), inset 0 1px 0 #fff; }
+.cb-clip::after { content: ''; position: absolute; left: 38%; width: 24%; top: 18%; height: 30%; border-radius: 99px; background: #6b5030; box-shadow: inset 0 1px 2px rgba(0,0,0,.6); }
+.cb-paper { position: absolute; left: 8%; right: 8%; top: 7%; bottom: 5%; background: #fbfaf5; border-radius: 1.5%; box-shadow: 0 1px 3px rgba(0,0,0,.3); padding: 13% 8% 6%; display: flex; flex-direction: column; gap: 1.5cqw; overflow: hidden; color: #1f2430; }
+.cb-paper::before { content: ''; position: absolute; left: 0; right: 0; top: 12%; bottom: 0; background: repeating-linear-gradient(180deg, transparent 0 calc(7cqw - 1px), #d7e1ee calc(7cqw - 1px) 7cqw); pointer-events: none; }
+.cb-paper::after { content: ''; position: absolute; left: 6%; top: 0; bottom: 0; width: 1px; background: rgba(230,0,18,.35); }
+.cb-paper > * { position: relative; }
+.cb-img { position: absolute !important; right: 7%; top: 12%; width: 25%; aspect-ratio: 1; border-radius: 2px; background: #ddd center/cover no-repeat; box-shadow: 0 1px 2px rgba(0,0,0,.3); transform: rotate(3deg); }
+.cb-t { margin-right: 30%; font-size: 7.4cqw; line-height: 1.15; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cb-a { margin-right: 30%; font-family: var(--mono); font-size: 4.4cqw; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-lines { display: flex; flex-direction: column; gap: 3.6cqw; margin-top: 5cqw; }
+.cb-lines i { display: block; height: 2.4cqw; border-radius: 2px; background: #b9c0cb; }
+.cb-lines i:nth-child(1) { width: 78%; } .cb-lines i:nth-child(2) { width: 62%; } .cb-lines i:nth-child(3) { width: 84%; }
+.cb-lines i:nth-child(4) { width: 55%; } .cb-lines i:nth-child(5) { width: 70%; } .cb-lines i:nth-child(6) { width: 48%; }
+.lp.cb.back .cb-paper, .lp.cb.back .cb-clip { display: none; }
+.drop .clip { position: absolute; inset: 0; margin: auto; width: calc((100% - 20px) * .95); height: calc((100% - 20px) * .95); z-index: 3; opacity: 0; box-shadow: 0 22px 40px rgba(0,0,0,.4) !important; }
 #findTabs { align-self: flex-start; max-width: 100%; overflow-x: auto; }
 .sfxrow { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; font-family: var(--sans) !important; font-size: 13px !important; letter-spacing: 0 !important; color: var(--ink-2) !important; min-height: 36px; }
 .sfxrow input { width: 18px; height: 18px; accent-color: var(--ink); }
@@ -402,6 +418,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
           <div class="drop" id="drop" hidden aria-hidden="true">
             <div class="disc" id="dDisc"><div class="grooves"></div><div class="luster"></div><div class="dl" id="dLabel"></div></div>
             <div class="sleeve" id="dSleeve"></div>
+            <div class="clip cb" id="dClip"></div>
           </div>
         </div>
         <div class="arm" aria-hidden="true">
@@ -762,6 +779,13 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     img: pickImg(p.images, 300), n: ((p.items || p.tracks) || {}).total,
   });
   const isPl = (a) => a && a.k === 'pl';
+  // 클립보드 그리기: 집게 · 종이(제목 · 만든 사람 · 곡 수 · 표지) · 곡 줄
+  function fillClip(el, a) {
+    el.innerHTML = '<i class="cb-clip"></i><div class="cb-paper"><span class="cb-img"></span><b class="cb-t"></b><span class="cb-a"></span><span class="cb-lines"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>';
+    el.querySelector('.cb-t').textContent = a.name || '플레이리스트';
+    el.querySelector('.cb-a').textContent = [a.artist, a.n ? a.n + '곡' : ''].filter(Boolean).join(' · ') || 'PLAYLIST';
+    el.querySelector('.cb-img').style.backgroundImage = bg(a.img);
+  }
   const uriOf = (a) => (isPl(a) ? 'spotify:playlist:' : 'spotify:album:') + a.id;
   const metaLine = (a) => (isPl(a) ? ['플레이리스트', a.artist, a.n ? a.n + '곡' : ''] : [a.artist, a.year, a.n ? a.n + '곡' : '']).filter(Boolean).join(' · ');
   // 지금 판 = 플레이리스트로 틀었으면 플레이리스트, 아니면 곡의 앨범
@@ -846,9 +870,9 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       want.add(a.id);
       let e = have.get(a.id);
       if (!e) {
-        e = document.createElement('div'); e.className = 'lp' + (isPl(a) ? ' pl' : ''); e.dataset.k = a.id;
-        e.style.backgroundImage = bg(a.img);
-        e.innerHTML = '<span class="bk">SABATHIA RECORDS</span>' + (isPl(a) ? '<span class="pltag">PLAYLIST</span>' : '');
+        e = document.createElement('div'); e.className = 'lp' + (isPl(a) ? ' pl cb' : ''); e.dataset.k = a.id;
+        if (isPl(a)) fillClip(e, a);
+        else { e.style.backgroundImage = bg(a.img); e.innerHTML = '<span class="bk">SABATHIA RECORDS</span>'; }
         e.style.opacity = '0';
         place(e, d + (d < 0 ? -1 : 1));
         e.style.opacity = '0';
@@ -1238,27 +1262,31 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       sfx.slide(0, 0.45); sfx.pull(0.5, 0.85); sfx.slide(1.5, 0.55); sfx.drop(2.5);
       handAt = 2520;
     } else {
-      // 슬리브가 휙 들어와 → 판을 위로 확 뽑고 슬리브는 날아가고 → 위에서 내리꽂음(쾅, 흔들림) → 살짝 튐
-      const o = { duration: 1700, fill: 'forwards' };
+      // 클립보드가 위에서 날아와 턴테이블에 쾅 → 살짝 튀고 → 옆으로 휙 걷어내면 밑에서 판이 돌고 있다
+      const cl = $('dClip');
+      fillClip(cl, a);
+      const o = { duration: 1900, fill: 'forwards' };
       dropAnims = [
-        sl.animate([
-          { offset: 0, opacity: 0, transform: `${T}(-90%,-60%) rotate(-30deg) scale(.7)`, easing: 'cubic-bezier(.1,.9,.2,1)' },
-          { offset: 0.14, opacity: 1, transform: `${T}(-6%,-30%) rotate(6deg) scale(.7)` },
-          { offset: 0.26, opacity: 1, transform: `${T}(-4%,-28%) rotate(4deg) scale(.7)`, easing: 'cubic-bezier(.6,0,1,.6)' },
-          { offset: 0.42, opacity: 0, transform: `${T}(120%,40%) rotate(70deg) scale(.6)` },
-          { offset: 1, opacity: 0, transform: `${T}(120%,40%) rotate(70deg) scale(.6)` },
+        cl.animate([
+          { offset: 0, opacity: 0, transform: `${T}(-75%,-125%) rotate(-38deg) scale(1.55)` },
+          { offset: 0.07, opacity: 1, transform: `${T}(-62%,-105%) rotate(-32deg) scale(1.5)`, easing: 'cubic-bezier(.55,0,1,.45)' },
+          { offset: 0.34, opacity: 1, transform: `${T}(0%,0%) rotate(-4deg) scale(.9)`, easing: 'cubic-bezier(.2,.8,.3,1)' },
+          { offset: 0.41, opacity: 1, transform: `${T}(0%,-3%) rotate(-6deg) scale(.95)`, easing: 'cubic-bezier(.6,0,1,.6)' },
+          { offset: 0.47, opacity: 1, transform: `${T}(0%,0%) rotate(-4deg) scale(.9)` },
+          { offset: 0.55, opacity: 1, transform: `${T}(1%,0%) rotate(-3deg) scale(.9)`, easing: 'cubic-bezier(.5,0,.9,.4)' },
+          { offset: 0.72, opacity: 1, transform: `${T}(150%,25%) rotate(40deg) scale(.85)` },
+          { offset: 0.8, opacity: 0, transform: `${T}(170%,30%) rotate(45deg) scale(.85)` },
+          { offset: 1, opacity: 0, transform: `${T}(170%,30%) rotate(45deg) scale(.85)` },
         ], o),
         di.animate([
-          { offset: 0, opacity: 0, transform: `${T}(-6%,-30%) scale(.66) rotate(40deg)` },
-          { offset: 0.14, opacity: 1, transform: `${T}(-6%,-30%) scale(.66) rotate(40deg)`, easing: 'cubic-bezier(.2,.9,.3,1)' },
-          { offset: 0.3, opacity: 1, transform: `${T}(-2%,-62%) scale(1.25) rotate(-120deg)`, easing: 'cubic-bezier(.7,0,1,.5)' },
-          { offset: 0.5, opacity: 1, transform: `${T}(0%,0%) scale(.95) rotate(-330deg)`, easing: 'cubic-bezier(.2,.8,.3,1)' },
-          { offset: 0.62, opacity: 1, transform: `${T}(0%,-1%) scale(1.03) rotate(-352deg)`, easing: 'ease-in-out' },
-          { offset: 0.72, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
+          { offset: 0, opacity: 0, transform: `${T}(0%,0%) scale(1) rotate(-160deg)` },
+          { offset: 0.33, opacity: 0, transform: `${T}(0%,0%) scale(1) rotate(-160deg)` },
+          { offset: 0.34, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-160deg)` },
+          { offset: 0.76, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
           { offset: 1, opacity: 1, transform: `${T}(0%,0%) scale(1) rotate(-360deg)` },
         ], o),
       ];
-      const hit = 850;
+      const hit = 646;
       dropT.push(setTimeout(() => {
         const deck = document.querySelector('.panel');
         dropAnims.push(deck.animate([
@@ -1269,8 +1297,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
         dropAnims.push(ring.animate([{ boxShadow: '0 0 0 0 rgba(230,0,18,.55), 0 16px 40px rgba(0,0,0,.18)' }, { boxShadow: '0 0 0 26px rgba(230,0,18,0), 0 16px 40px rgba(0,0,0,.18)' }], { duration: 500, easing: 'ease-out' }));
         if (navigator.vibrate) try { navigator.vibrate(40); } catch {}
       }, hit));
-      sfx.slide(0, 0.2); sfx.rip(0.36); sfx.slam(hit / 1000);
-      handAt = 1230;
+      sfx.slide(0, 0.5); sfx.slam(hit / 1000); sfx.rip(1.05);
+      handAt = 1444;
     }
     // 판이 0도로 내려앉은 순간 진짜 판(회전도 0도부터 다시)으로 바로 바꿔 끼우고 톤암을 내린다
     dropT.push(setTimeout(() => {
@@ -1307,7 +1335,10 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     const alb = it && it.album && it.album.id ? it.album : null;
     const key = ctxKey(st);
     // 판(앨범·플레이리스트)이 바뀌면(다른 기기에서 바꿔도) 판을 갈아 끼운다
-    if (key && key !== S.lastKey) {
+    // 판을 갈아 끼우는 중(S.pending)에는 서버 상태가 아직 예전 판이라 바뀐 걸로 치지 않는다
+    const waiting = S.pending && Date.now() - S.pending.at < 10000;
+    if (S.pending && !waiting) { S.lastKey = key; S.pending = null; } // 10초가 지나도 안 맞으면 지금 판을 그대로 받아들인다
+    if (key && key !== S.lastKey && !waiting) {
       const first = !S.lastKey;
       S.lastKey = key;
       if (!first && key !== S.animFor) { dropLP(entryFor(key, it)); return; }
