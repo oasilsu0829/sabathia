@@ -169,7 +169,10 @@ function start() {
     // AI 텍스처의 잔주름(노멀맵)이 지저분해 보여 약하게
     root.traverse((o) => { if (o.isMesh) { o.material.side = THREE.FrontSide; o.material.envMapIntensity = 0.9; o.material.normalScale && o.material.normalScale.set(0.3, 0.3); } });
     deck.add(root);
-    parts = { platter: root.getObjectByName('platter'), yaw: root.getObjectByName('armYaw'), lift: root.getObjectByName('armLift') };
+    // 빈 platter 노드는 압축(prune) 때 지워질 수 있어 없으면 만든다
+    let platter = root.getObjectByName('platter');
+    if (!platter) { platter = new THREE.Group(); platter.name = 'platter'; platter.position.copy(PLATTER); root.add(platter); }
+    parts = { platter, yaw: root.getObjectByName('armYaw'), lift: root.getObjectByName('armLift') };
     buildPlatter(parts.platter);
     record = makeRecord(); record.position.set(0, REC_Y, 0); parts.platter.add(record);
     applyLabel();
@@ -177,7 +180,7 @@ function start() {
     document.body.classList.add('d3');
     resize();
     loop.last = performance.now(); requestAnimationFrame(loop);
-  }, undefined, () => { D.ok = false; });
+  }, undefined, (e) => { D.ok = false; console.error('deck3d', e); });
 
   function applyLabel(target = record) {
     const L = label, key = L ? [L.name, L.artist, L.img].join('|') : '';

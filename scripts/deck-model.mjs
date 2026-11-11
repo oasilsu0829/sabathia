@@ -125,6 +125,6 @@ const yaw = out.createNode('armYaw').setTranslation(PIVW), lift = out.createNode
 lift.setMesh(build('arm', groups.arm, PIVW)); yaw.addChild(lift); root.addChild(yaw);
 out.createScene('deck').addChild(root);
 await io.write('deck-raw.glb', out);
-await out.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: 0.22, error: 0.0006, lockBorder: true }), dedup(), prune(),
+await out.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: 0.22, error: 0.0006, lockBorder: true }), dedup(), prune({ keepLeaves: true }),
   textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [1024, 1024], quality: 82 }), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
 await io.write(process.argv[3] || 'deck.glb', out);
