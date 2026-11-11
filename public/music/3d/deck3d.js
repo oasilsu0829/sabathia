@@ -52,8 +52,6 @@ function start() {
   function recordTexture() {
     const c = document.createElement('canvas'); c.width = c.height = 1024;
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-    // 원기둥 윗면 UV가 좌우로 뒤집혀 있어 글자가 거울처럼 보인다 → 뒤집어 준다
-    t.wrapS = THREE.RepeatWrapping; t.center.set(0.5, 0.5); t.repeat.set(-1, 1);
     return { c, t };
   }
   function drawRecord(R, L, img) {
@@ -86,13 +84,17 @@ function start() {
     if (!imgCache.has(url)) imgCache.set(url, new Promise((res) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => res(null); i.src = url; }));
     return imgCache.get(url);
   }
+  // 판 = 검은 원기둥(옆·밑) + 윗면 원판(일반 UV라 라벨 글자가 똑바로 보인다)
   function makeRecord() {
     const R = recordTexture();
-    const top = new THREE.MeshPhysicalMaterial({ map: R.t, roughness: 0.55, metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 0.35 });
-    const side = new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: 0.4 });
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(REC_R, REC_R, 0.008, 96), [side, top, side]);
-    mesh.userData.R = R;
-    return mesh;
+    const black = new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: 0.45 });
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(REC_R, REC_R, 0.008, 96), black);
+    const top = new THREE.Mesh(new THREE.CircleGeometry(REC_R, 96), new THREE.MeshPhysicalMaterial({ map: R.t, roughness: 0.55, metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 0.35 }));
+    top.rotation.x = -Math.PI / 2; top.position.y = 0.0042;
+    g.add(body, top);
+    g.userData.R = R; g.userData.mats = [black, top.material];
+    return g;
   }
 
   // 슬리브(앨범 표지)와 클립보드(플레이리스트)
@@ -199,21 +201,21 @@ function start() {
   // 앨범(3초): 옛 판이 들려 사라짐 → 슬리브가 들어와 판을 꺼냄 → 슬리브는 빠지고 판이 플래터 위로 와서 2.52초에 내려앉음
   // 플레이리스트(1.9초): 클립보드가 위에서 날아와 0.646초에 쾅 → 튐 → 옆으로 걷어내면 밑에 새 판
   function stepDrop(now) {
-    const d = drop, T = d.slam ? 1900 : 3000, t = (now - d.t0) / T;
+    const d = drop, T = d.slam ? 1900 : 3000, t = (D._at != null ? D._at : now - d.t0) / T; // D._at: 화면 확인용으로 시점 고정(ms)
     const P = PLATTER, wp = (x, y, z) => new THREE.Vector3(P.x + x, y, P.z + z);
-    if (d.old) { const k = seg(t, 0, d.slam ? 0.3 : 0.12); d.old.position.y = REC_Y + easeIn(k) * (d.slam ? 0 : 0.5); d.old.material.forEach((m) => { m.transparent = true; m.opacity = 1 - k; }); if (k >= 1) { d.old.parent && d.old.parent.remove(d.old); d.old = null; } }
+    if (d.old) { const k = seg(t, 0, d.slam ? 0.3 : 0.12); d.old.position.y = REC_Y + easeIn(k) * (d.slam ? 0 : 0.5); d.old.userData.mats.forEach((m) => { m.transparent = true; m.opacity = 1 - k; }); if (k >= 1) { d.old.parent && d.old.parent.remove(d.old); d.old = null; } }
     if (!d.slam) {
       const s = d.sleeve, disc = d.disc;
       // 슬리브: 오른쪽 위에서 들어와 플래터 위 높이 0.55에 머물다 오른쪽으로 빠짐
       const inK = easeOut(seg(t, 0, 0.16)), outK = easeIn(seg(t, 0.5, 0.7));
-      s.position.copy(wp(lerp(1.6, 0.35, inK) + outK * 1.3, 0.55 + outK * 0.2, lerp(-0.4, -0.12, inK)));
+      s.position.copy(wp(lerp(1.6, 0.4, inK) + outK * 1.3, 0.34 + outK * 0.12, lerp(-0.1, 0.02, inK)));
       s.rotation.set(-Math.PI / 2 + 0.25, 0, lerp(0.5, -0.06, inK) + outK * 0.4);
       s.visible = t < 0.72;
       // 판: 슬리브 속에서 왼쪽으로 빠져나옴 → 플래터 위로 → 내려앉음
       const pullK = ease(seg(t, 0.16, 0.44)), toK = ease(seg(t, 0.44, 0.76)), downK = easeIn(seg(t, 0.76, 0.84));
       const sx = s.position.x - P.x, sz = s.position.z - P.z;
       const px = lerp(sx, sx - 0.75, pullK), pz = sz;
-      disc.position.copy(wp(lerp(px, 0, toK), lerp(lerp(0.538, 0.6, pullK), REC_Y + 0.12, toK) - downK * 0.12, lerp(pz, 0, toK)));
+      disc.position.copy(wp(lerp(px, 0, toK), lerp(lerp(0.328, 0.38, pullK), REC_Y + 0.12, toK) - downK * 0.12, lerp(pz, 0, toK)));
       disc.rotation.set(lerp(-Math.PI / 2 + 0.25 + Math.PI / 2, 0, toK), lerp(0, -Math.PI * 2, ease(seg(t, 0.16, 0.84))), 0);
       disc.visible = t >= 0.16;
     } else {
@@ -255,4 +257,5 @@ function start() {
   D.setPlaying = (on, prog) => { playing = !!on; if (Number.isFinite(prog)) progress = prog; };
   D.setLabel = (L) => { label = L; if (!drop && record) applyLabel(); };
   D.shake = () => { shakeT = performance.now(); };
+  D._dbg = () => ({ scene, parts, record, cam });
 }
