@@ -245,6 +245,11 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .drop .dl { position: relative; width: 40%; height: 40%; border-radius: 50%; background: #fff center/cover no-repeat; border: 2px solid var(--z300); }
 .drop .dl::after { content: ''; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px; border-radius: 50%; background: radial-gradient(circle, #27272a 30%, #e4e4e7 35%); }
 .record { transition: opacity .25s; }
+/* 3D 턴테이블(public/music/3d/deck3d.js). 뜨면 body.d3, CSS 턴테이블은 숨김 */
+.deck3d { position: absolute; inset: 0; display: none; }
+.deck3d canvas { display: block; width: 100%; height: 100%; }
+body.d3 .deck3d { display: block; }
+body.d3 .deck, body.d3 .tower, body.d3 .vol-bay { visibility: hidden; }
 body.changing .record { opacity: 0; }
 body.handoff .record { transition: none; }
 body.changing .spin { animation-play-state: paused; }
@@ -400,6 +405,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     </div>
 
     <div class="stage">
+      <div class="deck3d" id="deck3d" aria-hidden="true"></div>
       <div class="tower" aria-hidden="true"><i></i><span>STROBE</span></div>
       <div class="deck">
         <div class="platter">
@@ -566,6 +572,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 
 <script src="/sabathia.js"></script>
 <script src="/music/merge.js"></script>
+<script type="importmap">{"imports":{"three":"/music/3d/three.module.min.js"}}</script>
+<script type="module" src="/music/3d/deck3d.js"></script>
 <script>
 'use strict';
 (() => {
@@ -1230,7 +1238,10 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { render(); return; }
     const slam = isPl(a);
     const D = $('drop'), sl = $('dSleeve'), di = $('dDisc');
-    D.hidden = false; document.body.classList.add('changing');
+    // 3D 턴테이블이 떠 있으면 판 갈기는 3D가 하고(소리·흔들림 시각은 같다), 아니면 예전 CSS 모션
+    const use3d = !!(window.Deck3D && Deck3D.ok);
+    if (use3d) Deck3D.drop(a, slam);
+    D.hidden = use3d; document.body.classList.add('changing');
     render();
     // 판 라벨은 플래터 위 판과 똑같이(글자까지) 복사해서, 내려앉은 뒤 바꿔 끼워도 티가 안 나게
     sl.style.backgroundImage = bg(a.img);
@@ -1241,7 +1252,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     let handAt;
     if (!slam) {
       const o = { duration: 3000, fill: 'forwards' };
-      dropAnims = [
+      if (!use3d) dropAnims = [
         sl.animate([
           { offset: 0, opacity: 0, transform: `${T}(80%,-34%) rotate(14deg) scale(.62)`, easing: 'cubic-bezier(.2,.8,.2,1)' },
           { offset: 0.16, opacity: 1, transform: `${T}(30%,-18%) rotate(-4deg) scale(.62)` },
@@ -1266,7 +1277,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       const cl = $('dClip');
       fillClip(cl, a);
       const o = { duration: 1900, fill: 'forwards' };
-      dropAnims = [
+      if (!use3d) dropAnims = [
         cl.animate([
           { offset: 0, opacity: 0, transform: `${T}(-75%,-125%) rotate(-38deg) scale(1.55)` },
           { offset: 0.07, opacity: 1, transform: `${T}(-62%,-105%) rotate(-32deg) scale(1.5)`, easing: 'cubic-bezier(.55,0,1,.45)' },
@@ -1288,13 +1299,14 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       ];
       const hit = 646;
       dropT.push(setTimeout(() => {
+        if (use3d) Deck3D.shake();
         const deck = document.querySelector('.panel');
         dropAnims.push(deck.animate([
           { transform: 'translate(0,0)' }, { transform: 'translate(-7px,5px) rotate(-.4deg)' }, { transform: 'translate(6px,-4px) rotate(.35deg)' },
           { transform: 'translate(-4px,3px)' }, { transform: 'translate(3px,-2px)' }, { transform: 'translate(-1px,1px)' }, { transform: 'translate(0,0)' },
         ], { duration: 380, easing: 'ease-out' }));
         const ring = document.querySelector('.platter');
-        dropAnims.push(ring.animate([{ boxShadow: '0 0 0 0 rgba(230,0,18,.55), 0 16px 40px rgba(0,0,0,.18)' }, { boxShadow: '0 0 0 26px rgba(230,0,18,0), 0 16px 40px rgba(0,0,0,.18)' }], { duration: 500, easing: 'ease-out' }));
+        if (!use3d) dropAnims.push(ring.animate([{ boxShadow: '0 0 0 0 rgba(230,0,18,.55), 0 16px 40px rgba(0,0,0,.18)' }, { boxShadow: '0 0 0 26px rgba(230,0,18,0), 0 16px 40px rgba(0,0,0,.18)' }], { duration: 500, easing: 'ease-out' }));
         if (navigator.vibrate) try { navigator.vibrate(40); } catch {}
       }, hit));
       sfx.slide(0, 0.5); sfx.slam(hit / 1000); sfx.rip(1.05);
@@ -1359,6 +1371,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     $('labA').textContent = L ? L.artist : (loggedIn() ? '크레이트에서 고르세요' : '설정에서 로그인');
     $('label').classList.toggle('art', !!(L && L.img));
     $('label').style.backgroundImage = bg(L && L.img);
+    if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img } : null);
     $('topLed').classList.toggle('on', on);
     $('topState').textContent = !loggedIn() ? 'OFFLINE' : on ? 'PLAYING' : it ? 'PAUSED' : 'STANDBY';
     $('goLed').classList.toggle('on', on);
@@ -1398,6 +1411,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     pos = Math.min(pos, dur);
     if (st && st.is_playing && dur && pos >= dur) schedulePoll(400);
     $('tDur').textContent = mmss(dur);
+    if (window.Deck3D && Deck3D.ok) Deck3D.setPlaying(!!(st && st.is_playing), dur ? pos / dur : 0);
     if (!S.seeking) {
       $('tCur').textContent = mmss(pos);
       $('seek').value = dur ? Math.round(pos / dur * 1000) : 0;
