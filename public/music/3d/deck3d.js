@@ -136,9 +136,10 @@ function start() {
     // 소리 홈(GO_PX ~ GI_PX). 곡 사이 무음 홈은 실제 곡 길이 비율 자리에 매끈한 띠로
     for (let r = GI_PX; r < GO_PX; r += 2.2) { g.strokeStyle = `rgba(255,255,255,${0.02 + (Math.sin(r * 0.37) + 1) * 0.013})`; g.lineWidth = 1; g.beginPath(); g.arc(m, m, r, 0, 7); g.stroke(); }
     const gaps = (L && L.tracks) || [];
+    const gw = Math.max(1.5, Math.min(7, 280 / Math.max(1, gaps.length))); // 곡이 많으면(긴 플레이리스트) 띠를 가늘게
     for (const f of gaps) {
       const r = GO_PX - f * (GO_PX - GI_PX);
-      g.strokeStyle = '#050507'; g.lineWidth = 7; g.beginPath(); g.arc(m, m, r, 0, 7); g.stroke();
+      g.strokeStyle = '#050507'; g.lineWidth = gw; g.beginPath(); g.arc(m, m, r, 0, 7); g.stroke();
       g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 2; g.beginPath(); g.arc(m, m, r + 1.5, 0, 7); g.stroke();
     }
     g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 8; g.beginPath(); g.arc(m, m, GO_PX + 7, 0, 7); g.stroke(); // 들어가는 홈
@@ -389,6 +390,8 @@ function start() {
   let strobeTex = null, strobeAng = 0;
   const clips = [], clickables = [];
   let speed45 = false, volume = 50, cueUp = 1, coverK = 0, coverT = 0, idle = 0, dragCtl = null;
+  // 마지막으로 뭔가 바뀐 시각(만짐·라벨·색·볼륨…). 2초 넘게 조용하면 프레임을 낮춘다(배터리)
+  let poke = 0;
 
   // ---------- 조작부 ----------
   const satinM = new THREE.MeshStandardMaterial({ color: 0xcfd2d6, metalness: 0.8, roughness: 0.38 });
@@ -610,6 +613,7 @@ function start() {
   function applyLabel(target = record) {
     const L = label, key = L ? [L.name, L.artist, L.img, (L.tracks || []).map((f) => f.toFixed(3)).join(',')].join('|') : '';
     if (target === record && key === labelKey) return;
+    poke = performance.now();
     if (target === record) labelKey = key;
     drawRecord(target.userData.R, L, null);
     loadImg(L && L.img).then((img) => { if (img && (target !== record || labelKey === key)) drawRecord(target.userData.R, L, img); });
@@ -627,6 +631,7 @@ function start() {
   const camBase = new THREE.Vector3(), camLook = new THREE.Vector3(0, -0.02, 0.02);
   let camZoom = 0;
   function resize() {
+    poke = performance.now();
     const w = host.clientWidth || 1, h = host.clientHeight || 1;
     renderer.setSize(w, h, false);
     cam.aspect = w / h;
@@ -728,8 +733,14 @@ function start() {
   const seg = (t, a, b) => clamp01((t - a) / (b - a));
 
   function loop(now) {
-    const dt = Math.min(0.05, (now - loop.last) / 1000); loop.last = now;
     if (!parts) return;
+    // 조용할 때(멈춤 · 움직이는 것 없음 · 2초 넘게 안 만짐)는 초당 10번, 덮개가 닫혔으면 초당 2번만 그린다
+    const calm = !(playing || grab || drop || dragCtl || shakeT >= 0 || fx.gaps.length) &&
+      vel < 0.005 && Math.abs(yaw) < 0.001 && lift < 0.0005 && Math.abs(cueUp - 1) < 0.005 &&
+      Math.abs(coverT - coverK) < 0.001 && Math.abs(nightT - night) < 0.001 &&
+      Math.abs((0.25 - volume / 100 * 0.5) - ctl.knob.position.z) < 0.0005 && now - poke > 2000;
+    if (calm && now - loop.last < (coverK > 0.99 ? 500 : 100)) { requestAnimationFrame(loop); return; }
+    const dt = Math.min(calm ? 0.6 : 0.05, (now - loop.last) / 1000); loop.last = now;
     const busy = !!drop;
     // 플래터: 재생 중이면 33⅓ rpm까지 0.8초에 올라가고, 멈추면 천천히 선다
     const target = playing && !busy ? RPS * Math.PI * 2 : 0;
@@ -876,7 +887,7 @@ function start() {
   D.setNight = (on) => { nightT = on ? 1 : 0; };
   // 앨범 대표색: 밤 조명이 그 색을 조금 머금는다
   const warm = new THREE.Color(0xffd8a8), tintC = new THREE.Color(0xffd8a8);
-  D.setTint = (hex) => { tintC.copy(warm).lerp(new THREE.Color(hex || '#ffd8a8'), 0.45); };
+  D.setTint = (hex) => { const h = hex || '#ffd8a8'; if (h === D.setTint.last) return; D.setTint.last = h; poke = performance.now(); tintC.copy(warm).lerp(new THREE.Color(h), 0.45); };
   D.grabbing = () => !!grab;
   D.setLabel = (L) => { label = L; if (!drop && !preparing && record) applyLabel(); };
   D.preload = (url) => { if (url) loadImg(url); };
@@ -885,7 +896,7 @@ function start() {
   // 앰버 7세그먼트 느낌 표시창: 곡 번호 + 지난 시간
   D.setTime = (txt, no) => {
     const L = ctl.lcd; if (!L) return;
-    const s2 = `${no > 0 ? String(no).padStart(2, '0') : '--'} ${txt}`; if (s2 === L.last) return; L.last = s2;
+    const s2 = `${no > 0 ? String(no).padStart(2, '0') : '--'} ${txt}`; if (s2 === L.last) return; L.last = s2; poke = performance.now();
     const g = L.g; g.fillStyle = '#0b0906'; g.fillRect(0, 0, 512, 192);
     g.font = '700 118px "JetBrains Mono", monospace'; g.textBaseline = 'middle'; g.textAlign = 'center';
     g.fillStyle = 'rgba(255,150,40,.12)'; g.fillText('88 88:88', 256, 100);
@@ -901,5 +912,10 @@ function start() {
     m.rotation.x = -Math.PI / 2; m.position.set(PLATTER.x, REC_Y + 0.008, PLATTER.z); scene.add(m); fx.gaps.push({ m, t0: performance.now() });
   };
   D.coverOpen = () => { idle = 0; coverT = 0; };
+  // 깨우기: 판 갈기·흔들기·홈 빛·덮개 열기. 라벨·색·시간창은 실제로 바뀔 때만, 재생·조명·볼륨은 calm 조건이 본다
+  for (const k of ['drop', 'shake', 'flashGap', 'coverOpen']) {
+    const f = D[k]; D[k] = (...a) => { poke = performance.now(); return f(...a); };
+  }
+  for (const ev of ['pointerdown', 'pointermove', 'wheel']) el.addEventListener(ev, () => { poke = performance.now(); }, { passive: true });
   init();
 }
