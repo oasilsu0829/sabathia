@@ -165,9 +165,10 @@ function start() {
   function wrap(g, s, w) { const out = []; let cur = ''; for (const word of s.split(/\s+/)) { const t = cur ? cur + ' ' + word : word; if (g.measureText(t).width > w && cur) { out.push(cur); cur = word; } else cur = t; } if (cur) out.push(cur); return out.map((x) => clip(g, x, w)); }
   function clip(g, s, w) { if (g.measureText(s).width <= w) return s; while (s.length > 1 && g.measureText(s + '…').width > w) s = s.slice(0, -1); return s + '…'; }
   const imgCache = new Map();
+  const imgReady = new Map(); // 다 받은 그림(기다림 없이 바로 쓴다)
   function loadImg(url) {
     if (!url) return Promise.resolve(null);
-    if (!imgCache.has(url)) imgCache.set(url, new Promise((res) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => res(null); i.src = url; }));
+    if (!imgCache.has(url)) imgCache.set(url, new Promise((res) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => { imgReady.set(url, i); res(i); }; i.onerror = () => res(null); i.src = url; }));
     return imgCache.get(url);
   }
   // 판 = 검은 원기둥(옆·밑) + 윗면 원판(일반 UV라 라벨 글자가 똑바로 보인다)
@@ -828,8 +829,8 @@ function start() {
     if (!d.slam) {
       const s = d.sleeve, disc = d.disc;
       // 슬리브: 오른쪽 위에서 들어와 플래터 위 높이 0.55에 머물다 오른쪽으로 빠짐
-      const inK = easeOut(seg(t, 0, 0.16)), outK = easeIn(seg(t, 0.5, 0.7));
-      s.position.copy(wp(lerp(1.6, 0.4, inK) + outK * 1.3, 0.34 + outK * 0.12, lerp(-0.1, 0.02, inK)));
+      const inK = easeOut(seg(t, 0, 0.1)), outK = easeIn(seg(t, 0.5, 0.7));
+      s.position.copy(wp(lerp(0.95, 0.4, inK) + outK * 1.3, 0.34 + outK * 0.12, lerp(-0.05, 0.02, inK)));
       s.rotation.set(-Math.PI / 2 + 0.25, 0, lerp(0.5, -0.06, inK) + outK * 0.4);
       s.visible = t < 0.72;
       // 판: 슬리브 속에서 왼쪽으로 빠져나옴 → 플래터 위로 → 내려앉음
@@ -866,15 +867,31 @@ function start() {
 
   // 판 갈기 준비 중(표지 그림을 기다리는 동안)에는 플래터 위 옛 판 라벨을 바꾸지 않는다
   let preparing = 0;
-  D.drop = async (a, slam) => {
-    const my = ++preparing; idle = 0; coverT = 0;
-    if (drop) { scene.remove(drop.sleeve); if (!drop.handed) scene.remove(drop.disc); drop = null; }
-    const img = await Promise.race([loadImg(a.img), new Promise((r) => setTimeout(() => r(null), 120))]);
-    if (my !== preparing) return; // 그 사이 다른 판으로 또 바뀜
+  // 판 갈기에 쓸 새 판·슬리브를 미리 만들어 둔다(크레이트에서 고른 판). 누르는 순간엔 그리기 없이 바로 시작
+  const preKey = (a, slam) => [a.id, a.img, slam ? 1 : 0, (a.tracks || []).map((f) => f.toFixed(3)).join(','), (a.p || 0) >> 2].join('|');
+  let pre = null; // { k, disc, sleeve, L }
+  function build(a, slam, img) {
     const disc = makeRecord();
     const L = { name: a.name, artist: a.artist, img: a.img, tracks: a.tracks || null };
-    drawRecord(disc.userData.R, L, img); if (!img) loadImg(a.img).then((im) => im && drawRecord(disc.userData.R, L, im));
+    drawRecord(disc.userData.R, L, img); if (!img && a.img) loadImg(a.img).then((im) => im && drawRecord(disc.userData.R, L, im));
     const sleeve = new THREE.Mesh(new THREE.BoxGeometry(slam ? 1.24 : 1.26, slam ? 1.3 : 1.26, slam ? 0.03 : 0.012), slam ? [side, side, side, side, clipMat(a, img), side] : [side, side, side, side, coverMat(img, a), side]);
+    // 미리 GPU에 올려 둔다(처음 그릴 때 멈칫하지 않게)
+    renderer.initTexture && [disc.userData.R.t, sleeve.material[4].map].forEach((t) => t && renderer.initTexture(t));
+    return { disc, sleeve, L };
+  }
+  D.prebuild = (a, slam) => {
+    if (!a) return;
+    const k = preKey(a, slam); if (pre && pre.k === k) return;
+    const go = (img) => { if (pre && pre.k === k) return; pre = { k, ...build(a, slam, img) }; };
+    const im = imgReady.get(a.img); if (im || !a.img) go(im || null); else loadImg(a.img).then(go);
+  };
+  D.drop = (a, slam) => {
+    ++preparing; idle = 0; coverT = 0;
+    if (drop) { scene.remove(drop.sleeve); if (!drop.handed) scene.remove(drop.disc); drop = null; }
+    const k = preKey(a, slam);
+    const P = pre && pre.k === k ? pre : build(a, slam, imgReady.get(a.img) || null);
+    pre = null;
+    const { disc, sleeve, L } = P;
     scene.add(sleeve); scene.add(disc); sleeve.visible = false; disc.visible = false;
     // 옛 판: 플래터에서 떼어 장면에 두고 사라지게
     let old = null;
@@ -889,6 +906,7 @@ function start() {
   const warm = new THREE.Color(0xffd8a8), tintC = new THREE.Color(0xffd8a8);
   D.setTint = (hex) => { const h = hex || '#ffd8a8'; if (h === D.setTint.last) return; D.setTint.last = h; poke = performance.now(); tintC.copy(warm).lerp(new THREE.Color(h), 0.45); };
   D.grabbing = () => !!grab;
+  D.dropping = () => !!drop;
   D.setLabel = (L) => { label = L; if (!drop && !preparing && record) applyLabel(); };
   D.preload = (url) => { if (url) loadImg(url); };
   // 판 갈기 직전에 불러 옛 판 라벨을 잠근다(drop이 조금 늦게 불려도)
