@@ -629,8 +629,7 @@ function start() {
     const tp = ctl.target; tp.pop.position.y = lerp(-0.07, 0, night); tp.head.material.emissiveIntensity = night * 2.2; tp.light.intensity = night * 0.35;
     const headW = new THREE.Vector3(HEAD.x, REC_Y, HEAD.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(PIV); tp.light.target.position.copy(headW);
     // 무지개 반사광 · 먼지
-    fx.rainbow.visible = !!record && !drop;
-    fx.rainbow.material.opacity = (0.18 + night * 0.4) * (0.85 + 0.15 * Math.sin(spin * 3));
+    fx.rainbow.visible = false; // 무지개 반사광은 사용자 요청으로 끔(2026-11-12)
     const dp = fx.dust.pts.geometry.attributes.position, b0 = fx.dust.base;
     for (let i = 0; i < fx.dust.seed.length; i++) { const sd = fx.dust.seed[i]; dp.array[i * 3] = b0[i * 3] + Math.sin(T * 0.13 + sd) * 0.06; dp.array[i * 3 + 1] = b0[i * 3 + 1] + Math.sin(T * 0.09 + sd * 2) * 0.05; dp.array[i * 3 + 2] = b0[i * 3 + 2] + Math.cos(T * 0.11 + sd) * 0.05; }
     dp.needsUpdate = true; fx.dust.pts.material.opacity = night * 0.75;
