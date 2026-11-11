@@ -146,7 +146,9 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
   --grainv: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='70' height='260'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.42 0.011' numOctaves='3' seed='3'/><feColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.13  0 0 0 0 0.07  0 0 0 1.2 -0.36'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
   --wood: linear-gradient(90deg, #8d7458, #a88d6c 18%, #9a7f60 40%, #b0957a 63%, #957a5c 85%, #a1866a);
 }
-.crates { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: none; }
+.cstrip { flex-wrap: nowrap; gap: 10px; }
+.cstrip > .btn { flex: none; min-height: 38px; }
+.crates { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-mask: linear-gradient(90deg, #000 calc(100% - 18px), transparent); mask: linear-gradient(90deg, #000 calc(100% - 18px), transparent); padding-right: 18px; }
 .crates::-webkit-scrollbar { display: none; }
 .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--z300); border-radius: 99px; background: #fff; font-size: 12px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
 .chip em { font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--muted); }
@@ -154,7 +156,7 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .chip[aria-pressed="true"] em { color: var(--z300); }
 .chip.add { border-style: dashed; color: var(--muted); }
 .crate-view { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; padding: 10px 0 4px; }
-.crate { position: relative; width: min(100%, 380px); aspect-ratio: 38 / 34; touch-action: pan-y; flex: none; }
+.crate { container-type: inline-size; position: relative; width: min(100%, 380px); aspect-ratio: 38 / 34; touch-action: pan-y; flex: none; }
 .wood { background: linear-gradient(180deg, rgba(255,248,235,.18), transparent 38%, rgba(40,24,10,.22)), var(--grain), var(--wood); background-size: 100% 100%, 260px 70px, 100% 100%; }
 .wood-v { background: linear-gradient(90deg, rgba(255,248,235,.14), transparent 40%, rgba(30,18,8,.3)), var(--grainv), linear-gradient(180deg, #7f6750, #9a7f62 45%, #86694f); background-size: 100% 100%, 70px 260px, 100% 100%; }
 .back { position: absolute; left: 9%; right: 9%; top: 9%; bottom: 0; filter: brightness(.55) saturate(.9); box-shadow: inset 0 -60px 50px rgba(0,0,0,.6); }
@@ -176,8 +178,9 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .lp.cur:hover { --lift: -5%; }
 .lp.cur:active { --lift: -12%; }
 .lp.note { background: linear-gradient(135deg, #d8c8aa, #c4b08a) !important; display: flex; flex-direction: column; justify-content: flex-start; padding: 16px; gap: 6px; color: #4a3826; cursor: default; }
-.lp.note b { font-size: 15px; }
-.lp.note span { font-size: 12px; line-height: 1.5; }
+.lp.note { overflow: hidden; padding: 8%; }
+.lp.note b { font-size: clamp(11px, 4.2cqw, 15px); }
+.lp.note span { font-size: clamp(10px, 3.4cqw, 12px); line-height: 1.45; }
 .lp.note::after { display: none; }
 .front { position: absolute; left: 0; right: 0; top: 70%; bottom: 0; display: flex; flex-direction: column; gap: 2px; background: #2b1f14; box-shadow: 0 14px 22px -8px rgba(0,0,0,.45); z-index: 60; border-radius: 0 0 4px 4px; }
 .front::before { content: ''; position: absolute; left: 0; right: 0; top: -5px; height: 6px; background: linear-gradient(#d6c3a3, #b39a78); border-radius: 2px 2px 0 0; box-shadow: 0 2px 2px rgba(0,0,0,.25); z-index: 2; }
@@ -297,9 +300,10 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   main { grid-template-columns: 7fr 5fr; gap: 24px; padding-top: 16px; padding-bottom: 16px; min-height: 0; }
   .panel { padding: 24px; min-height: 0; }
   :root { --pl: clamp(240px, min(34vw, calc(100dvh - 330px)), 420px); }
-  .crate { width: min(100%, clamp(220px, calc((100dvh - 570px) * 1.11), 380px)); }
-  .tracks { max-height: 120px; }
-  .crate-view { flex: 1 1 auto; }
+  /* 남는 높이에 상자를 맞춘다(사파리는 주소창·탭 줄 때문에 화면이 낮다) */
+  .crate-view { flex: 1 1 0; container-type: size; overflow: hidden; }
+  .crate { width: min(100%, 380px, max(150px, calc((100cqh - 112px) * 1.117))); }
+  .tracks { max-height: clamp(76px, calc(100dvh - 640px), 150px); }
   .panel > .strip.b { flex: none; }
 }
 /* 세로 화면 · 폰 */
@@ -318,6 +322,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   .volh { display: none; }
   .panel { padding: 14px; }
   .flip #pullLp { display: none; }
+  .cstrip > .btn span { display: none; }
+  .cstrip > .btn { padding: 0 10px; }
   #tkHead { display: inline; }
   .tracks { max-height: none; }
   #find { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; margin: 0; border-radius: 0; border: 0; }
@@ -426,11 +432,11 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   </section>
 
   <section class="panel" aria-label="크레이트">
-    <div class="strip">
-      <div style="display:flex;align-items:center;gap:8px"><svg class="ico"><use href="#i-crate"/></svg><h2 style="margin:0;font-size:14px;letter-spacing:.08em">크레이트</h2></div>
-      <button class="btn dark" type="button" id="findBtn"><svg class="ico"><use href="#i-search"/></svg>앨범 찾기</button>
+    <div class="strip cstrip">
+      <svg class="ico" aria-hidden="true"><use href="#i-crate"/></svg>
+      <div class="crates" id="crates" role="group" aria-label="크레이트 고르기"></div>
+      <button class="btn dark" type="button" id="findBtn"><svg class="ico"><use href="#i-search"/></svg><span>앨범 찾기</span></button>
     </div>
-    <div class="crates" id="crates" role="group" aria-label="크레이트 고르기"></div>
     <div class="crate-view">
       <div class="crate" id="crate">
         <div class="back wood"></div>
