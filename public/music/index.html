@@ -264,6 +264,19 @@ body.night .deckp input[type="range"]::-webkit-slider-runnable-track { backgroun
 .seal-t span { font-family: var(--mono); font-size: 10px; color: #d4d4d8; letter-spacing: .06em; }
 .seal-acts { display: flex; gap: 8px; }
 .seal-acts .btn { min-height: 40px; }
+/* 앨범 색 물들이기: 표지 대표색 3개로 화면 배경 전체를 칠하고, 앨범이 바뀌면 1.6초에 걸쳐 넘어간다 */
+.amb { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.amb i { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; }
+.amb i.on { opacity: 1; }
+.top, .bot { background: rgba(255,255,255,.72); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); border-color: rgba(0,0,0,.06); }
+.panel { background: rgba(255,255,255,.8); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-color: rgba(255,255,255,.6); }
+/* 턴테이블 칸 바닥 = 리넨 천(앨범 색이 살짝 배어든다) */
+.deckp { background:
+  repeating-linear-gradient(0deg, rgba(90,70,50,.05) 0 1px, transparent 1px 3px),
+  repeating-linear-gradient(90deg, rgba(90,70,50,.045) 0 1px, transparent 1px 3px),
+  var(--grain), linear-gradient(160deg, color-mix(in srgb, var(--a3, #e8e2d8) 18%, #ece6dc), color-mix(in srgb, var(--a1, #d9d1c3) 14%, #ddd5c8));
+  background-size: auto, auto, 260px 70px, 100% 100%; border-color: rgba(255,255,255,.5); }
+.deckp .strip { border-color: rgba(60,45,30,.12); }
 .tk-none { padding: 14px 8px; font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: center; }
 
 /* LP 꺼내기: 슬리브가 들어오고, 판이 빠져나와 플래터에 앉는다(3초) */
@@ -613,6 +626,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   </form>
 </dialog>
 
+<div class="amb" id="amb" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="/sabathia.js"></script>
@@ -1446,6 +1460,52 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     }
   }
 
+  // ---------- 앨범 색 (표지에서 대표색 3개) ----------
+  const palCache = new Map();
+  function paletteOf(url) {
+    if (!url) return Promise.resolve(null);
+    if (palCache.has(url)) return palCache.get(url);
+    const pr = new Promise((res) => {
+      const im = new Image(); im.crossOrigin = 'anonymous';
+      im.onload = () => {
+        try {
+          const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'); g.drawImage(im, 0, 0, 32, 32);
+          const d = g.getImageData(0, 0, 32, 32).data, bins = new Map();
+          for (let i = 0; i < d.length; i += 4) {
+            const [r, gg, b] = [d[i], d[i + 1], d[i + 2]], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), sat = mx ? (mx - mn) / mx : 0;
+            const k = `${r >> 5},${gg >> 5},${b >> 5}`, e = bins.get(k) || { n: 0, r: 0, g: 0, b: 0, s: 0 };
+            e.n++; e.r += r; e.g += gg; e.b += b; e.s += sat; bins.set(k, e);
+          }
+          const cols = [...bins.values()].map((e) => ({ r: e.r / e.n, g: e.g / e.n, b: e.b / e.n, n: e.n, s: e.s / e.n }));
+          cols.sort((a, b) => b.n * (0.35 + b.s) - a.n * (0.35 + a.s));
+          const far = (a, b) => Math.abs(a.r - b.r) + Math.abs(a.g - b.g) + Math.abs(a.b - b.b) > 90;
+          const pick = []; for (const c2 of cols) { if (pick.every((p) => far(p, c2))) pick.push(c2); if (pick.length === 3) break; }
+          while (pick.length < 3) pick.push(pick[0] || { r: 200, g: 200, b: 200 });
+          res(pick.map((c2) => '#' + [c2.r, c2.g, c2.b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')));
+        } catch { res(null); } // 표지 서버가 CORS를 막으면 색을 못 뽑는다
+      };
+      im.onerror = () => res(null); im.src = url;
+    });
+    palCache.set(url, pr); return pr;
+  }
+  // 밝게 섞어 글자가 읽히게: 대표색 45% + 밝은 회색
+  const soften = (hex, k = 0.45) => `color-mix(in srgb, ${hex} ${Math.round(k * 100)}%, #f3f4f6)`;
+  let ambFor = '';
+  function applyAmb(img) {
+    if (img === ambFor) return; ambFor = img;
+    paletteOf(img).then((p) => {
+      if (ambFor !== img) return;
+      const box = $('amb'), [a1, a2, a3] = p || ['#e5e7eb', '#d1d5db', '#f3f4f6'];
+      const L = document.createElement('i');
+      L.style.background = `radial-gradient(110% 90% at 12% 18%, ${soften(a1, 0.55)}, transparent 62%), radial-gradient(100% 90% at 88% 85%, ${soften(a2, 0.5)}, transparent 60%), linear-gradient(135deg, ${soften(a3, 0.35)}, #f3f4f6)`;
+      box.appendChild(L); L.getBoundingClientRect(); L.classList.add('on');
+      const old = [...box.children].slice(0, -1); setTimeout(() => old.forEach((x) => x.remove()), 1800);
+      const r = document.documentElement.style; r.setProperty('--a1', a1); r.setProperty('--a2', a2); r.setProperty('--a3', a3);
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', a1);
+      if (window.Deck3D && Deck3D.ok && Deck3D.setTint) Deck3D.setTint(a1);
+    });
+  }
+
   let lastReport = '';
   function render() {
     const st = S.st, it = st && st.item, on = playing();
@@ -1477,6 +1537,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     $('label').classList.toggle('art', !!(L && L.img));
     $('label').style.backgroundImage = bg(L && L.img);
     if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img, tracks: key && S.tracksFor === key ? trackGaps() : null } : null);
+    applyAmb((L && L.img) || '');
     $('topLed').classList.toggle('on', on);
     $('topState').textContent = !loggedIn() ? 'OFFLINE' : on ? 'PLAYING' : it ? 'PAUSED' : 'STANDBY';
     $('goLed').classList.toggle('on', on);
