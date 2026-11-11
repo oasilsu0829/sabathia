@@ -1,13 +1,12 @@
-/* 음악 앱 3D 턴테이블 (MUS-09).
-   deck.glb = AI로 만든 턴테이블을 손본 것(scripts/deck-model.mjs): 노드 base(본체) · platter(빈 노드 = 회전축) · armYaw(톤암 좌우 관절) > armLift(톤암 들림 관절)
-   만든 법: 로고 지우기, 뒤쪽 뭉개진 면 지우기, 플래터 둘레 비탈 펴기, 톤암 떼어 관절 원점으로 옮기기, 면 22%로 줄이기, 텍스처 1024 webp, meshopt 압축
-   플래터(알루미늄 + 옆면 스트로브 점 4줄) · 고무 매트 · 축 · 판은 여기서 코드로 만든다(AI 플래터는 울퉁불퉁해서 버림)
-   좌표: +Y 위, +Z 화면 앞. 판 지름 1.77 × 1.44
-   바깥(index.html)에서 쓰는 것: window.Deck3D = { ok, setPlaying(bool, progress), setLabel({name, artist, img}), drop(a, slam), shake() }
+/* 음악 앱 3D 턴테이블 (MUS-09). 전부 코드로 만든다(예전 AI 모델 deck.glb는 표면이 거칠어 버림, scripts/deck-model.mjs는 기록용)
+   본체(헤어라인 알루미늄) · 플래터(옆면 스트로브 점 4줄) · 매트 · 판 · S자 톤암 · 조작부(START/STOP, 33/45, 볼륨 슬라이더, 큐 레버, 안티스케이팅 다이얼)
+   · 스트로브 등 · 바늘 조명 · 45 어댑터 · 톤암 클립 · 고무 발 · RCA 케이블 · 먼지 덮개
+   연출: 무지개 반사광, 조명 속 먼지, 판 휨, 스트로브 착시(속도가 맞으면 점이 멈춰 보임), 카메라 숨쉬기, 곡이 바뀔 때 무음 홈이 빛남
+   좌표: +Y 위, +Z 화면 앞. 본체 1.77 × 1.44
+   바깥(index.html)에서 쓰는 것: window.Deck3D = { ok, setPlaying(on, 진행), setLabel, drop(a, slam), shake, setNight, setTint, setVolume, flashGap,
+     onScratch, onButton(kind: start·cue), onVolume(0~100), onSound(kind) }
    WebGL이 안 되면 ok = false 로 두고 예전 CSS 턴테이블을 그대로 쓴다 */
 import * as THREE from 'three';
-import { GLTFLoader } from './loaders/GLTFLoader.js';
-import { MeshoptDecoder } from './libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from './environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from './geometries/RoundedBoxGeometry.js';
 
@@ -21,7 +20,8 @@ const REC_R = 0.6, REC_Y = MAT_TOP + 0.004;            // 판(12인치) 반지�
 const LIFT_ON = 0, LIFT_UP = 0.05;                     // 톤암 들림(라디안): 판 위(바늘이 판에 닿음) · 옮길 때
 const ARM_H = 0.15;                                   // 톤암 관 높이(축 기준 세계 높이)
 const HEAD = new THREE.Vector3(-0.165, 0, 0.92);        // 축에서 바늘까지(톤암 관절 좌표)
-const RPS = 33.333 / 60;                               // 33⅓ rpm
+let RPS = 33.333 / 60;                                 // 33⅓ rpm (45 버튼을 누르면 45/60)
+const PIV = new THREE.Vector3(0.645, 0, -0.4);         // 톤암 축
 const GO_PX = 491, GI_PX = 222;                        // 판 그림(1024px)에서 소리 홈 바깥·안쪽 반지름
 const GO_R = REC_R * GO_PX / 512, GI_R = REC_R * GI_PX / 512;
 
@@ -64,8 +64,16 @@ function start() {
   }
   const brush = brushed();
   // 받침(본체 밑 두께): AI 모델은 얇은 판이라 상자를 밑에 댄다. 하이엔드 느낌으로 헤어라인 알루미늄
-  const plinth = new THREE.Mesh(new RoundedBoxGeometry(1.79, 0.17, 1.46, 4, 0.03), new THREE.MeshPhysicalMaterial({ color: 0xdfe2e6, map: brush, metalness: 0.82, roughness: 0.34, clearcoat: 0.2 }));
-  plinth.position.set(0, -0.085 + 0.005, 0); plinth.castShadow = true; plinth.receiveShadow = true; deck.add(plinth);
+  const BODY_H = PLATE + 0.165;
+  const plinth = new THREE.Mesh(new RoundedBoxGeometry(1.77, BODY_H, 1.44, 5, 0.035), new THREE.MeshPhysicalMaterial({ color: 0xdfe2e6, map: brush, metalness: 0.82, roughness: 0.34, clearcoat: 0.25, clearcoatRoughness: 0.4 }));
+  plinth.position.set(0, PLATE - BODY_H / 2, 0); plinth.castShadow = true; plinth.receiveShadow = true; deck.add(plinth);
+  // 고무 발 4개(알루미늄 테 + 검은 고무)
+  for (const [fx, fz] of [[-0.74, -0.6], [0.74, -0.6], [-0.74, 0.6], [0.74, 0.6]]) {
+    const ft = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.08, 0.03, 32), new THREE.MeshStandardMaterial({ color: 0x1b1c20, roughness: 0.9 }));
+    ft.position.set(fx, -0.165 - 0.015, fz); ft.castShadow = true; deck.add(ft);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.008, 32), new THREE.MeshStandardMaterial({ color: 0xc9ccd1, metalness: 0.85, roughness: 0.3 }));
+    rim.position.set(fx, -0.165 - 0.004, fz); deck.add(rim);
+  }
   // 앞면 각인: 글자가 파인 것처럼(어두운 글자 + 아래 밝은 테)
   {
     const c = document.createElement('canvas'); c.width = 2048; c.height = 128; const g = c.getContext('2d');
@@ -81,17 +89,17 @@ function start() {
     g.fillStyle = 'rgba(40,42,48,.35)'; g.fillRect(470, 46, 2, 36);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
     const face = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.106), new THREE.MeshStandardMaterial({ map: t, transparent: true, metalness: 0.6, roughness: 0.4 }));
-    face.position.set(0, -0.08, 0.7305); deck.add(face);
+    face.position.set(0, -0.07, 0.7205); deck.add(face);
   }
   // 책상에 떨어지는 그림자만 그리는 바닥(배경은 비친다)
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({ opacity: 0.22 }));
-  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.166; floor.receiveShadow = true; deck.add(floor);
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.196; floor.receiveShadow = true; deck.add(floor);
   // 바닥 그림자
   const sh = document.createElement('canvas'); sh.width = sh.height = 128;
   const sg = sh.getContext('2d'), gr = sg.createRadialGradient(64, 64, 10, 64, 64, 64);
   gr.addColorStop(0, 'rgba(0,0,0,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); sg.fillStyle = gr; sg.fillRect(0, 0, 128, 128);
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sh), transparent: true, depthWrite: false }));
-  shadow.rotation.x = -Math.PI / 2; shadow.position.y = -0.19; deck.add(shadow);
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = -0.197; deck.add(shadow);
 
   // 판(레코드): 홈 무늬 + 가운데 라벨을 캔버스 하나에 그린다
   function recordTexture() {
@@ -126,6 +134,9 @@ function start() {
     g.font = '500 24px "JetBrains Mono", "Noto Sans KR", monospace'; g.globalAlpha = 0.8;
     g.fillText(clip(g, (L && L.artist) || '', 300), m, m + 58 + (lines.length - 1) * 20); g.globalAlpha = 1;
     g.fillStyle = '#d4d4d8'; g.beginPath(); g.arc(m, m + 118, 13, 0, 7); g.fill(); g.fillStyle = '#27272a'; g.beginPath(); g.arc(m, m + 118, 5, 0, 7); g.fill();
+    // 판 위 먼지 몇 점(판과 같이 돈다)
+    let x = [...((L && L.name) || 'x')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 2147483647, 11) || 11; const rnd = () => ((x = (x * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 16; i++) { const a = rnd() * 6.283, r = GI_PX + rnd() * (GO_PX - GI_PX); g.fillStyle = `rgba(255,255,255,${0.25 + rnd() * 0.45})`; g.beginPath(); g.arc(m + Math.cos(a) * r, m + Math.sin(a) * r, 0.8 + rnd() * 1.6, 0, 7); g.fill(); }
     R.t.needsUpdate = true;
   }
   function wrap(g, s, w) { const out = []; let cur = ''; for (const word of s.split(/\s+/)) { const t = cur ? cur + ' ' + word : word; if (g.measureText(t).width > w && cur) { out.push(cur); cur = word; } else cur = t; } if (cur) out.push(cur); return out.map((x) => clip(g, x, w)); }
@@ -145,7 +156,10 @@ function start() {
     const top = new THREE.Mesh(new THREE.CircleGeometry(REC_R, 128), new THREE.MeshPhysicalMaterial({ map: R.t, roughness: 0.55, metalness: 0.0, clearcoat: 0.35, clearcoatRoughness: 0.35, envMapIntensity: 0.35 }));
     top.rotation.x = -Math.PI / 2; top.position.y = 0.0042;
     body.castShadow = true; top.receiveShadow = true;
-    g.add(body, top);
+    // 실제 LP처럼 가장자리가 살짝 두껍게 말려 올라간 테
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(REC_R - 0.004, 0.0045, 8, 128), black); rim.rotation.x = Math.PI / 2; rim.position.y = 0.003;
+    g.add(body, top, rim);
+    g.rotation.x = 0.004; // 판 휨: 살짝 기운 채로 돌아 출렁여 보인다
     g.userData.R = R; g.userData.mats = [black, top.material];
     return g;
   }
@@ -217,7 +231,8 @@ function start() {
   function buildPlatter(node) {
     const H = PL_TOP - PLATE - 0.006;
     const alu = new THREE.MeshStandardMaterial({ color: 0xd9dce0, metalness: 0.85, roughness: 0.32 });
-    const sideM = new THREE.MeshStandardMaterial({ map: strobeTexture(), metalness: 0.75, roughness: 0.35 });
+    strobeTex = strobeTexture(); strobeTex.wrapS = THREE.RepeatWrapping;
+    const sideM = new THREE.MeshStandardMaterial({ map: strobeTex, metalness: 0.75, roughness: 0.35 });
     // 옆면을 바깥으로 벌려(위 0.645 → 아래 0.69) 땡땡이 테두리가 위에서 보이게
     const pl = new THREE.Mesh(new THREE.CylinderGeometry(PL_R, PL_R + 0.045, H, 160, 1), [sideM, alu, alu]);
     pl.position.y = PL_TOP - H / 2; node.add(pl);
@@ -229,9 +244,15 @@ function start() {
     lens.position.set(lampAt.x + 0.018, PLATE + 0.04, lampAt.z - 0.017); deck.add(lens);
     const glow = new THREE.PointLight(0xff3020, 0.35, 0.5, 2); glow.position.set(lampAt.x + 0.03, PLATE + 0.05, lampAt.z - 0.03); deck.add(glow); D._glow = glow;
     const lip = new THREE.Mesh(new THREE.TorusGeometry(PL_R - 0.003, 0.004, 8, 128), alu); lip.rotation.x = Math.PI / 2; lip.position.y = PL_TOP - 0.001; node.add(lip);
-    const mat = new THREE.Mesh(new THREE.CylinderGeometry(MAT_R, MAT_R, 0.004, 128), new THREE.MeshStandardMaterial({ color: 0x1c1d21, roughness: 0.95 }));
+    // 고무 매트: 동심원 무늬
+    const mc = document.createElement('canvas'); mc.width = mc.height = 512; const mg = mc.getContext('2d');
+    mg.fillStyle = '#1c1d21'; mg.fillRect(0, 0, 512, 512);
+    for (let r = 30; r < 256; r += 9) { mg.strokeStyle = r % 27 < 9 ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.35)'; mg.lineWidth = 3; mg.beginPath(); mg.arc(256, 256, r, 0, 7); mg.stroke(); }
+    const mt = new THREE.CanvasTexture(mc); mt.colorSpace = THREE.SRGBColorSpace;
+    const matTop = new THREE.MeshStandardMaterial({ map: mt, roughness: 0.95 }), matSide = new THREE.MeshStandardMaterial({ color: 0x1c1d21, roughness: 0.95 });
+    const mat = new THREE.Mesh(new THREE.CylinderGeometry(MAT_R, MAT_R, 0.004, 128), [matSide, matTop, matSide]);
     mat.position.y = PL_TOP + 0.002; node.add(mat);
-    const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.012, 0.04, 24), new THREE.MeshStandardMaterial({ color: 0xe6e8ea, metalness: 0.95, roughness: 0.2 }));
+    const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.012, 0.04, 24), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.06 }));
     spindle.position.y = REC_Y + 0.02; node.add(spindle);
     // 본체 위 접지 그림자(돌지 않게 deck에 붙인다)
     const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
@@ -244,21 +265,27 @@ function start() {
   // 톤암: AI 톤암은 납작한 부조라 비스듬히 보면 휘어 보여서 숨기고 코드로 새로 만든다(S자 관 · 기둥 · 무게추 · 헤드셸 · 카트리지 · 받침대)
   function buildArm(lift, yawNode) {
     // armLift 노드 자체가 AI 톤암 메시라 visible을 끄면 자식(새 톤암)까지 숨는다 → 재질만 안 보이게
-    lift.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ visible: false }); });
     const chrome = new THREE.MeshStandardMaterial({ color: 0xe8eaed, metalness: 0.95, roughness: 0.18 });
     const satin = new THREE.MeshStandardMaterial({ color: 0xcfd2d6, metalness: 0.8, roughness: 0.38 });
     const black = new THREE.MeshStandardMaterial({ color: 0x1d1f24, metalness: 0.2, roughness: 0.55 });
     const add = (m, x, y, z, parent = lift) => { m.position.set(x, y, z); parent.add(m); return m; };
     // 기둥(돌지 않는 받침 위, 톤암과 같이 돈다)
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.03, 32), satin), 0, 0.105, 0, yawNode);
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, ARM_H - 0.1, 24), chrome), 0, 0.1 + (ARM_H - 0.1) / 2, 0, yawNode);
+    // 톤암 받침판(본체 고정) · 기둥(톤암과 같이 돈다)
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.115, 0.02, 48), satin), PIV.x, PLATE + 0.01, PIV.z, deck);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.03, 32), satin), 0, PLATE + 0.035, 0, yawNode);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, ARM_H - PLATE - 0.05, 24), chrome), 0, PLATE + 0.05 + (ARM_H - PLATE - 0.05) / 2, 0, yawNode);
+    // 무게추 눈금(숫자 링)
+    const cwc = document.createElement('canvas'); cwc.width = 512; cwc.height = 64; const cg2 = cwc.getContext('2d');
+    cg2.fillStyle = '#cfd2d6'; cg2.fillRect(0, 0, 512, 64); cg2.fillStyle = '#1d1f24'; cg2.font = '700 26px "JetBrains Mono", monospace'; cg2.textAlign = 'center';
+    for (let i = 0; i < 20; i++) { const xx = i * 25.6 + 12; cg2.fillRect(xx, 0, 2, i % 5 ? 14 : 24); if (i % 5 === 0) cg2.fillText(String((i / 5) % 4), xx + 1, 54); }
+    const cwt = new THREE.CanvasTexture(cwc); cwt.colorSpace = THREE.SRGBColorSpace;
     // 짐벌(수평 고리)
     const gim = add(new THREE.Mesh(new THREE.TorusGeometry(0.044, 0.011, 12, 32), satin), 0, ARM_H, 0); gim.rotation.y = Math.PI / 2;
     add(new THREE.Mesh(new THREE.SphereGeometry(0.026, 16, 12), chrome), 0, ARM_H, 0);
     // 뒤쪽 축대와 무게추
     const stub = add(new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.17, 16), chrome), 0, ARM_H, -0.1); stub.rotation.x = Math.PI / 2;
     const cw = add(new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.095, 32), satin), 0, ARM_H, -0.165); cw.rotation.x = Math.PI / 2;
-    const cwr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.014, 32), black), 0, ARM_H, -0.128); cwr.rotation.x = Math.PI / 2;
+    const cwr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.016, 48), [new THREE.MeshStandardMaterial({ map: cwt, metalness: 0.5, roughness: 0.4 }), black, black]), 0, ARM_H, -0.128); cwr.rotation.x = Math.PI / 2;
     // S자 관: 축 → 앞으로 곧게 → 끝에서 안쪽으로 휜다
     const hx = HEAD.x, hz = HEAD.z;
     // S자: 축에서 곧게 나와 → 가운데에서 바깥(+x)으로 살짝 부풀고 → 앞쪽에서 판 안쪽으로 크게 휘었다가 → 끝에서 다시 펴져 헤드셸에 붙는다
@@ -281,6 +308,11 @@ function start() {
     const restW = new THREE.Vector3(0.012, 0, 0.45).add(yawNode.position);
     add(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, ARM_H - 0.03 - PLATE, 16), satin), restW.x, PLATE + (ARM_H - 0.03 - PLATE) / 2, restW.z, deck);
     add(new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.012, 0.03), black), restW.x, ARM_H - 0.026, restW.z, deck);
+    // 톤암 클립: 쉴 때 관을 잡고, 재생하면 열린다
+    for (const sgn of [-1, 1]) {
+      const c = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.03, 0.022), satin);
+      c.geometry.translate(0, 0.015, 0); c.position.set(restW.x + sgn * 0.024, ARM_H - 0.02, restW.z); deck.add(c); clips.push({ m: c, sgn });
+    }
   }
 
   let parts = null, record = null, label = null, labelKey = '';
@@ -288,29 +320,152 @@ function start() {
   let drop = null; // { t0, slam, sleeve, disc, done }
   let grab = null;  // { phi, spin0, t, last, v } 판을 손으로 잡은 상태
   let shakeT = -1;
+  let strobeTex = null, strobeAng = 0;
+  const clips = [], clickables = [];
+  let speed45 = false, volume = 50, cueUp = 1, coverK = 0, coverT = 0, idle = 0, dragCtl = null;
 
-  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(new URL('./deck.glb', import.meta.url).href, (g) => {
-    const root = g.scene;
-    // AI 텍스처의 잔주름(노멀맵)이 지저분해 보여 약하게
-    // 본체 윗판도 은색 금속 느낌으로(인쇄된 버튼·글자는 텍스처 그대로)
-    root.traverse((o) => { if (o.isMesh) { const m = o.material; m.side = THREE.FrontSide; m.envMapIntensity = 1; m.normalScale && m.normalScale.set(0.3, 0.3); m.metalnessMap = null; m.metalness = 0.55; m.roughness = 0.36; m.color && m.color.set(0xd9dce1); o.receiveShadow = true; } });
-    deck.add(root);
-    // 빈 platter 노드는 압축(prune) 때 지워질 수 있어 없으면 만든다
-    let platter = root.getObjectByName('platter');
-    if (!platter) { platter = new THREE.Group(); platter.name = 'platter'; platter.position.copy(PLATTER); root.add(platter); }
-    parts = { platter, yaw: root.getObjectByName('armYaw'), lift: root.getObjectByName('armLift') };
-    buildPlatter(parts.platter);
-    buildArm(parts.lift, parts.yaw);
-    record = makeRecord(); record.position.set(0, REC_Y, 0); parts.platter.add(record);
-    // 그림자: 판·플래터·톤암이 드리우고, 본체·매트가 받는다
-    [parts.platter, parts.yaw, parts.lift].forEach((n) => n.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }));
-    deck.traverse((o) => { if (o.isMesh && o.parent === deck && o !== floor && !o.material.transparent) o.castShadow = true; });
+  // ---------- 조작부 ----------
+  const satinM = new THREE.MeshStandardMaterial({ color: 0xcfd2d6, metalness: 0.8, roughness: 0.38 });
+  const darkM = new THREE.MeshStandardMaterial({ color: 0x1d1f24, metalness: 0.25, roughness: 0.5 });
+  function labelTex(lines, w = 256, h = 96, size = 30) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+    g.fillStyle = '#26282d'; g.fillRect(0, 0, w, h); g.fillStyle = '#e4e6ea'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `700 ${size}px "Space Grotesk", "JetBrains Mono", sans-serif`; lines.forEach((t, i) => g.fillText(t, w / 2, h / 2 + (i - (lines.length - 1) / 2) * size * 1.1));
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+  function engrave(text, x, z, w, size = 34) {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d');
+    g.font = `600 ${size}px "Space Grotesk", "JetBrains Mono", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(255,255,255,.6)'; g.fillText(text, 256, 34); g.fillStyle = 'rgba(40,42,48,.75)'; g.fillText(text, 256, 31);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 8), new THREE.MeshStandardMaterial({ map: t, transparent: true, metalness: 0.5, roughness: 0.4, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set(x, PLATE + 0.0008, z); deck.add(m); return m;
+  }
+  const ctl = {};
+  function buildControls() {
+    // START/STOP: 크고 납작한 사각 버튼
+    const sb = new THREE.Group(); sb.position.set(-0.62, PLATE, 0.635); deck.add(sb);
+    const well = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.006, 0.12), darkM); well.position.y = 0.002; sb.add(well);
+    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.1), [satinM, satinM, new THREE.MeshStandardMaterial({ map: labelTex(['START·STOP'], 256, 128, 30), metalness: 0.4, roughness: 0.45 }), satinM, satinM, satinM]);
+    btn.position.y = 0.012; btn.userData.act = 'start'; sb.add(btn); clickables.push(btn); ctl.start = btn;
+    // 33 / 45: 둥근 버튼 + 불 들어오는 테
+    ctl.speed = {};
+    for (const [k, x] of [['s33', -0.42], ['s45', -0.335]]) {
+      const g = new THREE.Group(); g.position.set(x, PLATE, 0.655); deck.add(g);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.004, 8, 32), new THREE.MeshStandardMaterial({ color: 0x3a3c42, emissive: 0xff5a2a, emissiveIntensity: 0 }));
+      ring.rotation.x = Math.PI / 2; ring.position.y = 0.004; g.add(ring);
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.016, 32), [satinM, new THREE.MeshStandardMaterial({ map: labelTex([k === 's33' ? '33' : '45'], 128, 128, 56), metalness: 0.4, roughness: 0.45 }), satinM]);
+      b.position.y = 0.009; b.userData.act = k; g.add(b); clickables.push(b); ctl.speed[k] = { b, ring };
+    }
+    engrave('SPEED', -0.378, 0.7, 0.16, 30);
+    // 볼륨 슬라이더(피치 슬라이더 자리): 오른쪽 앞, 위(뒤)로 밀수록 크게
+    const sl = new THREE.Group(); sl.position.set(0.8, PLATE, 0.3); deck.add(sl);
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.006, 0.52), darkM); slot.position.y = 0.002; sl.add(slot);
+    for (let i = 0; i <= 10; i++) { const tk = new THREE.Mesh(new THREE.BoxGeometry(i % 5 ? 0.02 : 0.035, 0.002, 0.003), darkM); tk.position.set(-0.04, 0.0015, -0.25 + i * 0.05); sl.add(tk); }
+    const knob = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.04), [satinM, satinM, new THREE.MeshStandardMaterial({ color: 0xe6e8ea, metalness: 0.9, roughness: 0.25 }), satinM, satinM, satinM]);
+    knob.position.y = 0.018; knob.userData.act = 'slider'; sl.add(knob); clickables.push(knob); ctl.knob = knob; ctl.slider = sl;
+    const kl = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.002, 0.006), new THREE.MeshStandardMaterial({ color: 0xc8102e })); kl.position.y = 0.034; knob.add(kl); kl.position.set(0, 0.016, 0);
+    engrave('VOLUME', 0.8, 0.6, 0.16, 30);
+    // 큐 레버: 톤암 받침 앞, 올리면 바늘이 들린다
+    const cue = new THREE.Group(); cue.position.set(PIV.x + 0.105, PLATE, PIV.z + 0.16); deck.add(cue);
+    const cb = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.06), satinM); cb.position.y = 0.015; cue.add(cb);
+    const lever = new THREE.Group(); lever.position.set(0, 0.03, 0.02); cue.add(lever);
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.07, 12), new THREE.MeshStandardMaterial({ color: 0xe6e8ea, metalness: 0.95, roughness: 0.2 }));
+    stick.geometry.translate(0, 0.035, 0); lever.add(stick);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.011, 16, 12), darkM); tip.position.y = 0.07; lever.add(tip);
+    for (const o of [cb, stick, tip]) { o.userData.act = 'cue'; clickables.push(o); }
+    ctl.lever = lever;
+    // 안티스케이팅 다이얼(손으로 돌아간다)
+    const dial = new THREE.Group(); dial.position.set(PIV.x - 0.13, PLATE, PIV.z - 0.11); deck.add(dial);
+    const dc = document.createElement('canvas'); dc.width = dc.height = 128; const dg = dc.getContext('2d');
+    dg.fillStyle = '#cfd2d6'; dg.beginPath(); dg.arc(64, 64, 64, 0, 7); dg.fill(); dg.fillStyle = '#1d1f24'; dg.font = '700 18px "JetBrains Mono", monospace'; dg.textAlign = 'center'; dg.textBaseline = 'middle';
+    for (let i = 0; i < 4; i++) { const a = -Math.PI / 2 + i * Math.PI / 2; dg.fillText(String(i), 64 + Math.cos(a) * 46, 64 + Math.sin(a) * 46); }
+    dg.fillStyle = '#c8102e'; dg.fillRect(62, 6, 4, 22);
+    const dt2 = new THREE.CanvasTexture(dc); dt2.colorSpace = THREE.SRGBColorSpace;
+    const dk = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.038, 0.024, 40), [satinM, new THREE.MeshStandardMaterial({ map: dt2, metalness: 0.5, roughness: 0.4 }), satinM]);
+    dk.position.y = 0.012; dk.userData.act = 'dial'; dial.add(dk); clickables.push(dk); ctl.dial = dk;
+    engrave('ANTI-SKATE', PIV.x - 0.13, PIV.z - 0.04, 0.13, 30);
+    // 바늘 조명(타깃 라이트): 조명 모드에서 솟아올라 바늘 끝을 비춘다
+    const tl = new THREE.Group(); tl.position.set(0.44, PLATE, 0.6); deck.add(tl);
+    const tlBase = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.026, 0.008, 24), darkM); tlBase.position.y = 0.004; tl.add(tlBase);
+    const tlPop = new THREE.Group(); tl.add(tlPop);
+    const tlCol = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.07, 20), satinM); tlCol.position.y = 0.035; tlPop.add(tlCol);
+    const tlHead = new THREE.Mesh(new THREE.SphereGeometry(0.02, 20, 14), new THREE.MeshStandardMaterial({ color: 0xfff1d6, emissive: 0xffd9a0, emissiveIntensity: 0 })); tlHead.position.y = 0.075; tlPop.add(tlHead);
+    const tlLight = new THREE.SpotLight(0xffe6c0, 0, 0.9, 0.22, 0.7, 2); tlLight.position.set(0, 0.08, 0); tlPop.add(tlLight); deck.add(tlLight.target);
+    ctl.target = { pop: tlPop, head: tlHead, light: tlLight };
+    // 45 어댑터(뒤 오른쪽 구석)
+    const ad = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.052, 0.014, 40), new THREE.MeshStandardMaterial({ color: 0xe6e8ea, metalness: 0.95, roughness: 0.2 }));
+    ad.position.set(0.79, PLATE + 0.007, -0.6); ad.castShadow = true; deck.add(ad);
+    const adh = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.016, 24), darkM); adh.position.set(0.79, PLATE + 0.008, -0.6); deck.add(adh);
+    const adw = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.056, 0.004, 40), darkM); adw.position.set(0.79, PLATE + 0.002, -0.6); deck.add(adw);
+    // 뒤쪽 RCA 케이블(빨강·흰색) — 낮은 각도에서 보인다
+    for (const [cx, col] of [[0.5, 0xc8102e], [0.58, 0xf1f1f1]]) {
+      const plug = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.05, 16), new THREE.MeshStandardMaterial({ color: col, roughness: 0.4 }));
+      plug.rotation.x = Math.PI / 2; plug.position.set(cx, -0.08, -0.745); deck.add(plug);
+      const cv = new THREE.CatmullRomCurve3([new THREE.Vector3(cx, -0.08, -0.77), new THREE.Vector3(cx + 0.02, -0.12, -0.95), new THREE.Vector3(cx + 0.08, -0.19, -1.3), new THREE.Vector3(cx + 0.2, -0.19, -2.2)]);
+      const cable = new THREE.Mesh(new THREE.TubeGeometry(cv, 32, 0.008, 8, false), darkM); cable.castShadow = true; deck.add(cable);
+    }
+    // 먼지 덮개(투명 아크릴, 뒤 힌지). 오래 멈춰 두면 닫히고 만지면 열린다
+    const cover = new THREE.Group(); cover.position.set(0, PLATE + 0.004, -0.722); deck.add(cover);
+    const acr = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, roughness: 0.04, metalness: 0, clearcoat: 1, depthWrite: false, side: THREE.DoubleSide });
+    const CW = 1.75, CH = 0.26, CD = 1.43;
+    const face = (w, h, x, y, z, rx, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), acr); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); cover.add(m); };
+    face(CW, CD, 0, CH, CD / 2, -Math.PI / 2, 0); face(CW, CH, 0, CH / 2, CD, 0, 0); face(CW, CH, 0, CH / 2, 0, 0, 0);
+    face(CD, CH, -CW / 2, CH / 2, CD / 2, 0, Math.PI / 2); face(CD, CH, CW / 2, CH / 2, CD / 2, 0, Math.PI / 2);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(CW, CH, CD)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 }));
+    edges.position.set(0, CH / 2, CD / 2); cover.add(edges);
+    for (const hx of [-0.6, 0.6]) { const hg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.03, 0.03), darkM); hg.position.set(hx, PLATE + 0.012, -0.727); deck.add(hg); }
+    ctl.cover = cover;
+  }
+
+  // ---------- 연출: 무지개 반사광 · 조명 속 먼지 · 곡 바뀔 때 홈 빛남 ----------
+  const fx = {};
+  function buildFx() {
+    // 무지개 반사광: 판 홈에 부채꼴로 번지는 빛(판과 같이 돌지 않는다 = 빛은 제자리, 홈만 돈다)
+    const c = document.createElement('canvas'); c.width = c.height = 1024; const g = c.getContext('2d');
+    g.save(); g.beginPath(); g.arc(512, 512, GO_PX, 0, 7); g.arc(512, 512, GI_PX, 0, 7, true); g.clip();
+    const fan = (a0) => {
+      const cg = g.createConicGradient ? g.createConicGradient(a0 - 0.35, 512, 512) : null;
+      if (!cg) return;
+      const stops = ['rgba(255,60,60,0)', 'rgba(255,120,60,.55)', 'rgba(255,230,80,.6)', 'rgba(80,255,140,.55)', 'rgba(70,170,255,.6)', 'rgba(170,90,255,.5)', 'rgba(170,90,255,0)'];
+      stops.forEach((st, i) => cg.addColorStop((i / (stops.length - 1)) * 0.11, st)); cg.addColorStop(0.12, 'rgba(0,0,0,0)'); cg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = cg; g.fillRect(0, 0, 1024, 1024);
+    };
+    fan(-2.25); fan(0.9);
+    g.restore();
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const rb = new THREE.Mesh(new THREE.CircleGeometry(REC_R, 96), new THREE.MeshBasicMaterial({ map: t, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.3 }));
+    rb.rotation.x = -Math.PI / 2; rb.position.set(PLATTER.x, REC_Y + 0.0075, PLATTER.z); deck.add(rb); fx.rainbow = rb;
+    // 조명 속 먼지
+    const N = 180, pos = new Float32Array(N * 3), seed = new Float32Array(N);
+    for (let i = 0; i < N; i++) { pos[i * 3] = -0.9 + Math.random() * 1.4; pos[i * 3 + 1] = 0.15 + Math.random() * 1.4; pos[i * 3 + 2] = -0.6 + Math.random() * 1.1; seed[i] = Math.random() * 100; }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const dc = document.createElement('canvas'); dc.width = dc.height = 32; const dg = dc.getContext('2d'); const rgd = dg.createRadialGradient(16, 16, 0, 16, 16, 16); rgd.addColorStop(0, 'rgba(255,240,215,1)'); rgd.addColorStop(1, 'rgba(255,240,215,0)'); dg.fillStyle = rgd; dg.fillRect(0, 0, 32, 32);
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.012, map: new THREE.CanvasTexture(dc), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    scene.add(pts); fx.dust = { pts, seed, base: pos.slice() };
+    fx.gaps = [];
+  }
+
+  // ---------- 본체 조립(맨 끝에서 부른다: 아래 상수·함수가 다 준비된 뒤) ----------
+  function init() {
+    const root = new THREE.Group(); deck.add(root);
+    const platter = new THREE.Group(); platter.name = 'platter'; platter.position.copy(PLATTER); root.add(platter);
+    const yawN = new THREE.Group(); yawN.name = 'armYaw'; yawN.position.copy(PIV); root.add(yawN);
+    const liftN = new THREE.Group(); liftN.name = 'armLift'; yawN.add(liftN);
+    parts = { platter, yaw: yawN, lift: liftN };
+    buildPlatter(platter);
+    buildArm(liftN, yawN);
+    buildControls();
+    buildFx();
+    record = makeRecord(); record.position.set(0, REC_Y, 0); platter.add(record);
+    // 그림자: 판·플래터·톤암·조작부가 드리우고, 본체·매트가 받는다
+    deck.traverse((o) => { if (o.isMesh && o !== floor && !(o.material && o.material.transparent)) { o.castShadow = true; o.receiveShadow = true; } });
     applyLabel();
     D.ok = true;
     document.body.classList.add('d3');
     resize();
     loop.last = performance.now(); requestAnimationFrame(loop);
-  }, undefined, (e) => { D.ok = false; console.error('deck3d', e); });
+  }
 
   function applyLabel(target = record) {
     const L = label, key = L ? [L.name, L.artist, L.img, (L.tracks || []).map((f) => f.toFixed(3)).join(',')].join('|') : '';
@@ -329,6 +484,8 @@ function start() {
     return (lo + hi) / 2;
   }
 
+  const camBase = new THREE.Vector3(), camLook = new THREE.Vector3(0, -0.02, 0.02);
+  let camZoom = 0;
   function resize() {
     const w = host.clientWidth || 1, h = host.clientHeight || 1;
     renderer.setSize(w, h, false);
@@ -337,8 +494,9 @@ function start() {
     const fitW = 1.95 / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.aspect), fitH = 1.75 / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2));
     const dist = Math.max(fitW, fitH);
     const el = THREE.MathUtils.degToRad(62);
-    cam.position.set(0, Math.sin(el) * dist, Math.cos(el) * dist);
-    cam.lookAt(0, -0.02, 0.02);
+    camBase.set(0, Math.sin(el) * dist, Math.cos(el) * dist);
+    cam.position.copy(camBase);
+    cam.lookAt(camLook);
     cam.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(host);
@@ -356,8 +514,35 @@ function start() {
   }
   const el = renderer.domElement;
   el.style.touchAction = 'none';
+  function hitControl(e) {
+    const r = el.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, cam);
+    const h = ray.intersectObjects(clickables, false)[0];
+    return h ? h.object.userData.act : null;
+  }
+  function planeHit(e, y) {
+    const r = el.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, cam); plane.constant = -y;
+    return ray.ray.intersectPlane(plane, hit) ? hit.clone() : null;
+  }
+  const press = (m) => { m.position.y -= 0.007; setTimeout(() => { m.position.y += 0.007; }, 140); };
   el.addEventListener('pointerdown', (e) => {
-    if (!parts || drop || !record) return;
+    if (!parts) return;
+    idle = 0;
+    // 덮개가 닫혀 있으면 먼저 연다
+    if (coverK > 0.3) { coverT = 0; D.onSound && D.onSound('cover'); e.preventDefault(); return; }
+    const act = hitControl(e);
+    if (act) {
+      e.preventDefault();
+      if (act === 'start') { press(ctl.start); D.onSound && D.onSound('click'); D.onButton && D.onButton('start'); }
+      else if (act === 's33' || act === 's45') { press(ctl.speed[act].b); speed45 = act === 's45'; RPS = (speed45 ? 45 : 33.333) / 60; D.onSound && D.onSound('click'); }
+      else if (act === 'cue') { D.onSound && D.onSound('cue'); D.onButton && D.onButton('cue'); }
+      else if (act === 'slider' || act === 'dial') { dragCtl = { act, x: e.clientX, y: e.clientY, rot: ctl.dial.rotation.y }; el.setPointerCapture(e.pointerId); }
+      return;
+    }
+    if (drop || !record) return;
     const a = recordAngle(e); if (!a || a.d > REC_R || a.d < 0.04) return;
     e.preventDefault(); el.setPointerCapture(e.pointerId);
     grab = { phi: a.phi, spin0: spin, t: performance.now(), last: performance.now(), v: 0 };
@@ -365,7 +550,15 @@ function start() {
     D.onScratch && D.onScratch('start');
   });
   el.addEventListener('pointermove', (e) => {
-    if (!grab) { const a = parts && recordAngle(e); el.style.cursor = a && a.d < REC_R && a.d > 0.04 && !drop ? 'grab' : ''; return; }
+    if (dragCtl) {
+      if (dragCtl.act === 'slider') {
+        const h = planeHit(e, PLATE + 0.03); if (!h) return;
+        const zz = Math.max(-0.25, Math.min(0.25, h.z - ctl.slider.position.z));
+        volume = Math.round((0.25 - zz) / 0.5 * 100); D.onVolume && D.onVolume(volume);
+      } else { ctl.dial.rotation.y = dragCtl.rot - (e.clientX - dragCtl.x) * 0.02; }
+      return;
+    }
+    if (!grab) { const act = parts && hitControl(e); if (act) { el.style.cursor = 'pointer'; return; } const a = parts && recordAngle(e); el.style.cursor = a && a.d < REC_R && a.d > 0.04 && !drop ? 'grab' : ''; return; }
     const a = recordAngle(e); if (!a) return;
     let dphi = a.phi - grab.phi; if (dphi > Math.PI) dphi -= 2 * Math.PI; if (dphi < -Math.PI) dphi += 2 * Math.PI;
     grab.phi = a.phi;
@@ -375,9 +568,10 @@ function start() {
     D.onScratch && D.onScratch('move', grab.v / (RPS * Math.PI * 2)); // 1 = 정상 속도, 음수 = 거꾸로
   });
   const release = () => {
+    if (dragCtl) { if (dragCtl.act === 'dial') D.onSound && D.onSound('click'); dragCtl = null; return; }
     if (!grab) return;
     // 앞으로 돈 각(시계 방향이 앞) → 초. 한 바퀴 = 1.8초(33⅓ rpm)
-    const sec = (-(spin - grab.spin0)) / (Math.PI * 2) * (60 / 33.333);
+    const sec = (-(spin - grab.spin0)) / (Math.PI * 2) * (1 / RPS);
     const held = (performance.now() - grab.t) / 1000;
     vel = Math.max(0, grab.v * 0.5);
     grab = null; el.style.cursor = '';
@@ -406,8 +600,49 @@ function start() {
     lift += (liftT - lift) * Math.min(1, dt * 7);
     if (!far || lift > LIFT_UP * 0.85) yaw += (yawT - yaw) * Math.min(1, dt * (far ? 3.2 : 1.5));
     parts.yaw.rotation.y = yaw;
-    parts.lift.rotation.x = -lift;
+    // 판 휨: 바늘이 판 위에 있으면 휜 판을 따라 톤암이 아주 살짝 오르내린다
+    const onRec = playing && !busy && !far && yaw < -0.1;
+    parts.lift.rotation.x = -lift - (onRec ? 0.0025 * (1 + Math.sin(spin)) : 0);
     if (drop) stepDrop(now);
+    const T = now / 1000;
+    // 스트로브 착시: 속도가 맞으면 점이 멈춰 보이고, 잡거나 속도가 오르내리면 흘러간다
+    const nominal = RPS * Math.PI * 2, apparent = vel > 0.05 || grab ? (grab ? -(grab.v || 0) : vel) - nominal : 0;
+    strobeAng += apparent * dt * 0.25;
+    if (strobeTex) strobeTex.offset.x = (spin - strobeAng) / (Math.PI * 2);
+    // 큐 레버: 바늘이 판 위면 내려가고 아니면 올라간다
+    cueUp += ((onRec || grab ? 0 : 1) - cueUp) * Math.min(1, dt * 6);
+    ctl.lever.rotation.x = lerp(0.5, -0.35, cueUp);
+    // 톤암 클립: 쉴 때 닫힘
+    const rest = Math.abs(yaw) < 0.02 && !playing;
+    clips.forEach((c) => { c.m.rotation.z += ((rest ? 0 : c.sgn * 0.9) - c.m.rotation.z) * Math.min(1, dt * 5); });
+    // 33/45 불
+    ctl.speed.s33.ring.material.emissiveIntensity = speed45 ? 0 : 1.6; ctl.speed.s45.ring.material.emissiveIntensity = speed45 ? 1.6 : 0;
+    // 볼륨 슬라이더 손잡이
+    ctl.knob.position.z += ((0.25 - volume / 100 * 0.5) - ctl.knob.position.z) * Math.min(1, dt * 10);
+    // 먼지 덮개: 멈춘 채 25초 지나면 닫힘, 만지거나 재생하면 열림
+    if (playing || grab || drop || dragCtl) idle = 0; else idle += dt;
+    if (idle > 25) coverT = 1; else if (playing || drop) coverT = 0;
+    const prevK = coverK; coverK += (coverT - coverK) * Math.min(1, dt * 1.8);
+    if (prevK < 0.5 && coverK >= 0.5 && D.onSound) D.onSound('cover');
+    ctl.cover.rotation.x = lerp(-1.32, 0, easeOut(coverK));
+    // 바늘 조명: 조명 모드에서 솟아 바늘 끝을 비춘다
+    const tp = ctl.target; tp.pop.position.y = lerp(-0.07, 0, night); tp.head.material.emissiveIntensity = night * 2.2; tp.light.intensity = night * 0.35;
+    const headW = new THREE.Vector3(HEAD.x, REC_Y, HEAD.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(PIV); tp.light.target.position.copy(headW);
+    // 무지개 반사광 · 먼지
+    fx.rainbow.visible = !!record && !drop;
+    fx.rainbow.material.opacity = (0.18 + night * 0.4) * (0.85 + 0.15 * Math.sin(spin * 3));
+    const dp = fx.dust.pts.geometry.attributes.position, b0 = fx.dust.base;
+    for (let i = 0; i < fx.dust.seed.length; i++) { const sd = fx.dust.seed[i]; dp.array[i * 3] = b0[i * 3] + Math.sin(T * 0.13 + sd) * 0.06; dp.array[i * 3 + 1] = b0[i * 3 + 1] + Math.sin(T * 0.09 + sd * 2) * 0.05; dp.array[i * 3 + 2] = b0[i * 3 + 2] + Math.cos(T * 0.11 + sd) * 0.05; }
+    dp.needsUpdate = true; fx.dust.pts.material.opacity = night * 0.75;
+    // 곡이 바뀔 때 그 무음 홈이 빛났다 사라짐
+    fx.gaps = fx.gaps.filter((gp) => { const k = (now - gp.t0) / 1600; if (k >= 1) { scene.remove(gp.m); return false; } gp.m.material.opacity = (1 - k) * 0.9; return true; });
+    // 카메라 숨쉬기 + 판 갈 때 플래터 쪽으로 살짝 다가감
+    camZoom += ((drop ? 1 : 0) - camZoom) * Math.min(1, dt * 1.5);
+    if (!D._camLock) {
+      cam.position.set(camBase.x + Math.sin(T * 0.11) * 0.06, camBase.y + Math.sin(T * 0.07) * 0.03, camBase.z + Math.cos(T * 0.09) * 0.04);
+      cam.position.lerp(new THREE.Vector3(PLATTER.x, camBase.y * 0.72, camBase.z * 0.72), camZoom * 0.22);
+      cam.lookAt(new THREE.Vector3().copy(camLook).lerp(PLATTER, camZoom * 0.35));
+    }
     night += (nightT - night) * Math.min(1, dt * 2.2);
     scene.environmentIntensity = lerp(1, 0.1, night);
     key.intensity = lerp(1.1, 0.06, night);
@@ -474,7 +709,7 @@ function start() {
   // 판 갈기 준비 중(표지 그림을 기다리는 동안)에는 플래터 위 옛 판 라벨을 바꾸지 않는다
   let preparing = 0;
   D.drop = async (a, slam) => {
-    const my = ++preparing;
+    const my = ++preparing; idle = 0; coverT = 0;
     if (drop) { scene.remove(drop.sleeve); if (!drop.handed) scene.remove(drop.disc); drop = null; }
     const img = await Promise.race([loadImg(a.img), new Promise((r) => setTimeout(() => r(null), 250))]);
     if (my !== preparing) return; // 그 사이 다른 판으로 또 바뀜
@@ -499,4 +734,12 @@ function start() {
   D.setLabel = (L) => { label = L; if (!drop && !preparing && record) applyLabel(); };
   D.shake = () => { shakeT = performance.now(); };
   D._dbg = () => ({ scene, parts, record, cam });
+  D.setVolume = (v) => { if (!dragCtl) volume = v; };
+  D.flashGap = (f) => {
+    const r = GO_R - Math.min(1, Math.max(0, f)) * (GO_R - GI_R);
+    const m = new THREE.Mesh(new THREE.RingGeometry(r - 0.006, r + 0.006, 160), new THREE.MeshBasicMaterial({ color: 0xffe2b0, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.rotation.x = -Math.PI / 2; m.position.set(PLATTER.x, REC_Y + 0.008, PLATTER.z); scene.add(m); fx.gaps.push({ m, t0: performance.now() });
+  };
+  D.coverOpen = () => { idle = 0; coverT = 0; };
+  init();
 }
