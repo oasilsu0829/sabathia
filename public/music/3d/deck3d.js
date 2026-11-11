@@ -19,7 +19,9 @@ const PL_R = 0.645, PL_TOP = 0.066;                    // 플래터 반지름·�
 const MAT_R = 0.62, MAT_TOP = PL_TOP + 0.004;          // 고무 매트
 const REC_R = 0.6, REC_Y = MAT_TOP + 0.004;            // 판(12인치) 반지름·가운데 높이
 const YAW_PLAY = -0.355, YAW_END = -0.65;              // 톤암: 판 바깥 홈(반지름 0.56) ~ 안쪽(0.3)
-const LIFT_ON = 0.03, LIFT_UP = 0.075;                 // 톤암 들림(라디안): 판 위에 얹혔을 때 · 옮길 때
+const LIFT_ON = 0, LIFT_UP = 0.05;                     // 톤암 들림(라디안): 판 위(바늘이 판에 닿음) · 옮길 때
+const ARM_H = 0.137;                                   // 톤암 관 높이(축 기준 세계 높이)
+const HEAD = new THREE.Vector3(-0.165, 0, 0.92);        // 축에서 바늘까지(톤암 관절 좌표)
 const RPS = 33.333 / 60;                               // 33⅓ rpm
 
 let renderer;
@@ -159,6 +161,45 @@ function start() {
     shd.rotation.x = -Math.PI / 2; shd.position.set(PLATTER.x, PLATE + 0.0015, PLATTER.z); deck.add(shd);
   }
 
+  // 톤암: AI 톤암은 납작한 부조라 비스듬히 보면 휘어 보여서 숨기고 코드로 새로 만든다(S자 관 · 기둥 · 무게추 · 헤드셸 · 카트리지 · 받침대)
+  function buildArm(lift, yawNode) {
+    // armLift 노드 자체가 AI 톤암 메시라 visible을 끄면 자식(새 톤암)까지 숨는다 → 재질만 안 보이게
+    lift.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ visible: false }); });
+    const chrome = new THREE.MeshStandardMaterial({ color: 0xe8eaed, metalness: 0.95, roughness: 0.18 });
+    const satin = new THREE.MeshStandardMaterial({ color: 0xcfd2d6, metalness: 0.8, roughness: 0.38 });
+    const black = new THREE.MeshStandardMaterial({ color: 0x1d1f24, metalness: 0.2, roughness: 0.55 });
+    const add = (m, x, y, z, parent = lift) => { m.position.set(x, y, z); parent.add(m); return m; };
+    // 기둥(돌지 않는 받침 위, 톤암과 같이 돈다)
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.04, 0.03, 32), satin), 0, 0.105, 0, yawNode);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, ARM_H - 0.1, 24), chrome), 0, 0.1 + (ARM_H - 0.1) / 2, 0, yawNode);
+    // 짐벌(수평 고리)
+    const gim = add(new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.007, 12, 32), satin), 0, ARM_H, 0); gim.rotation.y = Math.PI / 2;
+    add(new THREE.Mesh(new THREE.SphereGeometry(0.016, 16, 12), chrome), 0, ARM_H, 0);
+    // 뒤쪽 축대와 무게추
+    const stub = add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 16), chrome), 0, ARM_H, -0.09); stub.rotation.x = Math.PI / 2;
+    const cw = add(new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.075, 32), satin), 0, ARM_H, -0.15); cw.rotation.x = Math.PI / 2;
+    const cwr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.012, 32), black), 0, ARM_H, -0.12); cwr.rotation.x = Math.PI / 2;
+    // S자 관: 축 → 앞으로 곧게 → 끝에서 안쪽으로 휜다
+    const hx = HEAD.x, hz = HEAD.z;
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, ARM_H, 0.02), new THREE.Vector3(0.012, ARM_H, 0.3), new THREE.Vector3(0.03, ARM_H - 0.004, 0.55),
+      new THREE.Vector3(-0.02, ARM_H - 0.01, 0.74), new THREE.Vector3(hx + 0.035, ARM_H - 0.016, hz - 0.11),
+    ]);
+    lift.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.0085, 12, false), chrome));
+    // 헤드셸(관 끝에서 비스듬히) + 카트리지 + 손잡이
+    const hs = new THREE.Group(); hs.position.set(hx + 0.035, ARM_H - 0.016, hz - 0.11); hs.rotation.y = -0.38; lift.add(hs);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.11), black), 0, 0, 0.06, hs);
+    const cart = add(new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.028, 0.05), new THREE.MeshStandardMaterial({ color: 0xc8102e, roughness: 0.45 })), 0, -0.018, 0.07, hs);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.02), black), 0, -0.036, 0.085, hs);
+    const fl = add(new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.004, 0.012), chrome), 0.034, 0.004, 0.09, hs); fl.rotation.z = 0.35;
+    // 바늘 끝이 판 윗면(REC_Y + 0.004)에 닿도록 관 높이는 ARM_H로 맞춰 둠
+    void cart;
+    // 받침대(쉴 때 관이 얹히는 기둥) — 본체에 고정
+    const restW = new THREE.Vector3(0.012, 0, 0.45).add(yawNode.position);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, ARM_H - 0.012 - PLATE, 16), satin), restW.x, PLATE + (ARM_H - 0.012 - PLATE) / 2, restW.z, deck);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.01, 0.02), black), restW.x, ARM_H - 0.012, restW.z, deck);
+  }
+
   let parts = null, record = null, label = null, labelKey = '';
   let playing = false, progress = 0, spin = 0, vel = 0, yaw = 0, lift = 0;
   let drop = null; // { t0, slam, sleeve, disc, done }
@@ -174,6 +215,7 @@ function start() {
     if (!platter) { platter = new THREE.Group(); platter.name = 'platter'; platter.position.copy(PLATTER); root.add(platter); }
     parts = { platter, yaw: root.getObjectByName('armYaw'), lift: root.getObjectByName('armLift') };
     buildPlatter(parts.platter);
+    buildArm(parts.lift, parts.yaw);
     record = makeRecord(); record.position.set(0, REC_Y, 0); parts.platter.add(record);
     applyLabel();
     D.ok = true;
@@ -256,9 +298,12 @@ function start() {
       const pullK = ease(seg(t, 0.16, 0.44)), toK = ease(seg(t, 0.44, 0.76)), downK = easeIn(seg(t, 0.76, 0.84));
       const sx = s.position.x - P.x, sz = s.position.z - P.z;
       const px = lerp(sx, sx - 0.75, pullK), pz = sz;
-      disc.position.copy(wp(lerp(px, 0, toK), lerp(lerp(0.328, 0.38, pullK), REC_Y + 0.12, toK) - downK * 0.12, lerp(pz, 0, toK)));
-      disc.rotation.set(lerp(-Math.PI / 2 + 0.25 + Math.PI / 2, 0, toK), lerp(0, -Math.PI * 2, ease(seg(t, 0.16, 0.84))), 0);
-      disc.visible = t >= 0.16;
+      // 판을 플래터에 붙인 뒤(handed)엔 더 건드리지 않는다. 플래터 안 좌표에 세계 좌표를 넣으면 판이 한쪽으로 쏠려 돈다
+      if (!d.handed) {
+        disc.position.copy(wp(lerp(px, 0, toK), lerp(lerp(0.328, 0.38, pullK), REC_Y + 0.12, toK) - downK * 0.12, lerp(pz, 0, toK)));
+        disc.rotation.set(lerp(-Math.PI / 2 + 0.25 + Math.PI / 2, 0, toK), lerp(0, -Math.PI * 2, ease(seg(t, 0.16, 0.84))), 0);
+        disc.visible = t >= 0.16;
+      }
     } else {
       const c = d.sleeve, disc = d.disc;
       const fall = seg(t, 0.07, 0.34), bounce = seg(t, 0.34, 0.47), flick = easeIn(seg(t, 0.55, 0.72));
@@ -266,7 +311,7 @@ function start() {
       c.position.copy(wp(lerp(-0.9, 0, easeIn(fall)) + flick * 2.2, y + flick * 0.25, lerp(-0.6, 0.02, easeIn(fall)) + flick * 0.3));
       c.rotation.set(-Math.PI / 2 + lerp(-0.9, 0, fall), 0, lerp(-0.7, -0.07, fall) - Math.sin(bounce * Math.PI) * 0.04 + flick * 0.9);
       c.visible = t < 0.74 && t > 0.0;
-      disc.visible = t >= 0.34; disc.position.copy(wp(0, REC_Y, 0)); disc.rotation.set(0, lerp(0, -Math.PI * 2, ease(seg(t, 0.34, 0.76))), 0);
+      if (!d.handed) { disc.visible = t >= 0.34; disc.position.copy(wp(0, REC_Y, 0)); disc.rotation.set(0, lerp(0, -Math.PI * 2, ease(seg(t, 0.34, 0.76))), 0); }
     }
     // 내려앉는 순간: 새 판을 플래터에 붙인다(회전은 지금 플래터 각도 기준 0)
     const hand = d.slam ? 0.76 : 0.84;
