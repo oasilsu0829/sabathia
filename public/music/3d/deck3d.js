@@ -393,6 +393,8 @@ function start() {
   let speed45 = false, volume = 50, cueUp = 1, coverK = 0, coverT = 0, idle = 0, dragCtl = null;
   // 마지막으로 뭔가 바뀐 시각(만짐·라벨·색·볼륨…). 2초 넘게 조용하면 프레임을 낮춘다(배터리)
   let poke = 0;
+  // 판을 간 뒤 음악 전 손놀림: cue = 'spin'(플래터만 돎) · 'lead'(톤암을 들어 판 가장자리 위로) · 'down'(큐 레버를 내려 바늘이 천천히 내려감). null이면 재생 상태를 따름
+  let cue = null, brushT0 = -1, dustBrush = null;
 
   // ---------- 조작부 ----------
   const satinM = new THREE.MeshStandardMaterial({ color: 0xcfd2d6, metalness: 0.8, roughness: 0.38 });
@@ -733,10 +735,34 @@ function start() {
   const lerp = THREE.MathUtils.lerp, clamp01 = (t) => Math.min(1, Math.max(0, t));
   const seg = (t, a, b) => clamp01((t - a) / (b - a));
 
+  // 판 먼지 털이(카본 브러시): 오른쪽 앞에서 들어와 도는 판에 대고 있다가 들어서 빠짐. 1.5초
+  function makeBrush() {
+    const g = new THREE.Group();
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.018, 0.06), new THREE.MeshStandardMaterial({ color: 0x8a2230, roughness: 1 }));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.03, 0.075), new THREE.MeshStandardMaterial({ color: 0x4a4e57, roughness: 0.3, metalness: 0.6 }));
+    body.position.y = 0.024;
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.05), new THREE.MeshStandardMaterial({ color: 0xc9ced6, roughness: 0.3, metalness: 0.9 }));
+    grip.position.set(0.04, 0.06, 0);
+    [pad, body, grip].forEach((m) => { m.castShadow = true; g.add(m); });
+    g.visible = false; scene.add(g);
+    return g;
+  }
+  function stepBrush(now) {
+    if (brushT0 < 0) return;
+    if (!dustBrush) dustBrush = makeBrush();
+    const k = D._bk != null ? D._bk : (now - brushT0) / 1500; // D._bk: 화면 확인용으로 시점 고정(0~1)
+    if (k >= 1) { dustBrush.visible = false; brushT0 = -1; return; }
+    const inK = easeOut(seg(k, 0, 0.25)), downK = ease(seg(k, 0.2, 0.32)), upK = easeIn(seg(k, 0.75, 0.86)), outK = easeIn(seg(k, 0.82, 1));
+    const P = PLATTER, touch = REC_Y + 0.012 + 0.002 * Math.sin(now / 40);
+    dustBrush.visible = true;
+    dustBrush.position.set(P.x + lerp(1.1, 0.3, inK) + outK * 0.9, lerp(0.35, lerp(0.12, touch, downK), inK) + upK * 0.14 + outK * 0.2, P.z + lerp(0.55, 0.06, inK) + outK * 0.3);
+    dustBrush.rotation.set(0, lerp(0.5, 0, inK) + Math.sin(k * 12) * 0.02 * downK * (1 - upK), lerp(-0.25, 0, inK) - upK * 0.2);
+  }
+
   function loop(now) {
     if (!parts) return;
     // 조용할 때(멈춤 · 움직이는 것 없음 · 2초 넘게 안 만짐)는 초당 10번, 덮개가 닫혔으면 초당 2번만 그린다
-    const calm = !(playing || grab || drop || dragCtl || shakeT >= 0 || fx.gaps.length) &&
+    const calm = !(playing || grab || drop || dragCtl || cue || brushT0 >= 0 || shakeT >= 0 || fx.gaps.length) &&
       vel < 0.005 && Math.abs(yaw) < 0.001 && lift < 0.0005 && Math.abs(cueUp - 1) < 0.005 &&
       Math.abs(coverT - coverK) < 0.001 && Math.abs(nightT - night) < 0.001 &&
       Math.abs((0.25 - volume / 100 * 0.5) - ctl.knob.position.z) < 0.0005 && now - poke > 2000;
@@ -744,15 +770,16 @@ function start() {
     const dt = Math.min(calm ? 0.6 : 0.05, (now - loop.last) / 1000); loop.last = now;
     const busy = !!drop;
     // 플래터: 재생 중이면 33⅓ rpm까지 0.8초에 올라가고, 멈추면 천천히 선다
-    const target = playing && !busy ? RPS * Math.PI * 2 : 0;
+    const target = (playing || cue) && !busy ? RPS * Math.PI * 2 : 0;
     if (!grab) { vel += (target - vel) * Math.min(1, dt * (target ? 2.6 : 1.6)); spin -= vel * dt; }
     parts.platter.rotation.y = spin;
     // 톤암: 판을 가는 중엔 쉼 자리, 재생 중이면 곡 진행에 따라 안쪽으로. 움직이는 동안엔 들려 있다
-    const yawT = playing && !busy && !grab ? yawFor(GO_R - clamp01(progress) * (GO_R - GI_R)) : grab ? yaw : playing && !busy ? yaw : 0;
+    const cueArm = !playing && !busy && !grab && (cue === 'lead' || cue === 'down');
+    const yawT = playing && !busy && !grab ? yawFor(GO_R - clamp01(progress) * (GO_R - GI_R)) : grab ? yaw : cueArm ? yawFor(GO_R) : playing && !busy ? yaw : 0;
     const far = Math.abs(yawT - yaw) > 0.012;
-    // 들림: 옮길 땐 LIFT_UP, 판 위에선 LIFT_ON(판 높이만큼), 쉴 땐 0
-    const liftT = far ? LIFT_UP : yawT !== 0 ? LIFT_ON : 0;
-    lift += (liftT - lift) * Math.min(1, dt * 7);
+    // 들림: 옮길 땐 LIFT_UP, 판 위에선 LIFT_ON(판 높이만큼), 쉴 땐 0. 큐로 띄워 둔 동안은 들린 채, 내릴 땐 기름 댐퍼처럼 천천히
+    const liftT = far ? LIFT_UP : cueArm && cue === 'lead' ? LIFT_UP : yawT !== 0 ? LIFT_ON : 0;
+    lift += (liftT - lift) * Math.min(1, dt * (cueArm && cue === 'down' ? 2.6 : 7));
     if (!far || lift > LIFT_UP * 0.85) yaw += (yawT - yaw) * Math.min(1, dt * (far ? 3.2 : 1.5));
     parts.yaw.rotation.y = yaw;
     // 판 휨: 바늘이 판 위에 있으면 휜 판을 따라 톤암이 아주 살짝 오르내린다
@@ -766,7 +793,8 @@ function start() {
     // 스트로브 착시는 껐다(사용자: 재생 중 플래터가 멈춰 보임). 땡땡이는 플래터와 같이 돈다
     if (strobeTex) strobeTex.offset.x = 0;
     // 큐 레버: 바늘이 판 위면 내려가고 아니면 올라간다
-    cueUp += ((onRec || grab ? 0 : 1) - cueUp) * Math.min(1, dt * 6);
+    cueUp += ((onRec || grab || (cueArm && cue === 'down') ? 0 : 1) - cueUp) * Math.min(1, dt * 6);
+    stepBrush(now);
     ctl.lever.rotation.x = lerp(0.5, -0.35, cueUp);
     // 톤암 클립: 쉴 때 닫힘
     const rest = Math.abs(yaw) < 0.02 && !playing;
@@ -780,7 +808,7 @@ function start() {
     // 볼륨 슬라이더 손잡이
     ctl.knob.position.z += ((0.25 - volume / 100 * 0.5) - ctl.knob.position.z) * Math.min(1, dt * 10);
     // 먼지 덮개: 멈춘 채 25초 지나면 닫힘, 만지거나 재생하면 열림
-    if (playing || grab || drop || dragCtl) idle = 0; else idle += dt;
+    if (playing || grab || drop || dragCtl || cue) idle = 0; else idle += dt;
     if (idle > 25) coverT = 1; else if (playing || drop) coverT = 0;
     const prevK = coverK; coverK += (coverT - coverK) * Math.min(1, dt * 1.8);
     if (prevK < 0.5 && coverK >= 0.5 && D.onSound) D.onSound('cover');
@@ -990,6 +1018,8 @@ function start() {
     m.rotation.x = -Math.PI / 2; m.position.set(PLATTER.x, REC_Y + 0.008, PLATTER.z); scene.add(m); fx.gaps.push({ m, t0: performance.now() });
   };
   D.coverOpen = () => { idle = 0; coverT = 0; };
+  D.cue = (m) => { cue = m || null; idle = 0; coverT = 0; poke = performance.now(); if (m === 'spin') press(ctl.start); };
+  D.brush = () => { brushT0 = performance.now(); poke = brushT0; };
   // 깨우기: 판 갈기·흔들기·홈 빛·덮개 열기. 라벨·색·시간창은 실제로 바뀔 때만, 재생·조명·볼륨은 calm 조건이 본다
   for (const k of ['drop', 'shake', 'flashGap', 'coverOpen']) {
     const f = D[k]; D[k] = (...a) => { poke = performance.now(); return f(...a); };

@@ -1319,8 +1319,11 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (!loggedIn()) { openDlg(); return; }
     wake(); sfx.unlock();
     const key = uriOf(a), changing = ctxKey(S.st) !== key;
+    let ready = null;
     if (changing) {
-      dropLP(a);
+      // 판을 가는 동안은 조용히: 지금 곡을 멈추고, 새 판 음악은 바늘이 내려갈 때 시작한다(dropLP가 그 순간 풀리는 약속을 돌려줌)
+      if (playing()) { S.st.is_playing = false; ctl('pause').catch(() => {}); }
+      ready = dropLP(a, { trackUri });
       // 응답을 기다리지 않고 화면부터: 트랙 목록·위 제목을 새 판으로
       if (S.tracksFor !== key) loadTracks(key);
       $('nowT').textContent = $('botT').textContent = a.name || '';
@@ -1328,11 +1331,14 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       $('nowImg').style.backgroundImage = bg(a.img);
     }
     try {
-      const id = encodeURIComponent(await targetDevice());
+      const devP = targetDevice(); devP.catch(() => {});
+      if (ready) await ready;
+      const id = encodeURIComponent(await devP);
       // 처음 곡을 직접 지정하면 셔플이 켜져 있어도 1번부터 → 셔플 끄기는 기다리지 않고 같이 보낸다
       const body = { context_uri: key, offset: trackUri ? { uri: trackUri } : { position: 0 } };
       if (S.st && S.st.shuffle_state) { S.st.shuffle_state = false; api('/me/player/shuffle?state=false&device_id=' + id, { method: 'PUT' }).catch(() => {}); }
       await api('/me/player/play?device_id=' + id, { method: 'PUT', body });
+      if (ready && window.Deck3D && Deck3D.ok && Deck3D.cue) setTimeout(() => Deck3D.cue(null), 2500);
     } catch (e) { fail(e); cancelDrop(); }
     // 빨리 한 번, 조금 뒤 한 번 더 상태를 받아 온다
     schedulePoll(350); setTimeout(() => schedulePoll(0), 1300);
@@ -1501,6 +1507,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       cover() { if (!get()) return; const t = at(); noise(t, 0.7, { f: 500, f2: 1400, q: 0.6, g: 0.06, a: 0.25 }); noise(t + 0.62, 0.05, { type: 'lowpass', f: 500, g: 0.2 }); },
       // 모터가 돌기 시작하는 낮은 소리
       motor() { if (!get()) return; const t = at(); tone(t, 1.1, { type: 'sawtooth', f: 40, f2: 95, g: 0.025, a: 0.3 }); tone(t, 1.1, { f: 120, f2: 300, g: 0.012, a: 0.4 }); },
+      // 판 브러시: 벨벳이 판 위를 스치는 소리
+      brush(d) { if (!get()) return; const t = at(d); noise(t, 0.25, { f: 2600, f2: 1800, q: 0.7, g: 0.06, a: 0.08 }); noise(t + 0.3, 0.8, { f: 1600, f2: 1300, q: 0.6, g: 0.035, a: 0.2 }); },
       // 타자기 한 글자
       key() { if (!get()) return; noise(at(), 0.015, { type: 'highpass', f: 3500 + Math.random() * 1500, g: 0.06, a: 0.001 }); },
       // 바늘이 판 위에 있는 동안 깔리는 잡음(낡은 판일수록 크게). level 0이면 끈다
@@ -1552,7 +1560,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   // ---------- LP 꺼내기 (판이 바뀔 때). 앨범은 3초 동안 천천히, 플레이리스트는 1.7초에 쾅 꽂는다 ----------
   let dropAnims = [], dropT = [];
   function stopDrop() { dropAnims.forEach((x) => x.cancel()); dropAnims = []; dropT.forEach(clearTimeout); dropT = []; }
-  function cancelDrop() { stopDrop(); document.body.classList.remove('changing', 'handoff'); $('drop').hidden = true; S.pending = null; S.animFor = ''; render(); }
+  function cancelDrop() { if (window.Deck3D && Deck3D.cue) Deck3D.cue(null); stopDrop(); document.body.classList.remove('changing', 'handoff'); $('drop').hidden = true; S.pending = null; S.animFor = ''; render(); }
   // 들은 횟수(p): 판을 갈아 끼울 때마다 그 판이 꽂힌 크레이트 항목에 +1(기기 사이에도 맞춰짐). 많이 들을수록 슬리브가 낡는다
   function bumpPlays(key) {
     let n = 0;
@@ -1563,12 +1571,25 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (n) { renderCrate(); }
     return n;
   }
-  function dropLP(a) {
+  // 판 갈기. 돌려주는 약속은 '바늘을 내릴 때'(= 음악을 틀 때) 풀린다. external: 다른 기기에서 이미 튼 판이라 손놀림 없이 모션만
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function firstTrack(key) {
+    const P = S.pending, T = S.tracksFor === key && Array.isArray(S.tracks) ? S.tracks : null;
+    if (!T || !T.length) return null;
+    return (P && P.trackUri && T.find((t) => t.uri === P.trackUri)) || T[0];
+  }
+  // 첫 곡 이름을 미리 제목 줄에 올려 둔다(Spotify가 아직 예전 곡을 알려 줘도)
+  function nameFirst(key) {
+    const t = firstTrack(key);
+    if (t && S.pending && S.pending.key === key && S.pending.track !== t.name) { S.pending.track = t.name; S.pending.tno = t._no || t.track_number || 1; render(); }
+    return t;
+  }
+  function dropLP(a, opt = {}) {
     const key = uriOf(a);
     const n = bumpPlays(key); if (n) a = { ...a, p: n };
-    S.pending = { ...a, key, at: Date.now() }; S.animFor = key; S.lastKey = key;
+    S.pending = { ...a, key, at: Date.now(), trackUri: opt.trackUri || '' }; S.animFor = key; S.lastKey = key;
     stopDrop();
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { render(); return; }
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { render(); return Promise.resolve(); }
     const slam = isPl(a) && !a.sealed; // 밀봉 신보는 플레이리스트여도 판(슬리브) 모션
     const D = $('drop'), sl = $('dSleeve'), di = $('dDisc');
     // 3D 턴테이블이 떠 있으면 판 갈기는 3D가 하고(소리·흔들림 시각은 같다), 아니면 예전 CSS 모션
@@ -1659,8 +1680,31 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       dropAnims.slice(0, 2).forEach((x) => x.cancel());
       render();
       requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('handoff')));
-      if (playing() || S.pending) sfx.needle(slam ? 0.25 : 0.4);
+      if (opt.external) sfx.needle(slam ? 0.25 : 0.4);
+      nameFirst(key);
     }, handAt));
+    if (opt.external) return Promise.resolve();
+    // 판을 놓은 뒤 음악 전 손놀림(3D): 스타트 → (앨범) 브러시로 먼지 털기 → 톤암을 들어 가장자리로 → 트랙 목록이 올 때까지 띄워 둠 → 큐 레버 내림 = 재생
+    // 그동안 트랙 목록·무음 홈·첫 곡 이름을 받아 둔다
+    return new Promise((res) => {
+      const at = (ms, f) => dropT.push(setTimeout(f, ms));
+      if (!use3d) { at(handAt + 500, () => { nameFirst(key); res(); }); return; }
+      const base = slam ? 1600 : 2900;
+      at(base, () => { Deck3D.cue('spin'); sfx.click(); sfx.motor(); S.wasOn = true; });
+      let armAt = base + 500;
+      if (!slam) { at(base + 350, () => { Deck3D.brush(); sfx.brush(); }); armAt = base + 1900; }
+      at(armAt, () => { Deck3D.cue('lead'); sfx.cue(); nameFirst(key); });
+      at(armAt + 1000, async () => {
+        const t0 = Date.now();
+        while (!(S.tracksFor === key && Array.isArray(S.tracks)) && Date.now() - t0 < 3000 && S.animFor === key) await sleep(150);
+        if (S.animFor !== key) return;
+        render(); // 받아 둔 무음 홈을 판에 그린다
+        const t = nameFirst(key);
+        Deck3D.cue('down'); sfx.cue(); sfx.needle(0.75);
+        if (t) { S.typedFor = key; setTimeout(() => typeOut(`▸ ${String(t._no || t.track_number || 1).padStart(2, '0')}  ${t.name}`), 700); }
+        res();
+      });
+    });
   }
 
   // ---------- 그리기 ----------
@@ -1732,20 +1776,22 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     const key = ctxKey(st);
     // 판(앨범·플레이리스트)이 바뀌면(다른 기기에서 바꿔도) 판을 갈아 끼운다
     // 판을 갈아 끼우는 중(S.pending)에는 서버 상태가 아직 예전 판이라 바뀐 걸로 치지 않는다
-    const waiting = S.pending && Date.now() - S.pending.at < 10000;
-    if (S.pending && !waiting) { S.lastKey = key; S.pending = null; } // 10초가 지나도 안 맞으면 지금 판을 그대로 받아들인다
+    const waiting = S.pending && Date.now() - S.pending.at < 16000;
+    if (S.pending && !waiting) { S.lastKey = key; S.pending = null; } // 16초가 지나도 안 맞으면 지금 판을 그대로 받아들인다
     if (key && key !== S.lastKey && !waiting) {
       const first = !S.lastKey;
       S.lastKey = key;
-      if (!first && key !== S.animFor) { dropLP(entryFor(key, it)); return; }
+      if (!first && key !== S.animFor) { dropLP(entryFor(key, it), { external: true }); return; }
     }
-    if (key && key !== S.tracksFor) loadTracks(key);
-    if (!key && S.tracksFor) { S.tracksFor = ''; S.tracks = []; renderTracks(true); }
+    // 판을 가는 중엔 트랙 목록도 새 판 것(무음 홈·첫 곡 이름에 씀)
+    const tkKey = waiting && S.pending ? S.pending.key : key;
+    if (tkKey && tkKey !== S.tracksFor) loadTracks(tkKey);
+    if (!tkKey && S.tracksFor) { S.tracksFor = ''; S.tracks = []; renderTracks(true); }
     document.body.classList.toggle('playing', on);
     // 판을 갈아 끼우는 중이면(Spotify가 아직 예전 곡을 알려 줘도) 제목은 새 판으로
-    const pend = S.pending && key !== S.pending.key && Date.now() - S.pending.at < 10000 ? S.pending : null;
-    const t = pend ? pend.name : it ? it.name : loggedIn() ? '재생 중인 곡 없음' : 'Spotify 연결 안 됨';
-    const a = pend ? pend.artist : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '설정에서 로그인';
+    const pend = S.pending && key !== S.pending.key && Date.now() - S.pending.at < 16000 ? S.pending : null;
+    const t = pend ? (pend.track || pend.name) : it ? it.name : loggedIn() ? '재생 중인 곡 없음' : 'Spotify 연결 안 됨';
+    const a = pend ? (pend.track ? [pend.artist, pend.name].filter(Boolean).join(' · ') : pend.artist) : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '설정에서 로그인';
     $('nowT').textContent = t; $('nowA').textContent = a;
     $('botT').textContent = t; $('botA').textContent = a;
     $('nowImg').style.backgroundImage = pend ? bg(pend.img) : bg(small(it));
@@ -1756,7 +1802,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     $('labA').textContent = L ? L.artist : (loggedIn() ? '크레이트에서 고르세요' : '설정에서 로그인');
     $('label').classList.toggle('art', !!(L && L.img));
     $('label').style.backgroundImage = bg(L && L.img);
-    if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img, tracks: key && S.tracksFor === key ? trackGaps() : null } : null);
+    if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img, tracks: (pend ? pend.key : key) && S.tracksFor === (pend ? pend.key : key) ? trackGaps() : null } : null);
     applyAmb((L && L.img) || '');
     renderNow(it, L, pend, on, key);
     $('topLed').classList.toggle('on', on);
@@ -1819,8 +1865,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     npOn = playOn;
     $('npLed').classList.toggle('on', on);
     $('npK').textContent = !loggedIn() ? 'OFFLINE' : pend ? 'CHANGING RECORD' : on ? 'NOW PLAYING' : it ? 'PAUSED' : 'STANDBY';
-    $('npT').textContent = pend ? pend.name : it ? it.name : loggedIn() ? '재생 중인 곡 없음' : 'Spotify 연결 안 됨';
-    $('npA').textContent = pend ? pend.artist : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '설정에서 로그인';
+    $('npT').textContent = pend ? (pend.track || pend.name) : it ? it.name : loggedIn() ? '재생 중인 곡 없음' : 'Spotify 연결 안 됨';
+    $('npA').textContent = pend ? (pend.track ? [pend.artist, pend.name].filter(Boolean).join(' · ') : pend.artist) : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '설정에서 로그인';
     let m = '';
     if (!pend && it) {
       const alb = it.album || {}, yr = (alb.release_date || '').slice(0, 4);
@@ -1857,7 +1903,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   function trackChanged(it, key) {
     const prevKey = S.tkKey; S.tkKey = key;
     if (!it || !S.tkOn) return; // 처음 열 때는 건너뜀
-    if (prevKey !== key) { // 판이 바뀌면: 판이 내려앉은 뒤 첫 곡 이름을 찍는다
+    if (prevKey !== key) { // 판이 바뀌면: 판이 내려앉은 뒤 첫 곡 이름을 찍는다(바늘을 내리며 이미 찍었으면 건너뜀)
+      if (S.typedFor === key) return;
       const slamP = key.startsWith('spotify:playlist:') && !(meta[key] && meta[key].sealed);
       setTimeout(() => typeOut(`▸ ${String(Math.max(1, trackIndex(it) + 1)).padStart(2, '0')}  ${it.name}`), slamP ? 1500 : 2700);
       return;
