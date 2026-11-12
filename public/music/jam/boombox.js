@@ -331,17 +331,17 @@ function setPlaying(on) { playing = !!on; dirty = true; }
 
 // 누르기: 건반 · 문
 const ray = new THREE.Raycaster(), pv = new THREE.Vector2();
-const api = { onKey: null, onDoor: null };
-const hitList = () => [...Object.values(keyM), door];
+const api = { onKey: null, onDoor: null, onPenguin: null };
+const hitList = () => [...Object.values(keyM), door, seaW.peng.group];
 function hit(ev) {
   const b = canvas.getBoundingClientRect();
   pv.set(((ev.clientX - b.left) / b.width) * 2 - 1, -((ev.clientY - b.top) / b.height) * 2 + 1);
   ray.setFromCamera(pv, cam);
   const h = ray.intersectObjects(hitList(), true)[0]; if (!h) return null;
-  for (let o = h.object; o; o = o.parent) { for (const k in keyM) if (keyM[k] === o) return k; if (o === door) return 'door'; }
+  for (let o = h.object; o; o = o.parent) { for (const k in keyM) if (keyM[k] === o) return k; if (o === door) return 'door'; if (o === seaW.peng.group) return 'p'; }
   return null;
 }
-canvas.addEventListener('pointerdown', (ev) => { const k = hit(ev); if (!k) return; ev.preventDefault(); if (k === 'door') api.onDoor && api.onDoor(); else api.onKey && api.onKey(k); });
+canvas.addEventListener('pointerdown', (ev) => { const k = hit(ev); if (!k) return; ev.preventDefault(); if (k === 'door') api.onDoor && api.onDoor(); else if (k === 'p') api.onPenguin && api.onPenguin(); else api.onKey && api.onKey(k); });
 canvas.addEventListener('pointermove', (ev) => {
   const b = canvas.getBoundingClientRect(); ptr.tx = ((ev.clientX - b.left) / b.width - 0.5) * 2; ptr.ty = ((ev.clientY - b.top) / b.height - 0.5) * -2;
   canvas.style.cursor = hit(ev) ? 'pointer' : ''; dirty = true;
@@ -373,7 +373,8 @@ requestAnimationFrame(frame);
 
 return Object.assign(api, {
   setTape, insert, eject, setDoor, setPlaying, setProgress, press, tap, latch, resize, setFrame,
-  penguinAct() { seaW.peng.act(); },
+  penguinAct(kind = 'add') { return seaW.peng.act(kind); },
+  get penguinState() { return seaW.peng.state; },
   penguinAt() { const v = seaW.peng.head().clone().project(cam); return { x: (v.x + 1) / 2 * cw, y: (1 - v.y) / 2 * ch, on: v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05 }; },
   get tapeKey() { return tape ? tape.userData.key : ''; },
   dispose() { alive = false; ro.disconnect(); r.dispose(); },

@@ -34,7 +34,8 @@ const CSS = `
 .jam-bub.out { animation: jbubo .35s ease both; }
 @keyframes jbub { from { transform: translate(0, -100%) scale(.3); opacity: 0; } to { transform: translate(0, -100%); opacity: 1; } }
 @keyframes jbubo { from { transform: translate(0, -100%); opacity: 1; } to { transform: translate(0, -110%) scale(.9); opacity: 0; } }
-.jlist li .by.peng { color: #1f5d78; }
+.jlist li .by.peng { color: #1f5d78; font-size: 20px; }
+.jam-bub .pn { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; background: #12161d; color: #f1cf73; padding: 1px 6px 2px; border-radius: 4px; margin-right: 4px; vertical-align: 3px; }
 body.jamming .toast { z-index: 95; }
 .jam-k, .jam-pola { z-index: 1; } .jcard { z-index: 2; } .jam-help, .jam-notes { z-index: 3; }
 .jam-k { position: absolute; left: 4px; top: 2px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .22em; color: rgba(239,233,220,.55); display: flex; align-items: center; gap: 8px; }
@@ -197,7 +198,7 @@ const save = () => C.LS.set('music.jam', J.cur);
 async function deck() {
   if (J.deck) return J.deck;
   J.deck = await createBoombox($('jamCv'), BASE);
-  J.deck.onKey = onKey;
+  J.deck.onKey = onKey; J.deck.onPenguin = poke;
   const dith = $('jamDith');
   if (!dith.style.backgroundImage) { // 4x4 바이어 디더(PS1 느낌)
     const c = document.createElement('canvas'); c.width = c.height = 4; const g = c.getContext('2d'), B = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
@@ -314,7 +315,7 @@ async function refresh(first) {
   const fresh = [];
   list.forEach((x, i) => { const k = x.uri + '#' + i; if (!J.seen.has(k)) { J.seen.add(k); if (!first) fresh.push(i); } });
   const pg = new Set(J.cur.peng || []);
-  for (const x of list) { if (pg.has(x.uri)) { x.byName = '황제펭귄'; x.peng = true; } else if (x.by) x.byName = await nameOf(x.by); }
+  for (const x of list) { if (pg.has(x.uri)) { x.byName = 'p'; x.peng = true; } else if (x.by) x.byName = await nameOf(x.by); }
   const me = await me_();
   if (list.some((x, i) => x.by && me && x.by !== me.id && !J.seen.has('f' + i))) { J.lastFriend = Date.now(); list.forEach((x, i) => { if (x.by && me && x.by !== me.id) J.seen.add('f' + i); }); }
   const grew = list.length > J.items.length;
@@ -411,7 +412,7 @@ function tick() {
     J.deck.setProgress((before + Math.min(pos, J.items[i].ms)) / total);
     if (J.items[i].uri !== J.lastUri) { J.lastUri = J.items[i].uri; pola(J.items[i]); renderList(); }
   }
-  if (now0() - (J.pengT || 0) > 2000) { J.pengT = now0(); penguin(); }
+  if (now0() - (J.pengT || 0) > 2000) { J.pengT = now0(); penguin(); penguinSkip(); }
   const tot = J.items.reduce((a, x) => a + x.ms, 0);
   $('jamSum').textContent = J.items.length ? `${J.items.length}곡 · ${fmt(tot)}` : '';
 }
@@ -470,7 +471,30 @@ async function post(uris) {
 
 // ---------- 황제펭귄: 혼자 있을 때(5분 넘게 친구가 안 넣음) 곡이 다 떨어져 가면 하나 골라 넣는다 ----------
 // 고르는 법: 잼에 있는 아티스트(없으면 잼 시작 전에 듣던 아티스트) 중 하나로 곡 찾기 → 아직 없는 곡 하나. 곡마다 한 번만
-const PENG_LINES = ['이거 어때?', '다음은 이거!', '내가 골랐어', '분위기 이어 갈게', '이 곡 좋아해', '파도랑 잘 어울려'];
+const PENG_LINES = ['됐고 이거 들어', '내 맘대로 넣음', '거절은 안 받아', 'p 선곡이다', '이게 낫지', '조용히 들어'];
+const SKIP_LINES = ['별로. 넘김', '이건 아니야', '패스', '내 취향 아님', '다음'];
+const POKE_LINES = { ignore: ['...', '바쁨', '(못 들은 척)'], squawk: ['꽥!!', '왜!!', '건드리지 마'], flop: ['(벌러덩)', '아 미끄러워', '...안 넘어졌음'] };
+const pickL = (L) => L[(Math.random() * L.length) | 0];
+async function penguinSkip() {
+  if (!J.on || !J.cur || J.cur.replay || J.pengBusy || J.busy) return;
+  const s = C.state(), ours = s && s.context && s.context.uri === ctxUri(); if (!ours || !s.is_playing) return;
+  const ci = curIndex(); if (ci < 0 || ci >= J.items.length - 1 || J.items[ci].peng) return;
+  let pos = s.progress_ms || 0; pos += Date.now() - s.at; if (pos < 25000) return;
+  if (J.skipFor === J.items[ci].uri) return; J.skipFor = J.items[ci].uri;
+  if (Math.random() > 1 / 7) return;
+  J.pengBusy = true;
+  try {
+    await J.deck.penguinAct('peck'); // 라디오까지 뒤뚱뒤뚱 걸어가 쪼는 순간
+    J.deck.tap('FF'); sfx.key(); sfx.whirr(); bubble(pickL(SKIP_LINES), '');
+    await cmd('/me/player/next');
+  } catch {} finally { J.pengBusy = false; }
+}
+function poke() {
+  const r = J.deck.penguinAct('poke'); if (typeof r !== 'string') return;
+  if (r !== 'ignore') sfx.squawk();
+  bubble(pickL(POKE_LINES[r] || ['...']), '');
+}
+
 async function penguin() {
   if (!J.on || !J.cur || J.cur.replay || J.pengBusy || J.busy) return;
   const s = C.state(), ours = s && s.context && s.context.uri === ctxUri();
@@ -490,8 +514,8 @@ async function penguin() {
       pick = L[(Math.random() * L.length) | 0] || null;
     }
     if (!pick) return;
-    J.deck.penguinAct(); sfx.squawk();
-    bubble(PENG_LINES[(Math.random() * PENG_LINES.length) | 0], `${pick.name} — ${(pick.artists || []).map((a) => a.name).join(', ')}`);
+    J.deck.penguinAct('add'); sfx.squawk();
+    bubble(pickL(PENG_LINES), `${pick.name} — ${(pick.artists || []).map((a) => a.name).join(', ')}`);
     await sleep(900);
     J.cur.peng = [...(J.cur.peng || []), pick.uri]; save();
     await post([pick.uri]);
@@ -500,8 +524,8 @@ async function penguin() {
 }
 function bubble(t, sub) {
   document.querySelectorAll('.jam-bub').forEach((b) => b.remove());
-  const at = J.deck.penguinAt(); if (!at.on) { C.toast('황제펭귄: ' + t + ' ' + sub, 3500); return; }
-  const b = document.createElement('div'); b.className = 'jam-bub'; b.innerHTML = `${esc(t)}<small>♪ ${esc(sub)}</small>`;
+  const at = J.deck.penguinAt(); if (!at.on) { C.toast('p: ' + t + (sub ? ' ' + sub : ''), 3500); return; }
+  const b = document.createElement('div'); b.className = 'jam-bub'; b.innerHTML = `<b class="pn">p</b> ${esc(t)}${sub ? `<small>♪ ${esc(sub)}</small>` : ''}`;
   b.style.left = Math.min(innerWidth - 270, at.x + 12) + 'px'; b.style.top = Math.max(70, at.y - 10) + 'px';
   $('jam').appendChild(b);
   setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 400); }, 3800);
@@ -538,7 +562,7 @@ const NOTES = [
   ['PLAY 재생 · PAUSE 잠깐 · FF 다음 곡 · REW 이전 곡', '8%', '14%', 2.5, 0.16],
   ['STOP/EJ로 멈춘 뒤 한 번 더 = 잼 끝. 테이프는 JAM 크레이트에 꽂혀요', '36%', '10%', -2, 0.24],
   ['J카드의 곡을 누르면 그 곡부터 다시', '62%', '74%', 3, 0.32],
-  ['혼자일 땐 황제펭귄이 곡이 떨어지기 전에 하나 골라 넣어 줘요', '40%', '38%', -1.5, 0.4],
+  ['p는 펭귄이에요. 지 맘대로 해요. 혼자일 땐 곡을 넣고, 싫은 곡은 쪼아서 넘겨요. 눌러 보면 반응함', '40%', '38%', -1.5, 0.4],
 ];
 function toggleHelp(on) {
   const b = $('jamHelp'), box = $('jamNotes'); if (!b) return;
