@@ -149,6 +149,31 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 }
 .cstrip { flex-wrap: nowrap; gap: 10px; }
 .cstrip > .btn { flex: none; min-height: 38px; }
+.clbtn { padding: 0 10px; gap: 5px; }
+.clbtn span { font-variant-numeric: tabular-nums; }
+/* 크레이트 목록 창: 크레이트마다 표지 3장 묶음 타일. 누르면 그 크레이트로, 편집은 연필 */
+#clist { width: min(720px, calc(100vw - 24px)); height: min(780px, calc(100dvh - 24px)); }
+.dlg.cl { height: 100%; }
+.cl-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cl-tools input { flex: 1 1 200px; min-width: 0; min-height: 40px; padding: 0 12px; border: 1px solid var(--z300); border-radius: 8px; font: 13px var(--sans); background: var(--z50); color: var(--ink); }
+.cl-grid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 10px; align-content: start; padding: 2px 2px 8px; }
+.ct { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; text-align: left; min-width: 0; }
+.ct:hover { border-color: var(--z400); }
+.ct.on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.ct .art { position: relative; aspect-ratio: 1.15; margin: 4px 6px 6px; }
+.ct .art i { position: absolute; width: 72%; aspect-ratio: 1; bottom: 0; border-radius: 3px; background: #3a3a40 center/cover no-repeat; box-shadow: 0 4px 10px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.15); }
+.ct .art i:nth-child(1) { left: 0; transform: rotate(-7deg); filter: brightness(.8); }
+.ct .art i:nth-child(2) { left: 14%; transform: rotate(3deg); filter: brightness(.9); }
+.ct .art i:nth-child(3) { left: 28%; transform: rotate(-1deg); }
+.ct .art.empty i { background: linear-gradient(135deg, #d8c8aa, #c4b08a); }
+.ct b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.ct small { font-family: var(--mono); font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct small.hit { color: var(--red); }
+.ct .tools { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; z-index: 2; }
+.ct .tools button { width: 26px; height: 26px; border-radius: 6px; background: rgba(255,255,255,.92); border: 1px solid var(--z300); font-size: 13px; color: var(--ink-2); display: grid; place-items: center; }
+.ct .tools button:disabled { opacity: .3; }
+.ct.add { align-items: center; justify-content: center; border-style: dashed; color: var(--muted); font-weight: 700; min-height: 150px; }
+.cl-none { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 13px; padding: 30px 0; }
 .crates { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-mask: linear-gradient(90deg, #000 calc(100% - 18px), transparent); mask: linear-gradient(90deg, #000 calc(100% - 18px), transparent); padding-right: 18px; }
 .crates::-webkit-scrollbar { display: none; }
 .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--z300); border-radius: 99px; background: #fff; font-size: 12px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
@@ -639,7 +664,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       <div class="seal-acts"><button class="btn dark" type="button" id="sealPlay" hidden><svg class="ico"><use href="#i-play"/></svg>판 꺼내기</button><button class="btn" type="button" id="sealLater">나중에</button></div>
     </div>
     <div class="strip cstrip">
-      <svg class="ico" aria-hidden="true"><use href="#i-crate"/></svg>
+      <button class="btn clbtn" type="button" id="clBtn" aria-label="크레이트 목록 열기"><svg class="ico" aria-hidden="true"><use href="#i-crate"/></svg><span id="clN">1</span></button>
       <div class="crates" id="crates" role="group" aria-label="크레이트 고르기"></div>
       <button class="btn dark" type="button" id="findBtn"><svg class="ico"><use href="#i-search"/></svg><span>앨범 찾기</span></button>
     </div>
@@ -746,6 +771,22 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       <button class="btn dark" type="submit">저장</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="clist" aria-labelledby="clT">
+  <div class="dlg cl">
+    <h2><span id="clT">크레이트</span><button class="icon-btn" type="button" id="clX" aria-label="닫기">✕</button></h2>
+    <div class="cl-tools">
+      <input type="search" id="clQ" placeholder="크레이트·앨범·아티스트 찾기" autocomplete="off" aria-label="크레이트 찾기">
+      <div class="seg" role="group" aria-label="정렬" id="clSort">
+        <button type="button" data-s="o" aria-pressed="true">내 순서</button>
+        <button type="button" data-s="u" aria-pressed="false">최근</button>
+        <button type="button" data-s="n" aria-pressed="false">많은 순</button>
+        <button type="button" data-s="a" aria-pressed="false">이름</button>
+      </div>
+    </div>
+    <div class="cl-grid" id="clGrid"></div>
+  </div>
 </dialog>
 
 <div class="amb" id="amb" aria-hidden="true"></div>
@@ -1034,6 +1075,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     add.type = 'button'; add.className = 'chip add'; add.textContent = '+ 새 크레이트';
     add.addEventListener('click', () => openCrateDlg(null));
     box.appendChild(add);
+    $('clN').textContent = live().length;
+    renderCList();
     $('stkName').textContent = cur.name;
     $('stkN').textContent = `${cur.albums.length} LP · SABATHIA`;
     const sel = $('into'), keep = sel.value || cur.id;
@@ -1187,6 +1230,76 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 
   // 크레이트 만들기 · 이름 바꾸기 · 지우기
   let editing = null;
+  // ---------- 크레이트 목록 ----------
+  let clSort = LS.get('music.csort') || 'o';
+  const playsOf = (c) => c.albums.reduce((x, a) => x + (a.p || 0), 0);
+  function renderCList() {
+    if (!$('clist').open) return;
+    const q = $('clQ').value.trim().toLowerCase(), cur = crate();
+    let L = live();
+    if (clSort === 'u') L = L.slice().sort((a, b) => b.u - a.u);
+    else if (clSort === 'n') L = L.slice().sort((a, b) => b.albums.length - a.albums.length);
+    else if (clSort === 'a') L = L.slice().sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    for (const b of document.querySelectorAll('#clSort button')) b.setAttribute('aria-pressed', String(b.dataset.s === clSort));
+    $('clT').textContent = `크레이트 ${live().length}개`;
+    const box = $('clGrid'); box.innerHTML = '';
+    let shown = 0;
+    const all = live();
+    L.forEach((c) => {
+      const hits = q ? c.albums.filter((a) => (a.name + ' ' + a.artist).toLowerCase().includes(q)).length : 0;
+      if (q && !c.name.toLowerCase().includes(q) && !hits) return;
+      shown++;
+      const t = document.createElement('div'); t.className = 'ct' + (c.id === cur.id ? ' on' : ''); t.setAttribute('role', 'button'); t.tabIndex = 0;
+      const i0 = Math.min(pos[c.id] || 0, Math.max(0, c.albums.length - 1));
+      const pick = c.albums.slice(i0, i0 + 3); if (pick.length < 3) pick.unshift(...c.albums.slice(0, i0).slice(-(3 - pick.length)));
+      t.innerHTML = '<div class="art"><i></i><i></i><i></i></div><b></b><small></small><div class="tools"></div>';
+      const art = t.querySelector('.art'), I = art.children;
+      if (!pick.length) art.classList.add('empty');
+      pick.slice().reverse().forEach((a, k) => { I[2 - k].style.backgroundImage = bg(a.img); });
+      if (pick.length && pick.length < 3) for (let k = 0; k < 3 - pick.length; k++) I[k].style.visibility = 'hidden';
+      t.querySelector('b').innerHTML = c.id === cur.id ? '<span class="led on"></span>' : '';
+      t.querySelector('b').append(c.name);
+      const sm = t.querySelector('small'), pl = playsOf(c);
+      if (hits) { sm.textContent = `일치하는 앨범 ${hits}장`; sm.classList.add('hit'); }
+      else sm.textContent = [`${c.albums.length} LP`, pl ? `${pl}번 들음` : ''].filter(Boolean).join(' · ');
+      const tools = t.querySelector('.tools');
+      const mk = (txt, label, fn, dis) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.setAttribute('aria-label', label); b.disabled = !!dis; b.addEventListener('click', (e) => { e.stopPropagation(); fn(); }); tools.appendChild(b); };
+      if (clSort === 'o' && !q) {
+        const k = all.indexOf(c);
+        mk('‹', '앞으로', () => swapO(c, all[k - 1]), k === 0);
+        mk('›', '뒤로', () => swapO(c, all[k + 1]), k === all.length - 1);
+      }
+      mk('✎', '이름 바꾸기·지우기', () => openCrateDlg(c));
+      const go = () => {
+        curCrate = c.id; LS.set('music.crate', c.id);
+        $('clist').close(); setTab('crate'); renderCrates(); renderCrate(true);
+        if (q && hits) { const j = c.albums.findIndex((a) => (a.name + ' ' + a.artist).toLowerCase().includes(q)); if (j >= 0) { pos[c.id] = j; LS.set('music.pos', pos); renderCrate(true); } }
+        sfx.flip();
+      };
+      t.addEventListener('click', go);
+      t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      box.appendChild(t);
+    });
+    if (q && !shown) { const n = document.createElement('div'); n.className = 'cl-none'; n.textContent = `'${$('clQ').value.trim()}'와 맞는 크레이트나 앨범이 없습니다`; box.appendChild(n); }
+    if (!q) {
+      const add = document.createElement('button'); add.type = 'button'; add.className = 'ct add'; add.textContent = '+ 새 크레이트';
+      add.addEventListener('click', () => openCrateDlg(null));
+      box.appendChild(add);
+    }
+  }
+  // 내 순서: 이웃과 자리 바꾸기(o 값을 맞바꾸고 두 크레이트 모두 고친 것으로)
+  function swapO(a, b) {
+    if (!a || !b) return;
+    if (a.o === b.o) { live().forEach((c, i) => { c.o = i; }); }
+    [a.o, b.o] = [b.o, a.o]; touch(a); touch(b);
+    renderCrates(); renderCList();
+  }
+  function openCList() { $('clQ').value = ''; $('clist').showModal(); renderCList(); if (!MOBILE) setTimeout(() => $('clQ').focus(), 30); }
+  $('clBtn').addEventListener('click', openCList);
+  $('clX').addEventListener('click', () => $('clist').close());
+  $('clQ').addEventListener('input', renderCList);
+  for (const b of document.querySelectorAll('#clSort button')) b.addEventListener('click', () => { clSort = b.dataset.s; LS.set('music.csort', clSort); renderCList(); });
+
   function openCrateDlg(c) {
     editing = c;
     $('cdT').textContent = c ? '크레이트 편집' : '새 크레이트';
@@ -2123,7 +2236,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   // ---------- 이벤트 ----------
   $('setBtn').addEventListener('click', openDlg);
   $('dlgX').addEventListener('click', () => $('dlg').close());
-  for (const id of ['dlg', 'find', 'cdlg']) $(id).addEventListener('click', (e) => { if (e.target === $(id)) $(id).close(); });
+  for (const id of ['dlg', 'find', 'cdlg', 'clist']) $(id).addEventListener('click', (e) => { if (e.target === $(id)) $(id).close(); });
   $('copyBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(REDIRECT); toast('주소를 복사했습니다', 1800); } catch { toast(REDIRECT); } });
   $('loginBtn').addEventListener('click', login);
   $('logoutBtn').addEventListener('click', () => { logout(); $('dlg').close(); });
