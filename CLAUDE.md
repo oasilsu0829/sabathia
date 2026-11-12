@@ -100,6 +100,9 @@ public/music/       음악 (MUS-09, 2026-11-11). Spotify 플레이어. Stitch �
                     - 모션 뒤에 음악(2026-11-12 사용자 요청): 앨범을 바꾸면 지금 곡을 멈추고(ctl pause) dropLP가 돌려주는 약속이 풀릴 때 play를 보낸다. 손놀림(3D, Deck3D.cue/brush):
                       판 내려앉음 2.52초 → 2.9초 스타트(cue 'spin', 플래터만 돎) → 브러시로 먼지 털기 1.5초(앨범만) → 4.8초 톤암을 들어 가장자리 위(cue 'lead') → 트랙 목록이 올 때까지 최대 3초 띄워 둠 → 큐 레버 내림(cue 'down', 천천히) = play 요청 + 첫 곡 타자. 플레이리스트는 1.6초 스타트, 브러시 없음
                       그동안 제목 줄·지금 재생 탭은 첫 곡 이름(S.pending.track, nameFirst)을 미리 보여 줌. 판 가는 중 트랙 목록은 새 판 것(tkKey). 다른 기기에서 바뀐 판(external)은 예전처럼 모션만. 움직임 줄이기면 바로 재생. 대기 16초
+                    - 크레이트 모션 C+E(2026-11-12 사용자 선택, 시안 https://claude.ai/artifact/RfzkgoDXyZedxTsFHkHC84): 위치 cf(소수)를 drawCrate()가 매 프레임 그림(lpPose 연속 자세, CSS transform 전환 없음)
+                      손으로 훑기: 좌로·아래로 밀면 다음 판, 판이 손가락을 따라 기움(판 하나 = 상자 폭·높이의 22%). 놓으면 속도×0.17만큼 더 가서 스프링(springTo, k150 d19)으로 멈춤. 반올림이 바뀔 때 pos 저장·넘김 소리(cfCommit). 버튼·키·휠도 springTo, 끝이면 덜컹(crateBump). 폰 세로는 좌우만(pan-y), 넓은 가로는 위아래도(touch-action none)
+                      표지 클로즈업: 멈추면 .crate-view.focus — 상자 1.07배(아래 고정), 뒤 판 흐림(place의 blur), 표지 위 빛(.sheen), 정보 쪽지 #cinfo(LP·연도·곡 수·들은 횟수). 움직이기 시작하면 바로 풀림
                     - 플레이리스트를 틀면 1.9초 모션: 클립보드가 날아와 턴테이블 위에 쾅(턴테이블 판 흔들림·빨간 충격파·진동) → 옆으로 걷어내면 밑에서 판이 돈다. 효과음 sfx: 넘김·슬리브·판 꺼냄·내려앉음·바늘 지직·쾅. Web Audio 합성(파일 없음), 설정 창에서 끔(music.sfx)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
