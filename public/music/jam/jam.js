@@ -12,6 +12,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 const BASE = new URL('./', import.meta.url).href;
 const today = () => { const d = new Date(); return { md: `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`, ymd: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}` }; };
+const now0 = () => Date.now();
 const fmt = (ms) => { const s = Math.round((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 // ---------- 화면 ----------
@@ -22,15 +23,27 @@ const CSS = `
 .jam.on { opacity: 1; }
 .jam::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 34% 40%, rgba(255,236,200,.13), transparent 42%); opacity: 0; transition: opacity .25s ease .75s; }
 .jam.lit::before { opacity: 1; }
-.jam-stage { position: relative; min-height: 0; opacity: 0; transform: translateY(14px) scale(.98); transition: opacity .5s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
-.jam.lit .jam-stage { opacity: 1; transform: none; }
-.jam-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.jam-stage { position: relative; min-height: 0; }
+.jam-cv { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: block; touch-action: none; z-index: 0; opacity: 0; transition: opacity 1.1s ease; }
+.jam.lit .jam-cv { opacity: 1; }
+.jam-cv { image-rendering: pixelated; image-rendering: crisp-edges; }
+.jam-dith { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .1; mix-blend-mode: soft-light; image-rendering: pixelated; }
+.jam-bub { position: fixed; z-index: 3; max-width: min(260px, 70vw); padding: 10px 14px 12px; background: #f4efe3; color: #2a2622; border-radius: 14px 14px 14px 3px; font-family: 'Nanum Pen Script', cursive; font-size: 22px; line-height: 1.1;
+  box-shadow: 0 10px 22px rgba(0,0,0,.55); transform-origin: 0 100%; animation: jbub .45s cubic-bezier(.2,.9,.25,1.3) both; pointer-events: none; }
+.jam-bub small { display: block; font-size: 17px; color: rgba(42,38,34,.65); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jam-bub.out { animation: jbubo .35s ease both; }
+@keyframes jbub { from { transform: translate(0, -100%) scale(.3); opacity: 0; } to { transform: translate(0, -100%); opacity: 1; } }
+@keyframes jbubo { from { transform: translate(0, -100%); opacity: 1; } to { transform: translate(0, -110%) scale(.9); opacity: 0; } }
+.jlist li .by.peng { color: #1f5d78; font-size: 20px; }
+.jam-bub .pn { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; background: #12161d; color: #f1cf73; padding: 1px 6px 2px; border-radius: 4px; margin-right: 4px; vertical-align: 3px; }
+body.jamming .toast { z-index: 95; }
+.jam-k, .jam-pola { z-index: 1; } .jcard { z-index: 2; } .jam-help, .jam-notes { z-index: 3; }
 .jam-k { position: absolute; left: 4px; top: 2px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .22em; color: rgba(239,233,220,.55); display: flex; align-items: center; gap: 8px; }
 .jam-k .rec { width: 8px; height: 8px; border-radius: 50%; background: #3a1414; }
 .jam.recording .jam-k .rec { background: #ff3b30; box-shadow: 0 0 10px #ff3b30; animation: jblink 1.4s steps(2) infinite; }
 @keyframes jblink { 50% { opacity: .25; } }
 /* 폴라로이드(지금 곡 앨범 표지) */
-.jam-pola { position: absolute; right: 1%; top: 3%; width: min(24%, 170px); aspect-ratio: .86; pointer-events: none; }
+.jam-pola { position: absolute; right: -14px; top: -58px; width: clamp(96px, 34%, 150px); aspect-ratio: .86; pointer-events: none; z-index: 3; }
 .pola { position: absolute; inset: 0; background: #f6f3ec; padding: 7% 7% 22%; border-radius: 2px; box-shadow: 0 14px 28px rgba(0,0,0,.55), 0 2px 4px rgba(0,0,0,.4); transform-origin: 50% 0;
   animation: pdrop .9s cubic-bezier(.2,.9,.25,1.15) both; transition: transform .6s ease, opacity .6s ease, filter .6s; }
 .pola i { display: block; width: 100%; aspect-ratio: 1; background: #222 center/cover; }
@@ -44,9 +57,9 @@ const CSS = `
   opacity: 0; transform: translateX(60px) rotate(3deg); transition: opacity .5s ease .25s, transform .7s cubic-bezier(.2,.9,.25,1.1) .25s; }
 .jam.lit .jcard { opacity: 1; transform: rotate(-.6deg); }
 .jcard .band { height: 12px; background: var(--tape, #c8402e); border-radius: 3px 3px 0 0; }
-.jcard header { padding: 14px 20px 6px 46px; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border-bottom: 1.5px solid rgba(40,30,20,.55); }
+.jcard header { padding: 14px 150px 8px 46px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: 1.5px solid rgba(40,30,20,.55); }
 .jcard h2 { margin: 0; font-family: 'Nanum Pen Script', cursive; font-weight: 400; font-size: 38px; line-height: 1; letter-spacing: .02em; }
-.jcard header small { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .18em; color: rgba(42,38,34,.6); text-align: right; }
+.jcard header small { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .14em; color: rgba(42,38,34,.6); white-space: nowrap; }
 .jlist { list-style: none; margin: 0; padding: 4px 0 8px; overflow-y: auto; flex: 1; min-height: 120px; scrollbar-width: thin;
   background: linear-gradient(90deg, transparent 37px, rgba(200,60,50,.5) 37px, rgba(200,60,50,.5) 38.5px, transparent 38.5px), repeating-linear-gradient(180deg, transparent 0 39px, rgba(70,110,170,.22) 39px 40px); background-attachment: local; }
 .jlist li { position: relative; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px 0 46px; font-family: 'Nanum Pen Script', cursive; font-size: 24px; line-height: 1; cursor: pointer; }
@@ -97,8 +110,9 @@ const CSS = `
 @media (max-aspect-ratio: 5/4) {
   .jam { grid-template-columns: 1fr; grid-template-rows: minmax(0, 46fr) minmax(0, 54fr); gap: 10px; }
   .jcard { align-self: stretch; max-height: none; }
-  .jam-pola { width: min(26%, 140px); top: 10%; }
+  .jam-pola { width: 104px; top: -46px; right: -6px; }
   .jcard h2 { font-size: 32px; }
+  .jcard header { padding-right: 110px; }
 }
 @media (prefers-reduced-motion: reduce) { .jam, .jam *, .jam *::before, .jam *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 `;
@@ -113,10 +127,11 @@ function mount() {
   const el = document.createElement('div');
   el.id = 'jam'; el.className = 'jam'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', '잼 모드');
   el.innerHTML = `
-    <div class="jam-stage" id="jamStage"><canvas id="jamCv" aria-label="카세트 라디오: 건반을 눌러 조작"></canvas>
+    <div class="jam-stage" id="jamStage"><canvas id="jamCv" class="jam-cv" aria-label="카세트 라디오: 건반을 눌러 조작"></canvas><div class="jam-dith" id="jamDith"></div>
       <div class="jam-k"><span class="rec"></span><span id="jamK">JAM SESSION</span></div>
-      <div class="jam-pola" id="jamPola"></div></div>
+</div>
     <aside class="jcard" aria-label="셋리스트">
+      <div class="jam-pola" id="jamPola"></div>
       <div class="band"></div>
       <header><h2 id="jamTitle">JAM</h2><small id="jamDate"></small></header>
       <ol class="jlist" id="jamList"></ol>
@@ -167,6 +182,7 @@ const sfx = (() => {
     whirr() { tone(0, 0.5, 300, 900, 0.05, 'sawtooth'); noise(0, 0.5, 'bandpass', 1200, 3500, 0.06, 4); },
     pen(n = 1) { for (let i = 0; i < n * 5; i++) noise(i * 0.075 + Math.random() * 0.02, 0.06, 'bandpass', 3800 + Math.random() * 2000, 2500, 0.05 + Math.random() * 0.03, 3); },
     tape() { noise(0, 0.12, 'lowpass', 700, 200, 0.25); },
+    squawk() { tone(0, 0.16, 520, 760, 0.12, 'sawtooth'); tone(0.17, 0.22, 700, 430, 0.12, 'sawtooth'); noise(0, 0.38, 'bandpass', 1500, 900, 0.05, 6); },
   };
 })();
 
@@ -182,7 +198,15 @@ const save = () => C.LS.set('music.jam', J.cur);
 async function deck() {
   if (J.deck) return J.deck;
   J.deck = await createBoombox($('jamCv'), BASE);
-  J.deck.onKey = onKey;
+  J.deck.onKey = onKey; J.deck.onPenguin = poke;
+  const dith = $('jamDith');
+  if (!dith.style.backgroundImage) { // 4x4 바이어 디더(PS1 느낌)
+    const c = document.createElement('canvas'); c.width = c.height = 4; const g = c.getContext('2d'), B = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    B.forEach((v, i) => { const l = Math.round(v / 15 * 255); g.fillStyle = `rgb(${l},${l},${l})`; g.fillRect(i % 4, (i / 4) | 0, 1, 1); });
+    dith.style.backgroundImage = `url(${c.toDataURL()})`;
+  }
+  const fit = () => { const b = $('jamStage').getBoundingClientRect(), W = innerWidth, H = innerHeight; J.deck.setFrame(b.left / W, b.top / H, b.width / W, b.height / H); dith.style.backgroundSize = `${(H / 340) * 4}px`; };
+  new ResizeObserver(fit).observe($('jamStage')); addEventListener('resize', fit); fit();
   J.deck.onDoor = () => note('문은 STOP/EJ로 열립니다 — 멈춘 채 두 번 누르면 잼 끝', 2600);
   return J.deck;
 }
@@ -210,7 +234,8 @@ export async function start() {
     if (!pl || !pl.id) throw new Error('플레이리스트를 만들지 못했습니다');
     const tape = tapeFor(pl.id, C.LS.get('music.jamTape'));
     C.LS.set('music.jamTape', tape);
-    J.cur = { id: pl.id, tape, at: Date.now(), name: pl.name || body.name, replay: false };
+    const st0 = C.state(), it0 = st0 && st0.item;
+    J.cur = { id: pl.id, tape, at: Date.now(), name: pl.name || body.name, replay: false, peng: [], seed: it0 && it0.artists && it0.artists[0] ? it0.artists[0].name : '' };
     save();
     await enter(true);
   } catch (e) {
@@ -251,7 +276,7 @@ async function enter(animate, autoplay) {
   const c = J.cur, d = await deck();
   const dt = new Date(c.at);
   $('jamTitle').textContent = c.name || 'JAM';
-  $('jamDate').innerHTML = `SIDE A · ${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, '0')}.${String(dt.getDate()).padStart(2, '0')}<br>${c.replay ? 'PLAYBACK' : 'C-90 · REC'}`;
+  $('jamDate').textContent = `SIDE A · ${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, '0')}.${String(dt.getDate()).padStart(2, '0')} · ${c.replay ? 'PLAYBACK' : 'C-90 REC'}`;
   $('jamK').textContent = c.replay ? 'JAM · PLAYBACK' : 'JAM SESSION · REC';
   $('jamShare').hidden = !!c.replay;
   try { const sh = await (await fetch(BASE + 'tapes/shell.json')).json(); document.querySelector('.jcard').style.setProperty('--tape', sh[c.tape] || '#c8402e'); } catch {}
@@ -289,7 +314,10 @@ async function refresh(first) {
   let list; try { list = await items(J.cur.id); } catch { return; }
   const fresh = [];
   list.forEach((x, i) => { const k = x.uri + '#' + i; if (!J.seen.has(k)) { J.seen.add(k); if (!first) fresh.push(i); } });
-  for (const x of list) if (x.by) x.byName = await nameOf(x.by);
+  const pg = new Set(J.cur.peng || []);
+  for (const x of list) { if (pg.has(x.uri)) { x.byName = 'p'; x.peng = true; } else if (x.by) x.byName = await nameOf(x.by); }
+  const me = await me_();
+  if (list.some((x, i) => x.by && me && x.by !== me.id && !J.seen.has('f' + i))) { J.lastFriend = Date.now(); list.forEach((x, i) => { if (x.by && me && x.by !== me.id) J.seen.add('f' + i); }); }
   const grew = list.length > J.items.length;
   J.items = list; renderList(first ? null : new Set(fresh));
   if (fresh.length) sfx.pen(Math.min(3, fresh.length));
@@ -384,6 +412,7 @@ function tick() {
     J.deck.setProgress((before + Math.min(pos, J.items[i].ms)) / total);
     if (J.items[i].uri !== J.lastUri) { J.lastUri = J.items[i].uri; pola(J.items[i]); renderList(); }
   }
+  if (now0() - (J.pengT || 0) > 2000) { J.pengT = now0(); penguin(); penguinSkip(); }
   const tot = J.items.reduce((a, x) => a + x.ms, 0);
   $('jamSum').textContent = J.items.length ? `${J.items.length}곡 · ${fmt(tot)}` : '';
 }
@@ -402,7 +431,7 @@ function pola(x) {
 function renderList(fresh) {
   const ul = $('jamList'); if (!ul) return;
   const ci = curIndex();
-  const rows = J.items.map((x, i) => `<li class="${i === ci ? 'cur' : ci > i ? 'done' : ''}${fresh && fresh.has(i) ? ' new' : ''}" data-i="${i}" tabindex="0" title="이 곡부터 듣기"><span class="no">${i + 1}</span><span class="w">${esc(x.name)} <em>— ${esc(x.artist)}</em></span>${x.byName ? `<span class="by">${esc(x.byName)}</span>` : ''}<span class="d">${fmt(x.ms)}</span></li>`);
+  const rows = J.items.map((x, i) => `<li class="${i === ci ? 'cur' : ci > i ? 'done' : ''}${fresh && fresh.has(i) ? ' new' : ''}" data-i="${i}" tabindex="0" title="이 곡부터 듣기"><span class="no">${i + 1}</span><span class="w">${esc(x.name)} <em>— ${esc(x.artist)}</em></span>${x.byName ? `<span class="by${x.peng ? ' peng' : ''}">${esc(x.byName)}</span>` : ''}<span class="d">${fmt(x.ms)}</span></li>`);
   const pend = J.pend ? J.pend.map((n) => `<li class="pend"><span class="no">·</span><span class="w">${esc(n)} …</span></li>`) : [];
   ul.innerHTML = rows.join('') + pend.join('') + `<li class="add" data-add="1" tabindex="0"><span class="no">${J.items.length + 1}</span><span class="w">+ 여기를 눌러 곡 적기</span></li>` + '<li aria-hidden="true"></li>'.repeat(Math.max(0, 6 - J.items.length));
   const c = ul.querySelector('li.cur'); if (c && !fresh) c.scrollIntoView({ block: 'nearest' });
@@ -433,6 +462,75 @@ async function search() {
     ul.onkeydown = (ev) => { if (ev.key === 'Enter') { const li = ev.target.closest('li[data-i]'); if (li) add(L[+li.dataset.i], t); } };
   } catch (e) { if (seq === J.find.seq) ul.innerHTML = `<li class="empty">${esc(e.message || '찾지 못했습니다')}</li>`; }
 }
+async function post(uris) {
+  for (const path of ['/items', '/tracks']) {
+    try { await C.api('/playlists/' + J.cur.id + path, { method: 'POST', body: { uris: uris.slice(0, 100) } }); return; } catch (e) { if (e.status !== 404) throw e; }
+  }
+  throw new Error('곡을 넣지 못했습니다');
+}
+
+// ---------- 황제펭귄: 혼자 있을 때(5분 넘게 친구가 안 넣음) 곡이 다 떨어져 가면 하나 골라 넣는다 ----------
+// 고르는 법: 잼에 있는 아티스트(없으면 잼 시작 전에 듣던 아티스트) 중 하나로 곡 찾기 → 아직 없는 곡 하나. 곡마다 한 번만
+const PENG_LINES = ['됐고 이거 들어', '내 맘대로 넣음', '거절은 안 받아', 'p 선곡이다', '이게 낫지', '조용히 들어'];
+const SKIP_LINES = ['별로. 넘김', '이건 아니야', '패스', '내 취향 아님', '다음'];
+const POKE_LINES = { ignore: ['...', '바쁨', '(못 들은 척)'], squawk: ['꽥!!', '왜!!', '건드리지 마'], flop: ['(벌러덩)', '아 미끄러워', '...안 넘어졌음'] };
+const pickL = (L) => L[(Math.random() * L.length) | 0];
+async function penguinSkip() {
+  if (!J.on || !J.cur || J.cur.replay || J.pengBusy || J.busy) return;
+  const s = C.state(), ours = s && s.context && s.context.uri === ctxUri(); if (!ours || !s.is_playing) return;
+  const ci = curIndex(); if (ci < 0 || ci >= J.items.length - 1 || J.items[ci].peng) return;
+  let pos = s.progress_ms || 0; pos += Date.now() - s.at; if (pos < 25000) return;
+  if (J.skipFor === J.items[ci].uri) return; J.skipFor = J.items[ci].uri;
+  if (Math.random() > 1 / 7) return;
+  J.pengBusy = true;
+  try {
+    await J.deck.penguinAct('peck'); // 라디오까지 뒤뚱뒤뚱 걸어가 쪼는 순간
+    J.deck.tap('FF'); sfx.key(); sfx.whirr(); bubble(pickL(SKIP_LINES), '');
+    await cmd('/me/player/next');
+  } catch {} finally { J.pengBusy = false; }
+}
+function poke() {
+  const r = J.deck.penguinAct('poke'); if (typeof r !== 'string') return;
+  if (r !== 'ignore') sfx.squawk();
+  bubble(pickL(POKE_LINES[r] || ['...']), '');
+}
+
+async function penguin() {
+  if (!J.on || !J.cur || J.cur.replay || J.pengBusy || J.busy) return;
+  const s = C.state(), ours = s && s.context && s.context.uri === ctxUri();
+  const ci = curIndex(), alone = Date.now() - (J.lastFriend || 0) > 5 * 60000;
+  const low = J.items.length ? ours && s.is_playing && ci >= J.items.length - 1 : Date.now() - J.cur.at > 25000 && !!J.cur.seed;
+  const key = J.items.length ? 'c' + ci : 'empty';
+  if (!alone || !low || J.pengFor === key) return;
+  J.pengFor = key; J.pengBusy = true;
+  try {
+    const pool = [...new Set([...J.items.map((x) => (x.artist || '').split(', ')[0]), J.cur.seed].filter(Boolean))];
+    const have = new Set(J.items.map((x) => x.uri));
+    let pick = null;
+    for (let tries = 0; tries < 2 && !pick && pool.length; tries++) {
+      const a = pool[(Math.random() * pool.length) | 0];
+      const j = await C.api(`/search?type=track&limit=10&q=${encodeURIComponent('artist:"' + a + '"')}`);
+      const L = ((j && j.tracks && j.tracks.items) || []).filter((x) => x && x.uri && !have.has(x.uri));
+      pick = L[(Math.random() * L.length) | 0] || null;
+    }
+    if (!pick) return;
+    J.deck.penguinAct('add'); sfx.squawk();
+    bubble(pickL(PENG_LINES), `${pick.name} — ${(pick.artists || []).map((a) => a.name).join(', ')}`);
+    await sleep(900);
+    J.cur.peng = [...(J.cur.peng || []), pick.uri]; save();
+    await post([pick.uri]);
+    await refresh(false);
+  } catch {} finally { J.pengBusy = false; }
+}
+function bubble(t, sub) {
+  document.querySelectorAll('.jam-bub').forEach((b) => b.remove());
+  const at = J.deck.penguinAt(); if (!at.on) { C.toast('p: ' + t + (sub ? ' ' + sub : ''), 3500); return; }
+  const b = document.createElement('div'); b.className = 'jam-bub'; b.innerHTML = `<b class="pn">p</b> ${esc(t)}${sub ? `<small>♪ ${esc(sub)}</small>` : ''}`;
+  b.style.left = Math.min(innerWidth - 270, at.x + 12) + 'px'; b.style.top = Math.max(70, at.y - 10) + 'px';
+  $('jam').appendChild(b);
+  setTimeout(() => { b.classList.add('out'); setTimeout(() => b.remove(), 400); }, 3800);
+}
+
 async function add(x, t) {
   if (!x || !J.cur) return;
   $('jamFind').hidden = true;
@@ -442,11 +540,7 @@ async function add(x, t) {
     else uris = [x.uri];
     if (!uris.length) return;
     J.pend = [...(J.pend || []), label]; renderList();
-    let ok = false;
-    for (const path of ['/items', '/tracks']) {
-      try { await C.api('/playlists/' + J.cur.id + path, { method: 'POST', body: { uris: uris.slice(0, 100) } }); ok = true; break; } catch (e) { if (e.status !== 404) throw e; }
-    }
-    if (!ok) throw new Error('곡을 넣지 못했습니다');
+    await post(uris);
   } catch (e) { C.toast(e.status === 403 ? '이 플레이리스트에 곡을 넣을 권한이 없습니다' : (e.message || String(e))); }
   J.pend = (J.pend || []).filter((n) => n !== label);
   await refresh(false);
@@ -468,6 +562,7 @@ const NOTES = [
   ['PLAY 재생 · PAUSE 잠깐 · FF 다음 곡 · REW 이전 곡', '8%', '14%', 2.5, 0.16],
   ['STOP/EJ로 멈춘 뒤 한 번 더 = 잼 끝. 테이프는 JAM 크레이트에 꽂혀요', '36%', '10%', -2, 0.24],
   ['J카드의 곡을 누르면 그 곡부터 다시', '62%', '74%', 3, 0.32],
+  ['p는 펭귄이에요. 지 맘대로 해요. 혼자일 땐 곡을 넣고, 싫은 곡은 쪼아서 넘겨요. 눌러 보면 반응함', '40%', '38%', -1.5, 0.4],
 ];
 function toggleHelp(on) {
   const b = $('jamHelp'), box = $('jamNotes'); if (!b) return;
