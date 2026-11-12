@@ -378,6 +378,43 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 .note.warn { color: var(--red); }
 .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50; max-width: min(440px, calc(100vw - 32px)); background: var(--ink); color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5; box-shadow: var(--shadow-xl); }
 
+/* 오른쪽 칸 탭: 지금 재생 · 크레이트 */
+.tabs { flex-wrap: nowrap; }
+.tabs .seg button { padding: 5px 14px; }
+.cpanel[data-tab="now"] .cstrip, .cpanel[data-tab="now"] .crate-view { display: none !important; }
+.cpanel:not([data-tab="now"]) .np { display: none; }
+/* 지금 재생: 떠 있는 앨범 슬리브(포인터 따라 기울고 빛이 흐름) + 재생 중이면 판이 옆으로 빠져나와 돈다 */
+.np { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; min-height: 0; padding: 22px 0 8px; container-type: inline-size; --s: min(300px, 64cqw); }
+.cpanel { isolation: isolate; }
+.np-glow { position: absolute; inset: 0; z-index: -1; background: center/cover no-repeat; filter: blur(70px) saturate(1.6); opacity: .42; transform: scale(1.4); transition: opacity .6s; pointer-events: none; }
+.np-glow:not([style*="url"]), .cpanel:not([data-tab="now"]) .np-glow { opacity: 0; }
+.np-stage { position: relative; width: calc(var(--s) * 1.3); height: var(--s); perspective: 1100px; touch-action: pan-y; flex: none; }
+.np-float { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); transform-style: preserve-3d; animation: npFloat 7s ease-in-out infinite; transition: left .9s cubic-bezier(.2,.8,.2,1); }
+.np.idle .np-float { left: calc(var(--s) * .15); }
+@keyframes npFloat { 0%, 100% { transform: translateY(0) rotateZ(-.6deg); } 50% { transform: translateY(-8px) rotateZ(.6deg); } }
+.np-tilt { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(var(--rx, 6deg)) rotateY(var(--ry, -10deg)); transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+.np-disc { position: absolute; top: 3%; left: 3%; width: 94%; height: 94%; border-radius: 50%; transform: translateZ(-6px) translateX(0); transition: transform 1.1s cubic-bezier(.2,.8,.2,1); background: radial-gradient(circle, transparent 0 30%, rgba(255,255,255,.06) 30.5%, transparent 31.5%), repeating-radial-gradient(circle, #121214 0 1.2px, #1b1b1f 1.2px 2.4px); box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+.np.on .np-disc { transform: translateZ(-6px) translateX(36%); }
+.np-disc .spinr { position: absolute; inset: 0; border-radius: 50%; animation: spin 1.8s linear infinite; animation-play-state: paused; background: conic-gradient(from 0deg, transparent 0 10%, rgba(255,255,255,.12) 14%, transparent 20% 60%, rgba(255,255,255,.09) 64%, transparent 70%); }
+.np.on .np-disc .spinr { animation-play-state: running; }
+.np-disc .lbl { position: absolute; left: 34%; top: 34%; width: 32%; height: 32%; border-radius: 50%; background: #333 center/cover no-repeat; box-shadow: 0 0 0 2px #0b0b0c, inset 0 0 0 1px rgba(255,255,255,.15); }
+.np-disc .lbl::after { content: ''; position: absolute; left: 46%; top: 46%; width: 8%; height: 8%; border-radius: 50%; background: #e5e7eb; }
+.np-sleeve { position: absolute; inset: 0; border-radius: 4px; background: #2b2b30 center/cover no-repeat; transform: translateZ(0); box-shadow: 0 30px 60px -18px color-mix(in srgb, var(--a1, #000) 70%, #000), 0 12px 24px -10px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.18); -webkit-box-reflect: below 4px linear-gradient(transparent 84%, rgba(255,255,255,.16)); }
+.np-sleeve::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,.42) 46%, rgba(255,255,255,.08) 52%, transparent 62%); background-size: 260% 100%; background-position: var(--gx, 60%) 0; mix-blend-mode: soft-light; transition: background-position .5s; }
+.np-sleeve::after { content: ''; position: absolute; inset: 7%; border-radius: 50%; border: calc(1px + var(--w, 0) * 3px) solid rgba(255,252,245, calc(.06 + var(--w, 0) * .35)); pointer-events: none; }
+.np-sleeve.swap { animation: npIn .8s cubic-bezier(.2,.8,.2,1); }
+@keyframes npIn { from { transform: translateZ(0) translateY(26px) rotateX(-24deg); opacity: 0; filter: brightness(1.6); } }
+.np-sleeve .ph { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: rgba(255,255,255,.5); }
+.np-sleeve[style*="url"] .ph { display: none; }
+.np-txt { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; gap: 3px; padding: 0 8px; z-index: 1; }
+.np-k { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .16em; color: var(--muted); display: flex; justify-content: center; align-items: center; gap: 8px; }
+.np-t { margin: 0; font-size: clamp(20px, 6cqw, 28px); font-weight: 700; line-height: 1.15; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-a { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-m { margin: 0; font-family: var(--mono); font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-bar { margin-top: 10px; height: 3px; border-radius: 99px; background: rgba(0,0,0,.08); overflow: hidden; }
+.np-bar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: inherit; }
+.np-time { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
 /* 넓은 가로 화면(아이패드 가로 · PC): 시안 그대로 두 칸, 스크롤 없음 */
 @media (min-width: 900px) and (min-height: 600px) and (orientation: landscape) {
   body { height: 100dvh; overflow: hidden; }
@@ -387,6 +424,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   /* 남는 높이에 상자를 맞춘다(사파리는 주소창·탭 줄 때문에 화면이 낮다) */
   .crate-view { flex: 1 1 0; container-type: size; overflow: hidden; }
   .crate { width: min(100%, 380px, max(150px, calc((100cqh - 112px) * 1.117))); }
+  .np { flex: 1 1 0; container-type: size; overflow: hidden; --s: min(340px, 64cqw, max(140px, calc(100cqh - 175px))); }
   .tracks { max-height: clamp(76px, calc(100dvh - 640px), 150px); }
   .panel > .strip.b { flex: none; }
 }
@@ -414,6 +452,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 }
 @media (prefers-reduced-motion: reduce) {
   .spin { animation: none; }
+  .np-float, .np-disc .spinr, .np-sleeve.swap { animation: none; }
   .arm, .lp { transition: none; }
 }
 </style>
@@ -520,7 +559,31 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     </div>
   </section>
 
-  <section class="panel" aria-label="크레이트">
+  <section class="panel cpanel" aria-label="지금 재생 · 크레이트" data-tab="now" id="cpanel">
+    <div class="strip tabs">
+      <div class="seg" role="tablist" aria-label="보기">
+        <button type="button" role="tab" data-tab="now" aria-pressed="true"><span class="led"></span>지금 재생</button>
+        <button type="button" role="tab" data-tab="crate" aria-pressed="false"><span class="led"></span>크레이트</button>
+      </div>
+      <span class="hint" id="npDev"></span>
+    </div>
+    <div class="np-glow" id="npGlow" aria-hidden="true"></div>
+    <div class="np idle" id="np">
+      <div class="np-stage" id="npStage">
+        <div class="np-float"><div class="np-tilt" id="npTilt">
+          <div class="np-disc"><i class="spinr"></i><i class="lbl" id="npLbl"></i></div>
+          <div class="np-sleeve" id="npSleeve"><span class="ph">NO RECORD</span></div>
+        </div></div>
+      </div>
+      <div class="np-txt">
+        <div class="np-k"><span class="led" id="npLed"></span><span id="npK">STANDBY</span></div>
+        <p class="np-t" id="npT">-</p>
+        <p class="np-a" id="npA">-</p>
+        <p class="np-m" id="npM"></p>
+        <div class="np-bar"><i id="npBar"></i></div>
+        <div class="np-time"><span id="npCur">0:00</span><span id="npDur">0:00</span></div>
+      </div>
+    </div>
     <div class="seal" id="seal" hidden>
       <div class="seal-h"><span class="led"></span><span id="sealH">NEW ARRIVAL</span></div>
       <div class="seal-card" id="sealCard" role="button" aria-label="비닐을 손가락으로 그어 뜯기">
@@ -1664,6 +1727,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     $('label').style.backgroundImage = bg(L && L.img);
     if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img, tracks: key && S.tracksFor === key ? trackGaps() : null } : null);
     applyAmb((L && L.img) || '');
+    renderNow(it, L, pend, on, key);
     $('topLed').classList.toggle('on', on);
     $('topState').textContent = !loggedIn() ? 'OFFLINE' : on ? 'PLAYING' : it ? 'PAUSED' : 'STANDBY';
     $('goLed').classList.toggle('on', on);
@@ -1697,6 +1761,56 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       Sabathia.report('music', { title: it ? it.name : '', artist: it ? artists(it) : '', album: alb ? alb.name : '', playing: on });
     }
   }
+  // ---------- 지금 재생 탭 ----------
+  const bigCover = (it) => { const im = it && ((it.album && it.album.images) || it.images || []); return pickImg(im, 640); };
+  let npImg = null;
+  function renderNow(it, L, pend, on, key) {
+    const img = pend ? pend.img : it ? bigCover(it) : '';
+    if (img !== npImg) {
+      npImg = img;
+      const sl = $('npSleeve');
+      sl.style.backgroundImage = bg(img); $('npLbl').style.backgroundImage = bg(img); $('npGlow').style.backgroundImage = bg(img);
+      sl.classList.remove('swap'); void sl.offsetWidth; if (img) sl.classList.add('swap');
+    }
+    const E = key ? entryFor(key, it) : null;
+    $('npSleeve').style.setProperty('--w', Math.min(1, ((E && E.p) || 0) / 20).toFixed(2));
+    $('np').classList.toggle('on', !!(on && !pend));
+    $('np').classList.toggle('idle', !(on && !pend));
+    $('npLed').classList.toggle('on', on);
+    $('npK').textContent = !loggedIn() ? 'OFFLINE' : pend ? 'CHANGING RECORD' : on ? 'NOW PLAYING' : it ? 'PAUSED' : 'STANDBY';
+    $('npT').textContent = pend ? pend.name : it ? it.name : loggedIn() ? '재생 중인 곡 없음' : 'Spotify 연결 안 됨';
+    $('npA').textContent = pend ? pend.artist : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '설정에서 로그인';
+    let m = '';
+    if (!pend && it) {
+      const alb = it.album || {}, yr = (alb.release_date || '').slice(0, 4);
+      const i = trackIndex(it), n = S.tracks && S.tracksFor === key ? S.tracks.length : alb.total_tracks;
+      const no = i >= 0 ? i + 1 : it.track_number;
+      m = [E && isPl(E) ? E.name + ' 플레이리스트' : alb.name, yr, no && n ? `TRACK ${String(no).padStart(2, '0')} / ${String(n).padStart(2, '0')}` : ''].filter(Boolean).join(' · ');
+    }
+    $('npM').textContent = m;
+    const dev = S.st && S.st.device;
+    $('npDev').textContent = dev ? '▸ ' + dev.name : '';
+  }
+  function tickNow(pos, dur) {
+    $('npBar').style.width = (dur ? Math.min(100, pos / dur * 100) : 0).toFixed(2) + '%';
+    $('npCur').textContent = mmss(pos); $('npDur').textContent = mmss(dur);
+  }
+  // 포인터를 따라 슬리브가 기울고 빛이 흐른다(놓으면 제자리)
+  (function npTilt() {
+    const st = $('npStage'), t = $('npTilt'), sl = $('npSleeve');
+    const set = (x, y) => { t.style.setProperty('--rx', (6 - y * 14).toFixed(2) + 'deg'); t.style.setProperty('--ry', (-10 + x * 22).toFixed(2) + 'deg'); sl.style.setProperty('--gx', (60 - x * 50).toFixed(1) + '%'); };
+    st.addEventListener('pointermove', (e) => { const r = st.getBoundingClientRect(); set((e.clientX - r.left) / r.width - 0.5, (e.clientY - r.top) / r.height - 0.5); });
+    st.addEventListener('pointerleave', () => { t.style.removeProperty('--rx'); t.style.removeProperty('--ry'); sl.style.removeProperty('--gx'); });
+    st.addEventListener('click', () => { if (loggedIn()) toggle(); else openDlg(); });
+  })();
+  // 탭: 기기마다 기억(music.tab)
+  function setTab(tab) {
+    $('cpanel').dataset.tab = tab; LS.set('music.tab', tab);
+    for (const b of document.querySelectorAll('.tabs [data-tab]')) b.setAttribute('aria-pressed', String(b.dataset.tab === tab));
+    if (tab === 'crate') renderCrate();
+  }
+  for (const b of document.querySelectorAll('.tabs [data-tab]')) b.addEventListener('click', () => setTab(b.dataset.tab));
+
   // 같은 판에서 곡이 바뀌면: 바늘이 넘어간 무음 홈이 빛나고, 다음 곡 이름이 타자기처럼 찍힌다
   let twT = 0;
   function trackChanged(it, key) {
@@ -1751,10 +1865,11 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (st && st.is_playing && dur && pos >= dur) schedulePoll(400);
     $('tDur').textContent = mmss(dur);
     // 판 잡음: 재생 중 · 스크래치 아닐 때만. 많이 들은 판일수록 크게
-    if (st && st.is_playing && !scr && document.visibilityState === 'visible') { const E = ctxKey(st) ? entryFor(ctxKey(st), it) : null; sfx.surface(0.2 + Math.min(1, ((E && E.p) || 0) / 20) * 0.8); } else sfx.surface(0);
+    // 판 잡음(surface)은 끔(2026-11-12 사용자 요청)
     // 스크래치 중엔 음악은 멈췄어도 바늘은 판 위에 둔다
     if (window.Deck3D && Deck3D.ok && Deck3D.setTime) Deck3D.setTime(it ? mmss(pos) : '--:--', trackIndex(it) + 1);
     if (window.Deck3D && Deck3D.ok) Deck3D.setPlaying(!!(st && st.is_playing) || !!(scr && scr.was), albumProgress(it, pos, dur));
+    tickNow(pos, dur);
     if (!S.seeking) {
       $('tCur').textContent = mmss(pos);
       $('seek').value = dur ? Math.round(pos / dur * 1000) : 0;
@@ -2083,6 +2198,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     paintVol(LS.get('music.vol') ?? 50);
     $('redir').textContent = REDIRECT;
     await handleRedirect();
+    setTab(LS.get('music.tab') === 'crate' ? 'crate' : 'now');
     renderCrates(); renderCrate(true); render(); renderTracks(true); renderAuth();
     sync();
     if (!loggedIn()) { if (!clientId()) openDlg(); return; }
