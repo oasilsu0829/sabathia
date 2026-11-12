@@ -106,6 +106,14 @@ public/music/       음악 (MUS-09, 2026-11-11). Spotify 플레이어. Stitch �
                     - 크레이트 목록(2026-11-12 사용자 요청, 크레이트 10개 넘음): 크레이트 줄 왼쪽 버튼(#clBtn, 개수) → #clist 창. 타일마다 지금 위치부터 표지 3장 묶음·이름·LP 수·들은 횟수, 지금 크레이트는 빨간 불
                       찾기(크레이트 이름 + 담긴 앨범·아티스트, 앨범이 맞으면 '일치하는 앨범 n장'·누르면 그 앨범 위치로), 정렬 내 순서(o)·최근(u)·많은 순·이름(music.csort). 내 순서일 때 ‹ › 로 이웃과 자리 바꿈(swapO, 동기화됨), ✎ = 이름 바꾸기·지우기(openCrateDlg). 누르면 그 크레이트 + 크레이트 탭
                     - 플레이리스트를 틀면 1.9초 모션: 클립보드가 날아와 턴테이블 위에 쾅(턴테이블 판 흔들림·빨간 충격파·진동) → 옆으로 걷어내면 밑에서 판이 돈다. 효과음 sfx: 넘김·슬리브·판 꺼냄·내려앉음·바늘 지직·쾅. Web Audio 합성(파일 없음), 설정 창에서 끔(music.sfx)
+                    - 잼 모드(2026-11-12, public/music/jam/): 위 줄 JAM 버튼 → 불이 꺼지고 카세트 라디오(3D, jam/boombox.js) + J카드(손글씨 셋리스트, 나눔손글씨 펜)만 남음. jam.js는 처음 누를 때 import
+                      잼 하나 = 새 Spotify 공동 작업 플레이리스트 "JAM 11.12"(POST /me/playlists, 실패하면 /users/{id}/playlists). 권한 playlist-modify-private/public을 SCOPES에 더함 → 예전 토큰은 다시 로그인 필요(토큰에 scope 저장 music.tok.s, MusicCore.hasScope)
+                      곡 넣기: J카드 빈 줄/'+ 곡 넣기' → 찾기(곡 · 앨범 통째로) → POST /playlists/{id}/items(없으면 /tracks). 친구는 Spotify 앱에서 넣음(초대는 Spotify 앱 '공동 작업자 초대'). 4초마다 읽어 새 줄을 손글씨로 적음, 넣은 사람 이름(added_by → /users/{id})
+                      첫 곡이 들어오면 자동 재생(context = 그 플레이리스트). 지금 곡 형광펜 · 들은 곡 줄 긋기 · 곡이 바뀌면 앨범 표지 폴라로이드가 데크 옆에 꽂힘. 릴은 잼 전체 진행만큼 감김(양쪽 테이프 덩어리 크기), 재생 중 회전, 스피커 엠블럼이 박자처럼 떨림
+                      건반(3D 누름): PLAY · PAUSE · FF 다음 · REW 이전 · REC(장식, 잼 중 걸려 있음) · STOP/EJ 멈춤, 멈춘 채 한 번 더(또는 J카드 '잼 끝' 두 번) = 문이 열리고 테이프가 튀어나와 JAM 크레이트(c-jam)에 꽂힘. 키보드: 스페이스 · ←/→ · ?
+                      카세트 디자인 18종(jam/tapes/*.webp = Stitch "Cassette Front Cover Designs" 마지막 판에서 잘라냄, shell.json = 옆면 색; 투명 아크릴만 코드로). 잼 id로 고르고 바로 전 잼(music.jamTape)과 겹치지 않게(tapeFor)
+                      JAM 크레이트 항목은 k 'pl' + t(카세트 키, merge.js가 남김). 크레이트에서 누르면 턴테이블 대신 카세트로 다시 듣기(replay). 진행 중 잼은 music.jam에 저장 → 새로고침해도 이어 함. 잼 중엔 숨은 턴테이블의 판 갈기 모션을 하지 않음(window.MusicJamOn)
+                      index.html이 window.MusicCore(api·toast·LS·targetDevice·state·poll·saveJam·relogin)를 넘겨준다. 효과음은 jam.js 안 합성(music.sfx 따름): 스위치·핀 조명·문·꽂힘·건반·감기·펜
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
