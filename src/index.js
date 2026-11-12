@@ -1,7 +1,6 @@
 import { eventsApi } from './events.js';
 import { notifyApi, tick } from './notify.js';
 import { projectsApi } from './projects.js';
-import { examApi } from './exam.js';
 import { musicApi } from './music.js';
 import { json, authorized, ensureTables } from './util.js';
 
@@ -22,7 +21,6 @@ export default {
     }
     if (path === '/api/events' || path.startsWith('/api/events/')) return eventsApi(req, env, path);
     if (path === '/api/projects' || path.startsWith('/api/projects/')) return projectsApi(req, env, path);
-    if (path === '/api/exam' || path.startsWith('/api/exam/')) return examApi(req, env, path);
     if (path === '/api/music' || path.startsWith('/api/music/')) return musicApi(req, env, path);
     return notifyApi(req, env, path);
   },

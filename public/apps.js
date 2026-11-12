@@ -79,32 +79,6 @@
     return { pct: r.n ? 100 : 0, badge: 0, meta: r.n ? `오늘 ${r.n}회` : '집중 타이머' };
   }
 
-  // 시험대비: 이번 주 할 일 중 끝낸 비율, 배지는 오늘 다시 풀 오답 수. 주차·시험 날짜는 /exam/ 의 WEEKS·EXAM 과 같이 바꿀 것
-  function exam() {
-    const W = ['2026-11-13', '2026-11-22', '2026-11-29', '2026-12-06', '2026-12-09'];
-    const now = new Date(), t = ymd(now);
-    const dd = Math.round((Date.UTC(2026, 11, 10) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
-    const label = dd > 0 ? 'D-' + dd : dd === 0 ? 'D-DAY' : '기말';
-    const doc = json('exam.v1');
-    if (!doc || !doc.items) return { pct: 0, badge: 0, meta: label };
-    let wi = W.findIndex((to) => t <= to);
-    if (wi < 0) wi = W.length - 1;
-    let n = 0, sum = 0, doneN = 0;
-    for (const x of Object.values(doc.items)) {
-      if (!x || x.del || x.g !== 'w' + (wi + 1)) continue;
-      const p = x.n ? Math.min(x.c || 0, x.n) / x.n : x.done ? 1 : 0;
-      n++; sum += p; if (p >= 1) doneN++;
-    }
-    let due = 0;
-    const add = (s, k) => { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + k); return ymd(d); };
-    for (const x of Object.values(doc.wrongs || {})) {
-      if (!x || x.del || !x.at) continue;
-      const i = (x.r || []).findIndex((v) => !v);
-      if (i >= 0 && i < 3 && add(x.at, [0, 3, 7][i]) <= t) due++;
-    }
-    return { pct: n ? sum / n * 100 : 0, badge: due, meta: n ? `${label} · ${doneN} / ${n}` : label };
-  }
-
   // 음악: 지금 곡 이름. 재생 중이면 모양을 다 채운다
   function music() {
     const r = Sabathia.read('music');
@@ -119,7 +93,6 @@
     { id: 'lecture', code: 'LEC-05', name: '수업 녹음', href: '/lecture/', color: ['#6a6a00', '#cfcf4a'], status: lecture },
     { id: 'projects', code: 'PRJ-06', name: '장부', href: '/projects/', color: ['#8a2b5c', '#e07aae'], status: projects },
     { id: 'focus', code: 'FOC-07', name: '집중', href: '/focus/', color: ['#00658d', '#4fd0ff'], status: focus },
-    { id: 'exam', code: 'EXM-08', name: '시험대비', href: '/exam/', color: ['#a8361f', '#ff8a70'], status: exam },
     { id: 'music', code: 'MUS-09', name: '음악', href: '/music/', color: ['#3f3f46', '#d4d4d8'], status: music },
   ];
 })();
