@@ -385,7 +385,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 .cpanel:not([data-tab="now"]) .np { display: none; }
 /* 지금 재생: 떠 있는 앨범 슬리브(포인터 따라 기울고 빛이 흐름) + 재생 중이면 판이 옆으로 빠져나와 돈다 */
 .np { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; min-height: 0; padding: 22px 0 8px; container-type: inline-size; --s: min(300px, 64cqw); }
-.cpanel { isolation: isolate; }
+.cpanel { isolation: isolate; overflow: clip; }
 .np-glow { position: absolute; inset: 0; z-index: -1; background: center/cover no-repeat; filter: blur(70px) saturate(1.6); opacity: .42; transform: scale(1.4); transition: opacity .6s; pointer-events: none; }
 .np-glow:not([style*="url"]), .cpanel:not([data-tab="now"]) .np-glow { opacity: 0; }
 .np-stage { position: relative; width: calc(var(--s) * 1.3); height: var(--s); perspective: 1100px; touch-action: pan-y; flex: none; }
@@ -1897,6 +1897,8 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
     if (tab === 'crate') renderCrate();
   }
   for (const b of document.querySelectorAll('.tabs [data-tab]')) b.addEventListener('click', () => setTab(b.dataset.tab));
+  // overflow: clip을 모르는 예전 사파리: 칸이 스크롤되면 바로 되돌린다
+  $('cpanel').addEventListener('scroll', (e) => { const c = e.currentTarget; if (c.scrollLeft || c.scrollTop) { c.scrollLeft = 0; c.scrollTop = 0; } });
 
   // 같은 판에서 곡이 바뀌면: 바늘이 넘어간 무음 홈이 빛나고, 다음 곡 이름이 타자기처럼 찍힌다
   let twT = 0;
@@ -1991,7 +1993,11 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
       if (on) onEl = b;
       box.appendChild(b);
     }
-    if (onEl) onEl.scrollIntoView({ block: 'nearest' });
+    // 지금 곡 줄이 보이게 목록 상자만 위아래로 스크롤한다(scrollIntoView는 사파리에서 칸 전체를 옆으로 밀어 버림)
+    if (onEl && box.scrollHeight > box.clientHeight) {
+      const br = box.getBoundingClientRect(), er = onEl.getBoundingClientRect();
+      if (er.top < br.top) box.scrollTop += er.top - br.top; else if (er.bottom > br.bottom) box.scrollTop += er.bottom - br.bottom;
+    }
   }
   function renderDevices() {
     const box = $('devs');
