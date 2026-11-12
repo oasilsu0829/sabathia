@@ -763,7 +763,8 @@ function start() {
     // 스트로브 착시: 속도가 맞으면 점이 멈춰 보이고, 잡거나 속도가 오르내리면 흘러간다
     const nominal = RPS * Math.PI * 2, apparent = vel > 0.05 || grab ? (grab ? -(grab.v || 0) : vel) - nominal : 0;
     strobeAng += apparent * dt * 0.25;
-    if (strobeTex) strobeTex.offset.x = (spin - strobeAng) / (Math.PI * 2);
+    // 스트로브 착시는 껐다(사용자: 재생 중 플래터가 멈춰 보임). 땡땡이는 플래터와 같이 돈다
+    if (strobeTex) strobeTex.offset.x = 0;
     // 큐 레버: 바늘이 판 위면 내려가고 아니면 올라간다
     cueUp += ((onRec || grab ? 0 : 1) - cueUp) * Math.min(1, dt * 6);
     ctl.lever.rotation.x = lerp(0.5, -0.35, cueUp);
