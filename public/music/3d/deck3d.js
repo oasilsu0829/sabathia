@@ -823,13 +823,68 @@ function start() {
   // ---------- 판 갈아 끼우기 ----------
   // 앨범(3초): 옛 판이 들려 사라짐 → 슬리브가 들어와 판을 꺼냄 → 슬리브는 빠지고 판이 플래터 위로 와서 2.52초에 내려앉음
   // 플레이리스트(1.9초): 클립보드가 위에서 날아와 0.646초에 쾅 → 튐 → 옆으로 걷어내면 밑에 새 판
+  // 앨범 판 갈기 모션 1~4 (0번은 stepDrop 안의 기본 '옆으로 꺼내기'). 모두 3초, 0.76까지 플래터 위 0.12에 와서 0.84에 내려앉는다(효과음 시각 공통)
+  // 1 세로로 뽑기 · 2 프리스비(소용돌이) · 3 공중 한 바퀴 · 4 쏟기
+  const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion();
+  const _qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+  const _n = new THREE.Vector3(), _u = new THREE.Vector3(), _X = new THREE.Vector3(1, 0, 0), _Y = new THREE.Vector3(0, 1, 0), _Z = new THREE.Vector3(0, 0, 1);
+  function albumPath(d, t, wp) {
+    const s = d.sleeve, disc = d.disc, v = d.v;
+    let pull0 = 0.16, pull1, pullDir, pullLen;
+    if (v === 1) { // 세로로 뽑기: 슬리브가 위에서 내려와 서 있고, 판을 위로 뽑아 눕히며 내려놓음
+      const inK = easeOut(seg(t, 0, 0.14)), outK = easeIn(seg(t, 0.48, 0.68));
+      s.position.copy(wp(0.1, lerp(1.3, 0.4, inK) + outK * 1.3, -0.05));
+      s.rotation.set(lerp(-0.95, -0.75, inK), 0, lerp(0.15, 0, inK));
+      pull1 = 0.46; pullDir = [0, 1, 0]; pullLen = 0.55;
+    } else if (v === 2) { // 프리스비: 왼쪽 앞에서 슬리브, 판이 튀어나와 플래터 둘레를 돌며 빙글빙글 내려앉음
+      const inK = easeOut(seg(t, 0, 0.12)), outK = easeIn(seg(t, 0.4, 0.58));
+      s.position.copy(wp(lerp(-1.2, -0.7, inK) - outK * 1.0, 0.35 + outK * 0.1, lerp(0.35, 0.25, inK)));
+      s.rotation.set(-Math.PI / 2 + 0.45, 0, lerp(-0.4, 0.1, inK) - outK * 0.5);
+      pull0 = 0.14; pull1 = 0.32; pullDir = [1, 0, 0]; pullLen = 0.6;
+    } else if (v === 3) { // 공중 한 바퀴: 앞쪽 아래에서 올라온 슬리브에서 판이 뒤로 빠져 높이 떠서 한 바퀴 뒤집혀 내려앉음
+      const inK = easeOut(seg(t, 0, 0.14)), outK = easeIn(seg(t, 0.46, 0.64));
+      s.position.copy(wp(0.45, lerp(-0.3, 0.3, inK) - outK * 0.7, lerp(0.8, 0.35, inK) + outK * 0.4));
+      s.rotation.set(-Math.PI / 2 + 0.6, 0, lerp(0.35, -0.05, inK));
+      pull1 = 0.42; pullDir = [0, 1, 0]; pullLen = 0.7;
+    } else { // 쏟기: 오른쪽 위에서 슬리브가 기울고 흔들리며 판이 아래로 미끄러져 나옴
+      const wk = seg(t, 0.18, 0.5), inK = easeOut(seg(t, 0, 0.16)), outK = easeIn(seg(t, 0.5, 0.7));
+      s.position.copy(wp(lerp(1.1, 0.45, inK) + outK * 1.0, lerp(0.9, 0.6, inK) + outK * 0.5, -0.1));
+      s.rotation.set(lerp(-0.4, -0.2, inK), 0, lerp(0.1, -0.55, ease(seg(t, 0.1, 0.3))) + Math.sin(wk * Math.PI * 3) * 0.05 * (1 - wk));
+      pull0 = 0.2; pull1 = 0.5; pullDir = [-0.55, -0.83, 0]; pullLen = 0.8;
+    }
+    s.visible = t < 0.72;
+    if (d.handed) return;
+    const spin = -Math.PI * (v === 2 ? 6 : 2) * ease(seg(t, pull1, 0.84));
+    disc.visible = t >= pull0;
+    // 마지막: 플래터 위 0.12에서 똑바로 내려앉음(handed에서 rotation.y를 읽으므로 Euler로 둔다)
+    if (t >= 0.76) { disc.position.copy(wp(0, REC_Y + 0.12 - easeIn(seg(t, 0.76, 0.84)) * 0.12, 0)); disc.rotation.set(0, spin, 0); return; }
+    // 슬리브 속 자리(슬리브 면 바로 뒤, 같은 방향). 뽑는 동안 슬리브는 멈춰 있으므로 pull1 전의 자세를 기억해 둔다
+    if (t < pull1 || !d.sp) { d.sp = s.position.clone(); d.sq = s.quaternion.clone(); }
+    _n.copy(_Z).applyQuaternion(d.sq); _u.set(pullDir[0], pullDir[1], pullDir[2]).applyQuaternion(d.sq);
+    const out = d.sp.clone().addScaledVector(_n, -0.02).addScaledVector(_u, pullLen * ease(seg(t, pull0, pull1)));
+    _q1.copy(d.sq).multiply(_qx);
+    if (t < pull1) { disc.position.copy(out); disc.quaternion.copy(_q1); return; }
+    const k = ease(seg(t, pull1, 0.76)), dst = wp(0, REC_Y + 0.12, 0);
+    if (v === 2) {
+      const r0 = Math.hypot(out.x - dst.x, out.z - dst.z), a0 = Math.atan2(out.z - dst.z, out.x - dst.x), r = r0 * (1 - k), a = a0 - k * Math.PI * 1.6;
+      disc.position.set(dst.x + Math.cos(a) * r, lerp(out.y, dst.y, k) + Math.sin(k * Math.PI) * 0.12, dst.z + Math.sin(a) * r);
+    } else {
+      disc.position.lerpVectors(out, dst, k); disc.position.y += Math.sin(k * Math.PI) * (v === 3 ? 0.35 : 0.15);
+    }
+    _q2.setFromAxisAngle(_Y, spin);
+    disc.quaternion.slerpQuaternions(_q1, _q2, k);
+    if (v === 3) disc.quaternion.premultiply(_q3.setFromAxisAngle(_X, Math.PI * 2 * k));
+    if (v === 2) disc.quaternion.premultiply(_q3.setFromAxisAngle(_Z, Math.sin(k * Math.PI) * 0.35));
+  }
+
   function stepDrop(now) {
     const d = drop, T = d.slam ? 1900 : 3000, t = (D._at != null ? D._at : now - d.t0) / T; // D._at: 화면 확인용으로 시점 고정(ms)
     const P = PLATTER, wp = (x, y, z) => new THREE.Vector3(P.x + x, y, P.z + z);
     if (d.old) { const k = seg(t, 0, d.slam ? 0.3 : 0.12); d.old.position.y = REC_Y + easeIn(k) * (d.slam ? 0 : 0.5); d.old.userData.mats.forEach((m) => { m.transparent = true; m.opacity = 1 - k; }); if (k >= 1) { d.old.parent && d.old.parent.remove(d.old); d.old = null; } }
-    if (!d.slam) {
+    if (!d.slam && d.v) albumPath(d, t, wp);
+    else if (!d.slam) {
       const s = d.sleeve, disc = d.disc;
-      // 슬리브: 오른쪽 위에서 들어와 플래터 위 높이 0.55에 머물다 오른쪽으로 빠짐
+      // 0번(기본) 옆으로 꺼내기. 슬리브: 오른쪽 위에서 들어와 플래터 위 높이 0.55에 머물다 오른쪽으로 빠짐
       const inK = easeOut(seg(t, 0, 0.1)), outK = easeIn(seg(t, 0.5, 0.7));
       s.position.copy(wp(lerp(0.95, 0.4, inK) + outK * 1.3, 0.34 + outK * 0.12, lerp(-0.05, 0.02, inK)));
       s.rotation.set(-Math.PI / 2 + 0.25, 0, lerp(0.5, -0.06, inK) + outK * 0.4);
@@ -871,6 +926,7 @@ function start() {
   // 판 갈기에 쓸 새 판·슬리브를 미리 만들어 둔다(크레이트에서 고른 판). 누르는 순간엔 그리기 없이 바로 시작
   const preKey = (a, slam) => [a.id, a.img, slam ? 1 : 0, (a.tracks || []).map((f) => f.toFixed(3)).join(','), (a.p || 0) >> 2].join('|');
   let pre = null; // { k, disc, sleeve, L }
+  let lastDropV = -1;
   function build(a, slam, img) {
     const disc = makeRecord();
     const L = { name: a.name, artist: a.artist, img: a.img, tracks: a.tracks || null };
@@ -898,7 +954,10 @@ function start() {
     let old = null;
     if (record) { old = record; const wpos = new THREE.Vector3(); old.getWorldPosition(wpos); old.parent.remove(old); old.position.copy(wpos); scene.add(old); record = null; }
     label = L;
-    drop = { t0: performance.now(), slam: !!slam, sleeve, disc, old, handed: false, key: [L.name, L.artist, L.img, (L.tracks || []).map((f) => f.toFixed(3)).join(',')].join('|') };
+    // 앨범은 판 갈기 모션 0~4 중 바로 전과 다른 하나(D._dropV로 고정 가능: 화면 확인용)
+    let v = 0;
+    if (!slam) { if (D._dropV != null) v = D._dropV; else { do { v = Math.floor(Math.random() * 5); } while (v === lastDropV); } lastDropV = v; }
+    drop = { v, t0: performance.now(), slam: !!slam, sleeve, disc, old, handed: false, key: [L.name, L.artist, L.img, (L.tracks || []).map((f) => f.toFixed(3)).join(',')].join('|') };
     preparing = 0;
   };
   D.setPlaying = (on, prog) => { playing = !!on; if (Number.isFinite(prog)) progress = prog; };
