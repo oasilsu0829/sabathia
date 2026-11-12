@@ -3,6 +3,7 @@
 // 좌표: +Y 위 +Z 앞. 본체 2.3 x 1.7 x 0.72. 카세트 칸 중심 (-0.47, 0), 문은 아래 경첩으로 열림(0.46 rad)
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from '../3d/geometries/RoundedBoxGeometry.js';
+import { buildSea } from './sea.js';
 
 export const TAPES = ['mondrian', 'enso', 'jack', 'prism', 'wave', 'target', 'bauhaus', 'pastel', 'popart', 'holo', 'galaxy', 'stripes70', 'sunburst', 'marble', 'brutal', 'checker', 'memphis', 'acrylic'];
 // 잼마다 다른 카세트: 잼 id로 고르고 바로 앞 잼과 겹치지 않게
@@ -243,18 +244,27 @@ for (const y of [0.42, 0.1]) { const kn = add(new THREE.Mesh(new THREE.CylinderG
 for (const x of [-0.95, 0.95]) add(new THREE.Mesh(new RoundedBoxGeometry(0.2, 0.03, 0.5, 2, 0.01), black), x, -BH / 2 - 0.015, 0);
 
 
+// ---------- 배경: 어둑한 바다 위 낚싯배, 생선 상자 위의 라디오 (sea.js) ----------
+const seaW = buildSea(THREE, { scene, r, R, key, floor, hub, FZ, tex });
+
 // ---------- 카메라 · 그리기 ----------
-const cam = new THREE.PerspectiveCamera(24, 1, 0.1, 50);
-let aspect = 1, dirty = true, playing = false, prog = 0, last = 0, alive = true;
-const look = new THREE.Vector3(0, 0.02, 0), ptr = { x: 0, y: 0, tx: 0, ty: 0 };
+// 캔버스는 화면 전체(바다가 J카드 뒤까지). 라디오는 setFrame으로 받은 칸(비율) 가운데에 오도록 setViewOffset으로 민다
+const cam = new THREE.PerspectiveCamera(24, 1, 0.1, 500);
+let aspect = 1, dirty = true, playing = false, prog = 0, last = 0, alive = true, cw = 1, ch = 1;
+const look = new THREE.Vector3(0.1, -0.62, 0), ptr = { x: 0, y: 0, tx: 0, ty: 0 }, frameR = { x: 0, y: 0, w: 1, h: 1 };
+const LOWRES = 340;
+const dir = new THREE.Vector3(-0.27, 0.12, 1).normalize(), TAN = Math.tan(THREE.MathUtils.degToRad(12));
 function place() {
-  const d = Math.max(5.6, 7.0 / aspect); // 본체(2.3 x 2.1, 손잡이 포함)가 칸에 꽉 차게
-  cam.position.set(-1.5 + ptr.x * 0.45, 0.85 + ptr.y * 0.28, d); cam.lookAt(look);
+  const d = Math.max(6, 3.9 / (2 * TAN * frameR.h), 5.2 / (2 * TAN * aspect * frameR.w)); // 라디오 + 상자 + 등불 + 펭귄이 칸에 들어오게
+  cam.position.copy(dir).multiplyScalar(d).add(look); cam.position.x += ptr.x * 0.45; cam.position.y += ptr.y * 0.25; cam.lookAt(look);
+  const ox = cw / 2 - (frameR.x + frameR.w / 2) * cw, oy = ch / 2 - (frameR.y + frameR.h / 2) * ch;
+  cam.setViewOffset(cw, ch, ox, oy, cw, ch);
 }
+function setFrame(x, y, w, h) { Object.assign(frameR, { x, y, w: Math.max(0.1, w), h: Math.max(0.1, h) }); dirty = true; }
 function resize() {
   const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
-  r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); r.setSize(w, h, false);
-  aspect = w / h; cam.aspect = aspect; cam.updateProjectionMatrix(); dirty = true;
+  r.setPixelRatio(Math.max(0.2, Math.min(1, LOWRES / h))); r.setSize(w, h, false); // 세로 LOWRES 픽셀로 그리고 CSS로 키운다(image-rendering: pixelated)
+  cw = w; ch = h; aspect = w / h; cam.aspect = aspect; cam.updateProjectionMatrix(); dirty = true;
 }
 const ro = new ResizeObserver(resize); ro.observe(canvas); resize();
 
@@ -343,25 +353,28 @@ function frame(now) {
   if (!alive) return;
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - (last || now)) / 1000);
+  if (document.hidden) return;
   for (const tw of [...tweens]) { const t = Math.min(1, (now - tw.t0) / tw.ms); tw.fn(t); if (t >= 1) { tweens.delete(tw); tw.ok(); } }
   const busy = tweens.size > 0;
   if (Math.abs(ptr.tx - ptr.x) + Math.abs(ptr.ty - ptr.y) > 0.002 && !still.matches) { ptr.x += (ptr.tx - ptr.x) * 0.08; ptr.y += (ptr.ty - ptr.y) * 0.08; dirty = true; }
+  if (now - last < (playing || busy ? 33 : 42)) return; // 바다가 늘 움직이니 계속 그린다: 재생 중 30fps, 아니면 24fps
+  seaW.update(now, dt, playing && !!tape);
   if (playing && tape) {
-    if (now - last < 33 && !busy) return; // 재생 중 30fps
     const v = 0.11 * dt;
     tape.userData.hub0.rotation.z -= v / rad(1 - prog); tape.userData.hub1.rotation.z -= v / rad(prog);
     spindles[0].rotation.z = tape.userData.hub0.rotation.z; spindles[1].rotation.z = tape.userData.hub1.rotation.z;
     if (!still.matches) { const k = 1 + 0.025 * Math.max(0, Math.sin(now / 230)) ** 6; hub.scale.set(k, k, 1); } // 스피커가 박자처럼 살짝 떨림
     dirty = true;
   }
-  if (!dirty && !busy) { last = now; return; }
   last = now; dirty = false;
   place(); r.render(scene, cam);
 }
 requestAnimationFrame(frame);
 
 return Object.assign(api, {
-  setTape, insert, eject, setDoor, setPlaying, setProgress, press, tap, latch, resize,
+  setTape, insert, eject, setDoor, setPlaying, setProgress, press, tap, latch, resize, setFrame,
+  penguinAct() { seaW.peng.act(); },
+  penguinAt() { const v = seaW.peng.head().clone().project(cam); return { x: (v.x + 1) / 2 * cw, y: (1 - v.y) / 2 * ch, on: v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05 }; },
   get tapeKey() { return tape ? tape.userData.key : ''; },
   dispose() { alive = false; ro.disconnect(); r.dispose(); },
 });

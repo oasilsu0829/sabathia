@@ -113,6 +113,9 @@ public/music/       음악 (MUS-09, 2026-11-11). Spotify 플레이어. Stitch �
                       건반(3D 누름): PLAY · PAUSE · FF 다음 · REW 이전 · REC(장식, 잼 중 걸려 있음) · STOP/EJ 멈춤, 멈춘 채 한 번 더(또는 J카드 '잼 끝' 두 번) = 문이 열리고 테이프가 튀어나와 JAM 크레이트(c-jam)에 꽂힘. 키보드: 스페이스 · ←/→ · ?
                       카세트 디자인 18종(jam/tapes/*.webp = Stitch "Cassette Front Cover Designs" 마지막 판에서 잘라냄, shell.json = 옆면 색; 투명 아크릴만 코드로). 잼 id로 고르고 바로 전 잼(music.jamTape)과 겹치지 않게(tapeFor)
                       JAM 크레이트 항목은 k 'pl' + t(카세트 키, merge.js가 남김). 크레이트에서 누르면 턴테이블 대신 카세트로 다시 듣기(replay). 진행 중 잼은 music.jam에 저장 → 새로고침해도 이어 함. 잼 중엔 숨은 턴테이블의 판 갈기 모션을 하지 않음(window.MusicJamOn)
+                      배경(2026-11-12 사용자 요청, jam/sea.js): 어둑한 망망대해 위 낚싯배. 라디오는 갑판 위 생선 상자(No.7)에, 왼쪽 등불(따뜻한 점광원·깜빡임), 밧줄 사리, 뱃전. 하늘·별·흐린 달, 물결 셰이더(사인파 4개, 해석적 법선, 달빛 길, 안개). 바다·하늘이 천천히 기울어 배가 흔들리는 느낌. 캔버스는 화면 전체, 라디오는 setFrame(왼쪽 칸)에 setViewOffset으로 맞춤
+                      'Loan Shark 느낌'(사용자 요청, 분위기만): 탁한 초록빛 밤바다·짙은 안개, 세로 340px로 그려 CSS pixelated로 키움(LOWRES) + 4x4 바이어 디더 겹침(.jam-dith). 재생 중 스피커에서 음표(♪♫♬♩ 스프라이트)가 피어오름
+                      황제펭귄(사용자 요청): 갑판 오른쪽, 음악에 맞춰 까딱. 5분 넘게 친구가 곡을 안 넣었고(혼자) 지금 곡이 마지막이면 잼 안 아티스트(없으면 잼 시작 전에 듣던 아티스트, cur.seed)로 곡을 찾아 없는 곡 하나를 넣음(곡마다 한 번). 폴짝+퍼덕(penguinAct)+말풍선(penguinAt로 머리 위치)+꽥 소리. J카드에 '황제펭귄'(music.jam.peng에 uri)
                       index.html이 window.MusicCore(api·toast·LS·targetDevice·state·poll·saveJam·relogin)를 넘겨준다. 효과음은 jam.js 안 합성(music.sfx 따름): 스위치·핀 조명·문·꽂힘·건반·감기·펜
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
