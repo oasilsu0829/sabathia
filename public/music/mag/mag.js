@@ -167,7 +167,7 @@ async function loadIssue(it) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const link = doc.querySelector('link[rel=stylesheet]');
   if (link && !document.querySelector(`link[href="${link.href}"]`)) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = link.getAttribute('href'); document.head.appendChild(l); }
-  const css = [...doc.querySelectorAll('style')].map((s) => s.textContent).join('\n').replace(/:root\s*\{/g, '.iss{');
+  const css = [...doc.querySelectorAll('style')].map((s) => s.textContent).join('\n').replace(/:root\s*\{/g, `.iss-${it.id}{`);
   const sp = [...doc.querySelectorAll('template.sp')].map((t) => t.innerHTML);
   const v = { css, sp };
   issueCache.set(it.id, v); return v;
@@ -194,7 +194,7 @@ async function home() {
     const shelves = mags.map((m) => {
       const its = list.filter((x) => x.mag === m.mag && read[x.id]);
       return `<div class="shelf"><h3><span>${m.name} — ${m.publisher}</span><span>${its.length}권</span></h3>
-        <div class="ledge">${its.length ? its.map((x) => `<button class="mini" type="button" data-id="${x.id}"><div class="cv iss" data-cv="${x.id}"></div><small><b>${x.vol}</b> · ${x.date}<br>${x.title}</small></button>`).join('') : '<span class="empty" style="margin:20px 0">아직 꽂힌 호가 없습니다</span>'}</div><div class="board"></div></div>`;
+        <div class="ledge">${its.length ? its.map((x) => `<button class="mini" type="button" data-id="${x.id}"><div class="cv iss iss-${x.id}" data-cv="${x.id}"></div><small><b>${x.vol}</b> · ${x.date}<br>${x.title}</small></button>`).join('') : '<span class="empty" style="margin:20px 0">아직 꽂힌 호가 없습니다</span>'}</div><div class="board"></div></div>`;
     }).join('');
     $('#vShelf').innerHTML = `<h2>책장</h2><p class="sub">읽은 호가 출판사별로 꽂힙니다. 누르면 바로 펼칩니다.</p>${shelves}`;
     for (const b of sh.querySelectorAll('.mini')) b.addEventListener('click', () => openRead(list.find((x) => x.id === b.dataset.id)));
@@ -253,8 +253,9 @@ function measure() {
 // 펼침 하나를 두 배 폭으로 그리고 반쪽만 보이게 한다 → 어떤 레이아웃이든 한 쪽씩 넘길 수 있다
 const half = (i, side) => {
   if (i < 0 || i >= spreads.length) return '';
-  if (i === 0) return `<div class="spw iss" style="left:0;width:100%">${spreads[0]}</div>`;
-  return `<div class="spw iss" style="left:${side === 'L' ? '0' : '-100%'};width:200%">${spreads[i]}</div>`;
+  const c = `spw iss iss-${cur.id}`;
+  if (i === 0) return `<div class="${c}" style="left:0;width:100%">${spreads[0]}</div>`;
+  return `<div class="${c}" style="left:${side === 'L' ? '0' : '-100%'};width:200%">${spreads[i]}</div>`;
 };
 function pagesList() { // 좁은 화면: 표지 + 펼침마다 왼쪽·오른쪽
   const out = [[0, 'C']];
