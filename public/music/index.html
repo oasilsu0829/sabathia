@@ -408,6 +408,11 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 .dlg ol a { color: var(--ink); }
 .dlg label { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
 .dlg input[type="text"] { min-height: 44px; padding: 0 12px; border: 1px solid var(--z300); border-radius: 8px; font-family: var(--mono); font-size: 13px; letter-spacing: 0; color: var(--ink); background: var(--z50); }
+.cidrow { display: flex; gap: 8px; }
+.cidrow input { flex: 1; min-width: 0; }
+.cidrow .btn { min-height: 44px; flex: none; }
+.dlg #cid.ok { border-color: #16a34a; background: #f0fdf4; }
+.note.ok { color: #16a34a; }
 .copy { display: flex; gap: 8px; align-items: center; }
 .copy code { flex: 1; min-width: 0; padding: 10px 12px; background: var(--z100); border-radius: 8px; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
 .dlg .acts { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -749,12 +754,14 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
       <ol>
         <li><a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>에서 Create app</li>
         <li>Redirect URI에 아래 주소를 그대로 넣고, API는 <b>Web API</b>와 <b>Web Playback SDK</b>를 체크 → 저장</li>
-        <li>앱 Settings의 <b>Client ID</b>를 복사해 아래 칸에 붙여넣기</li>
+        <li>앱 Settings에서 <b>Client ID</b>를 복사 → 이 화면으로 돌아와 <b>붙여넣기</b> (맞는 값이면 바로 로그인으로 넘어감)</li>
         <li>로그인 → Spotify 화면에서 동의</li>
       </ol>
     </div>
     <div class="copy"><code id="redir"></code><button class="btn" type="button" id="copyBtn">복사</button></div>
-    <label>CLIENT ID<input type="text" id="cid" autocomplete="off" spellcheck="false" placeholder="32자리 영문·숫자"></label>
+    <label for="cid">CLIENT ID</label>
+    <div class="cidrow"><input type="text" id="cid" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="여기를 길게 눌러 붙여넣기"><button class="btn dark" type="button" id="pasteBtn">붙여넣기</button></div>
+    <p class="note" id="cidNote">Spotify 앱 Settings에서 Client ID 옆 복사를 누른 뒤 여기로 돌아와 '붙여넣기'. 앞뒤 글자나 공백이 섞여도 32자리만 골라 넣습니다.</p>
     </div>
     <div class="acts">
       <button class="btn dark" type="button" id="loginBtn">Spotify로 로그인</button>
@@ -876,6 +883,33 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   // 로그인 안 된 채 무언가를 누르면: Client ID를 알면 바로 Spotify로, 모르면 설정 창
   async function connect() {
     if (await fetchCid()) login(); else openDlg();
+  }
+
+  // 붙여넣은 글에서 Client ID(32자리 16진수)만 골라낸다. 'Client ID: abc…' 같은 줄이나 공백이 섞여도 됨
+  const pickCid = (t) => {
+    t = String(t || '');
+    const exact = /(?<![0-9a-f])[0-9a-f]{32}(?![0-9a-f])/i; // 앞뒤가 16진수가 아닌 딱 32자리
+    const m = t.match(exact) || t.replace(/[\s-]+/g, '').match(/^[0-9a-f]{32}$/i); // 줄바꿈·공백으로 쪼개진 것만 있는 경우
+    return m ? m[0].toLowerCase() : '';
+  };
+  function checkCid(auto) {
+    const i = $('cid'), n = $('cidNote'), raw = i.value, c = pickCid(raw);
+    if (c && c !== raw) i.value = c;
+    const ok = !!c;
+    i.classList.toggle('ok', ok); n.classList.toggle('ok', ok); n.classList.toggle('warn', !ok && !!raw.trim());
+    n.textContent = ok ? 'Client ID 확인됨' + (auto ? ' · Spotify로 넘어갑니다' : ' · 아래 로그인 버튼을 누르세요')
+      : raw.trim() ? '32자리 영문·숫자를 찾지 못했습니다. Client ID를 다시 복사해 주세요'
+      : "Spotify 앱 Settings에서 Client ID 옆 복사를 누른 뒤 여기로 돌아와 '붙여넣기'. 앞뒤 글자나 공백이 섞여도 32자리만 골라 넣습니다.";
+    return ok;
+  }
+  async function pasteCid() {
+    let t = '';
+    try { t = await navigator.clipboard.readText(); } catch {
+      toast('클립보드를 읽지 못했습니다. 입력칸을 길게 눌러 붙여넣으세요'); $('cid').focus(); return;
+    }
+    $('cid').value = pickCid(t) || t.trim(); // 줄바꿈이 남아 있을 때 골라야 'Client ID' 글자와 안 붙는다
+    // 제대로 된 값이면 잠깐 보여 주고 바로 로그인
+    if (checkCid(true)) setTimeout(login, 700);
   }
 
   async function login() {
@@ -2291,7 +2325,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   function openDlg(edit) {
     const known = !!clientId() && !edit;
     $('setup').hidden = known; $('easyNote').hidden = !known || loggedIn(); $('cidBtn').hidden = !known;
-    $('cid').value = clientId(); $('redir').textContent = REDIRECT; renderAuth();
+    $('cid').value = clientId(); checkCid(); $('redir').textContent = REDIRECT; renderAuth();
     if (!$('dlg').open) $('dlg').showModal();
   }
   Sabathia.back = () => {
@@ -2308,6 +2342,13 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   $('copyBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(REDIRECT); toast('주소를 복사했습니다', 1800); } catch { toast(REDIRECT); } });
   $('loginBtn').addEventListener('click', login);
   $('cidBtn').addEventListener('click', () => openDlg(true));
+  $('pasteBtn').addEventListener('click', pasteCid);
+  $('cid').addEventListener('input', () => checkCid());
+  $('cid').addEventListener('paste', (e) => {
+    const c = pickCid(e.clipboardData && e.clipboardData.getData('text'));
+    if (c) { e.preventDefault(); $('cid').value = c; }
+    setTimeout(() => { if (checkCid(true)) setTimeout(login, 700); }, 0);
+  });
   $('logoutBtn').addEventListener('click', () => { logout(); $('dlg').close(); });
   $('goBtn').addEventListener('click', toggle);
   $('playBtn').addEventListener('click', toggle);
