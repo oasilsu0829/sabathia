@@ -1,0 +1,13 @@
+{
+  "issues": [
+    {
+      "id": "drop-01", "dir": "drop-01", "mag": "drop", "name": "Drop", "vol": "Vol.01", "date": "2026.11.13",
+      "title": "같은 방, 다시 — U2 [Carnaval de Luz] 6.5", "publisher": "드롭 레코드", "color": "#f59ad6", "singles": 5,
+      "crate": { "id": "c-pub-drop", "name": "드롭 레코드", "o": 901 },
+      "tracks": [
+        { "t": "Go (Carnaval De Luz)", "a": "U2" }, { "t": "Silencio", "a": "U2" }, { "t": "The Mirror Maker", "a": "U2" },
+        { "t": "Torn", "a": "U2" }, { "t": "I Zimbra", "a": "Talking Heads" }
+      ]
+    }
+  ]
+}
