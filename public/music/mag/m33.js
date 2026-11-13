@@ -103,7 +103,7 @@ export async function build(C) {
   </div></div>`);
 
   /* 01 편집장의 글 + 차례 */
-  const toc = [['2', '이달의 한 줄'], ['4', 'TOP 20'], ['5', '이달의 1위'], ['6', '언제 듣나'], ['7', '아티스트 다섯'], ['8', '허세 카드'], ['10', '부록 · 이달의 싱글']];
+  const toc = [['2', '이달의 한 줄'], ['4', 'TOP 20'], ['5', '이달의 1위'], ['6', '언제 듣나'], ['7', '아티스트 다섯'], ['8', '허세 카드'], ['10', '부록 · 이달의 LP']];
   sp.push(`<div class="spread"><div class="pg L">${rh('From the chart desk', `33⅓ · ${mon}`)}
       <div class="jt" style="position:absolute;left:7cqw;right:7cqw;top:11cqw;font-size:8cqw;line-height:1;color:#1f2a8a">YOUR ${esc(['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'][now.getUTCMonth()])}.</div>
       <div style="position:absolute;left:7cqw;right:7cqw;top:24cqw;font-family:var(--body);font-weight:900;font-size:4.6cqw;line-height:1.3">${esc(d.name)}의 ${mon}을 셌다</div>
@@ -161,8 +161,8 @@ export async function build(C) {
   const tracks = d.tops.slice(0, 5).map((t) => ({ t: t.n, a: t.a, uri: t.uri, img: t.img }));
   sp.push(`<div class="spread"><div class="pg L">${rh('Supplement', '부록')}
       <div class="jt" style="position:absolute;left:6cqw;top:9cqw;font-size:12cqw;line-height:1;color:#d62718">SUPPLEMENT</div>
-      <div class="body2" style="position:absolute;left:7cqw;right:7cqw;top:24cqw;font-size:2.4cqw"><p class="ni">이달의 TOP 5를 7인치 한 장에 담았다. 테이프를 떼면 Spotify에 플레이리스트가 만들어지고, 사바시아 출판 크레이트에 한 장으로 꽂힌다.</p></div>
+      <div class="body2" style="position:absolute;left:7cqw;right:7cqw;top:24cqw;font-size:2.4cqw"><p class="ni">이달의 TOP 5를 LP 한 장에 담아 투명 비닐째 붙였다. 테이프를 떼면 Spotify에 플레이리스트가 만들어지고, 사바시아 출판 크레이트에 한 장으로 꽂힌다.</p></div>
       <div style="position:absolute;left:7cqw;right:7cqw;top:42cqw">${tracks.map((t, i) => `<div style="display:grid;grid-template-columns:8cqw 1fr;gap:2cqw;border-top:.15cqw solid rgba(18,18,18,.18);padding:2cqw 0"><span style="font-family:var(--mono);font-size:2.6cqw;color:#d62718">${i < 3 ? 'A' : 'B'}${i < 3 ? i + 1 : i - 2}</span><span><b style="font-family:var(--body);font-weight:900;font-size:3.2cqw">${esc(t.t)}</b><span class="cap" style="display:block">${esc(t.a)}</span></span></div>`).join('')}</div>${folio(10)}</div>
-    <div class="pg R" style="background:#f2eee4">${bigSingle(`33⅓ ${mon} — 부록 7"`, tracks, 12, 22, -3, 74)}${folio(11)}</div></div>`);
+    <div class="pg R" style="background:#f2eee4">${bigSingle(`33⅓ ${mon} — 부록 LP`, tracks, 12, 22, -3, 74)}${folio(11)}</div></div>`);
   return { sp, tracks };
 }

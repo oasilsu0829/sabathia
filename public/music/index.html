@@ -544,6 +544,8 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
 .lpmeta .lt { margin: 0; font-size: clamp(20px, 3.2vw, 40px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
 .lpmeta .la { margin: 6px 0 0; font-size: clamp(13px, 1.5vw, 18px); opacity: .7; }
 @media (prefers-reduced-motion: reduce) { body.lpfull .deckp .strip { transition: none; } }
+/* 잡지를 보는 동안 뒤 앱은 그리지 않는다(아이폰 사파리 메모리) */
+body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > footer { display: none !important; }
 </style>
 </head>
 <body>
@@ -1114,7 +1116,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     el.querySelector('.cb-img').style.backgroundImage = bg(a.img);
   }
   const uriOf = (a) => (isPl(a) ? 'spotify:playlist:' : 'spotify:album:') + a.id;
-  const metaLine = (a) => (isPl(a) ? ['플레이리스트', a.artist, a.n ? a.n + '곡' : ''] : [a.artist, a.year, a.n ? a.n + '곡' : '']).filter(Boolean).join(' · ');
+  const metaLine = (a) => (isPl(a) ? [a.m ? '부록 LP' : '플레이리스트', a.artist, a.n ? a.n + '곡' : ''] : [a.artist, a.year, a.n ? a.n + '곡' : '']).filter(Boolean).join(' · ');
   // 지금 판 = 플레이리스트로 틀었으면 플레이리스트, 아니면 곡의 앨범
   const ctxKey = (st) => {
     const it = st && st.item; if (!it) return '';
@@ -1214,7 +1216,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
       if (el) { el.classList.remove('shine'); void el.offsetWidth; el.classList.add('shine'); }
       const ci = $('cinfo'); ci.innerHTML = '';
       const b = document.createElement('b'); b.textContent = a.name;
-      ci.append(b, [isPl(a) ? '플레이리스트' : 'LP', a.year, a.n ? a.n + '곡' : '', a.p ? a.p + '번 들음' : ''].filter(Boolean).join(' · '));
+      ci.append(b, [a.m ? '부록 LP' : isPl(a) ? '플레이리스트' : 'LP', a.year, a.n ? a.n + '곡' : '', a.p ? a.p + '번 들음' : ''].filter(Boolean).join(' · '));
       setTimeout(() => ci.classList.add('on'), 450);
     }, 260);
   }
@@ -1257,8 +1259,9 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
       want.add(a.id);
       let e = have.get(a.id);
       if (!e) {
-        e = document.createElement('div'); e.className = 'lp' + (isPl(a) ? ' pl cb' : ''); e.dataset.k = a.id;
-        if (isPl(a)) fillClip(e, a);
+        e = document.createElement('div'); const clip = isPl(a) && !a.m; // 잡지 부록 LP는 플레이리스트여도 판(투명 비닐 커버)
+        e.className = 'lp' + (clip ? ' pl cb' : '') + (a.m ? ' mg' : ''); e.dataset.k = a.id;
+        if (clip) fillClip(e, a);
         else { e.style.backgroundImage = bg(a.img); e.innerHTML = '<span class="bk">SABATHIA RECORDS</span><i class="sheen"></i>'; }
         recs.appendChild(e);
       }
@@ -1274,7 +1277,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     if (loggedIn()) A.slice(i0, i0 + 2).forEach((x) => fetchTracks(uriOf(x)).catch(() => {}));
     // 지금 고른 판은 3D 새 판·슬리브까지 미리 만들어 둔다(누르는 순간 바로 모션)
     if (a && window.Deck3D && Deck3D.prebuild) {
-      const k2 = uriOf(a), mk = () => Deck3D.prebuild({ ...a, tracks: gapsOf(tkDone.get(k2)) }, isPl(a) && !a.sealed);
+      const k2 = uriOf(a), mk = () => Deck3D.prebuild({ ...a, tracks: gapsOf(tkDone.get(k2)) }, isPl(a) && !a.sealed && !a.m);
       clearTimeout(S.preT); S.preT = setTimeout(() => { mk(); if (loggedIn() && !tkDone.has(k2)) fetchTracks(k2).then(mk).catch(() => {}); }, 150);
     }
     $('pickT').textContent = a ? a.name : c.name;
@@ -1282,7 +1285,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     $('crateIdx').textContent = A.length ? `${i0 + 1}/${A.length}` : '0/0';
     $('prevLp').disabled = i0 <= 0; $('nextLp').disabled = i0 >= A.length - 1;
     $('playLp').disabled = $('pullLp').disabled = !a;
-    $('playLp').lastChild.textContent = isPl(a) ? '이 플레이리스트 듣기' : '이 앨범 듣기';
+    $('playLp').lastChild.textContent = a && a.m ? '이 부록 LP 듣기' : isPl(a) ? '이 플레이리스트 듣기' : '이 앨범 듣기';
   }
   // 한 칸 넘기기(버튼·키·휠). 움직이는 중이면 목표에 이어서 더한다. 끝이면 상자가 덜컹
   function flip(d) {
@@ -1876,7 +1879,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     S.pending = { ...a, key, at: Date.now(), trackUri: opt.trackUri || '' }; S.animFor = key; S.lastKey = key;
     stopDrop();
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { render(); return Promise.resolve(); }
-    const slam = isPl(a) && !a.sealed; // 밀봉 신보는 플레이리스트여도 판(슬리브) 모션
+    const slam = isPl(a) && !a.sealed && !a.m; // 밀봉 신보·잡지 부록 LP는 플레이리스트여도 판(슬리브) 모션
     const D = $('drop'), sl = $('dSleeve'), di = $('dDisc');
     // 3D 턴테이블이 떠 있으면 판 갈기는 3D가 하고(소리·흔들림 시각은 같다), 아니면 예전 CSS 모션
     const use3d = !!(window.Deck3D && Deck3D.ok);
@@ -2088,7 +2091,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     $('labA').textContent = L ? L.artist : (loggedIn() ? '크레이트에서 고르세요' : '눌러서 Spotify 연결');
     $('label').classList.toggle('art', !!(L && L.img));
     $('label').style.backgroundImage = bg(L && L.img);
-    if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img, tracks: (pend ? pend.key : key) && S.tracksFor === (pend ? pend.key : key) ? trackGaps() : null } : null);
+    if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img, m: L.m, tracks: (pend ? pend.key : key) && S.tracksFor === (pend ? pend.key : key) ? trackGaps() : null } : null);
     applyAmb((L && L.img) || '');
     renderNow(it, L, pend, on, key);
     $('topLed').classList.toggle('on', on);
@@ -2193,7 +2196,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     if (!it || !S.tkOn) return; // 처음 열 때는 건너뜀
     if (prevKey !== key) { // 판이 바뀌면: 판이 내려앉은 뒤 첫 곡 이름을 찍는다(바늘을 내리며 이미 찍었으면 건너뜀)
       if (S.typedFor === key) return;
-      const slamP = key.startsWith('spotify:playlist:') && !(meta[key] && meta[key].sealed);
+      const slamP = key.startsWith('spotify:playlist:') && !(meta[key] && meta[key].sealed) && !live().some((c) => c.albums.some((x) => x.m && uriOf(x) === key));
       setTimeout(() => typeOut(`▸ ${String(Math.max(1, trackIndex(it) + 1)).padStart(2, '0')}  ${it.name}`), slamP ? 1500 : 2700);
       return;
     }
