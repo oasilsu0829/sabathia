@@ -7,7 +7,7 @@ const LS = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 const BASE = '/music/mag/issues/';
-let root, sh, list = [], cur = null, spreads = [], state = 'home', tab = 'mail', k = 0, wide = false, leaves = [], torn = false;
+let root, sh, list = [], cur = null, spreads = [], state = 'home', tab = 'mail', k = 0, wide = false, leaves = [], torn = false, faces = [];
 const issueCache = new Map();
 const $ = (s) => sh.querySelector(s);
 
@@ -90,6 +90,7 @@ h2{margin:0 0 6px;font-family:'Noto Serif KR',Georgia,serif;font-weight:900;font
 .book{position:relative;width:var(--bkw);height:var(--ph);transition:transform .8s cubic-bezier(.3,.6,.2,1);touch-action:pan-y}
 .leaf{position:absolute;top:0;left:var(--lx);width:var(--pw);height:var(--ph);transform-origin:left center;transform-style:preserve-3d;transition:transform .85s cubic-bezier(.3,.6,.2,1)}
 .leaf.flipped{transform:rotateY(-180deg)}
+.leaf.far{display:none}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;background:#fbfaf6;box-shadow:0 18px 40px rgba(0,0,0,.45)}
 .face.back{transform:rotateY(180deg)}
 .face.front::before{content:"";position:absolute;inset:0;z-index:40;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.12),transparent 6%)}
@@ -102,7 +103,7 @@ h2{margin:0 0 6px;font-family:'Noto Serif KR',Georgia,serif;font-weight:900;font
 .wst{position:absolute;left:6%;bottom:24%;background:#f08a16;color:#fff;border-radius:50%;width:19%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;font-size:calc(var(--pw)*.026);line-height:1.25;transform:rotate(-10deg)}
 .tearl{position:absolute;height:3px;background:rgba(255,255,255,.9);box-shadow:0 0 6px rgba(255,255,255,.8);width:0;z-index:46;pointer-events:none}
 .shard{position:absolute;inset:-1.5%;z-index:46;pointer-events:none;transition:transform .9s cubic-bezier(.3,.6,.2,1),opacity .9s}
-.pgno{position:absolute;left:50%;bottom:max(14px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-family:monospace;font-size:12px;color:#b9b0a2;z-index:55}
+.pgno{position:absolute;left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom,0px)) + 30px);transform:translateX(-50%);font-family:monospace;font-size:12px;color:#b9b0a2;z-index:55}
 .nav{position:absolute;top:50%;z-index:55;width:44px;height:64px;margin-top:-32px;border:0;background:rgba(36,32,28,.35);border-radius:8px;cursor:pointer;font-size:22px}
 .nav.prev{left:max(6px,env(safe-area-inset-left,0px))}.nav.next{right:max(6px,env(safe-area-inset-right,0px))}
 @media (hover:none){.nav{display:none}}
@@ -291,14 +292,28 @@ function buildBook() {
   let groups;
   if (wide) { groups = [[half(0), half(1, 'L')]]; for (let i = 1; i < spreads.length; i++) groups.push([half(i, 'R'), half(i + 1, 'L')]); }
   else groups = pagesList().map(([i, s]) => [half(i, s), '']);
-  book.innerHTML = groups.map(([f, b], i) => `<div class="leaf"><div class="face front">${f}${i === 0 && state === 'wrap' && !torn ? wrapHTML() : ''}</div><div class="face back ${b ? '' : 'blank'}">${b}</div></div>`).join('');
+  // 아이폰 사파리는 3D 장이 많으면 메모리가 넘쳐 탭을 닫는다 → 지금 장 근처만 내용을 넣고(near) 나머지는 비워서 숨긴다
+  faces = groups.map(([f, b], i) => [f + (i === 0 && state === 'wrap' && !torn ? wrapHTML() : ''), b]);
+  book.innerHTML = groups.map(([, b]) => `<div class="leaf far"><div class="face front"></div><div class="face back ${b ? '' : 'blank'}"></div></div>`).join('');
   leaves = [...book.querySelectorAll('.leaf')];
+  near();
   if (state === 'wrap' && !torn) bindWrap();
   apply();
 }
 const wrapHTML = () => `<div class="wrapv" aria-label="비닐 포장. 가로로 그어서 뜯기"><div class="wst">부록 LP<br>1장 수록</div></div><div class="tearl"></div>`;
+const NEAR = 2;
+function near() {
+  leaves.forEach((L, i) => {
+    const on = (i >= k - NEAR && i <= k + NEAR) || (i === 0 && state === 'wrap');
+    if (on === !L.classList.contains('far')) return;
+    L.classList.toggle('far', !on);
+    const [fr, bk] = L.children;
+    fr.innerHTML = on ? (i === 0 && torn ? faces[0][0].replace(wrapHTML(), '') : faces[i][0]) : ''; bk.innerHTML = on ? faces[i][1] : '';
+  });
+}
 function apply(moving = -1) {
   const n = leaves.length;
+  near();
   leaves.forEach((L, i) => { L.classList.toggle('flipped', i < k); L.style.zIndex = i === moving ? 200 : (i < k ? i + 1 : n - i + 10); });
   if (moving >= 0) setTimeout(() => apply(), 880);
   $('#book').style.transform = wide && k === 0 ? 'translateX(calc(var(--pw) * -.5))' : '';
@@ -422,6 +437,8 @@ async function openRead(it) {
 function updateDot() { const d = document.getElementById('magDot'); if (d) d.hidden = !list.some((x) => !opened()[x.id]); }
 export async function open() {
   ensureRoot(); root.hidden = false; document.body.style.overflow = 'hidden';
+  // 뒤의 앱(3D 턴테이블·유리 칸)은 잡지를 보는 동안 그리지 않는다
+  document.body.classList.add('magon'); if (window.Deck3D && Deck3D.suspend) Deck3D.suspend(true);
   try { await loadList(); } catch { list = []; }
   tab = list.some((x) => !opened()[x.id]) ? 'mail' : 'shelf';
   home();
@@ -429,4 +446,6 @@ export async function open() {
 export function close() {
   if (!root) return;
   root.hidden = true; document.body.style.overflow = ''; state = 'home';
+  if (sh) { const b = sh.querySelector('#book'); if (b) b.innerHTML = ''; leaves = []; faces = []; }
+  document.body.classList.remove('magon'); if (window.Deck3D && Deck3D.suspend) Deck3D.suspend(false);
 }

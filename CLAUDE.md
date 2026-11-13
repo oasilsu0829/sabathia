@@ -135,6 +135,7 @@ public/music/mag/   잡지 MAG (2026-11-13). 위 줄 MAG 버튼 → mag.js(처�
                     - 첫 호 4권: Drop Vol.01(U2), feedback vol.01(Kings of Leon), Cypher Vol.01(Aesop Rock & Blockhead), 33⅓(유저별 자동, 정적 mo-00은 CSS만). 사진은 Flickr CC(Openverse 경유), 저작자는 각 호 판권 쪽
                     - 편집 방침·성격·로직: docs/magazine/ (editorial-logic.md, mags/*.md 바이블, logo-prompts.md). 시안 원본은 docs/magazine/issues/
                     - 지면 만드는 법(지금은 수작업): 세션 스크래치에서 HTML 시안 → 이미지 data URI를 파일로 빼고 펼침을 template으로 감싸 issue.html. 다음 단계는 예약 편집 세션이 자동으로
+                    - 아이폰 사파리 탭 닫힘 대응(2026-11-13, 친구 제보 '문제가 반복적으로 발생'): 메모리 초과. 책은 지금 장 ±2만 내용을 넣고 나머지 장은 비워 display:none(mag.js near(), faces). 잡지가 열려 있으면 body.magon으로 뒤 앱(header·main·.amb·footer)을 숨기고 Deck3D.suspend(true)로 3D를 멈춤(닫으면 되돌림)
                     - LP 전체화면(2026-11-13): 턴테이블 줄 '전체화면' 버튼 또는 F 키. body.lpfull → 턴테이블 칸이 화면을 덮고 3초 손대지 않으면 위·아래 줄이 사라짐(lpidle), 왼쪽 아래 곡 이름 크게. Esc로 나감
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)

@@ -768,6 +768,8 @@ function start() {
 
   function loop(now) {
     if (!parts) return;
+    // 잡지처럼 화면 전체를 덮는 것이 떠 있으면 그리지 않는다(아이폰 사파리 메모리)
+    if (D._off) { loop.last = now; setTimeout(() => requestAnimationFrame(loop), 500); return; }
     // 조용할 때(멈춤 · 움직이는 것 없음 · 2초 넘게 안 만짐)는 초당 10번, 덮개가 닫혔으면 초당 2번만 그린다
     const calm = !(playing || grab || drop || dragCtl || cue || brushT0 >= 0 || shakeT >= 0 || fx.gaps.length) &&
       vel < 0.005 && Math.abs(yaw) < 0.001 && lift < 0.0005 && Math.abs(cueUp - 1) < 0.005 &&
@@ -1001,6 +1003,7 @@ function start() {
   // 앨범 대표색: 밤 조명이 그 색을 조금 머금는다
   const warm = new THREE.Color(0xffd8a8), tintC = new THREE.Color(0xffd8a8);
   D.setTint = (hex) => { const h = hex || '#ffd8a8'; if (h === D.setTint.last) return; D.setTint.last = h; poke = performance.now(); tintC.copy(warm).lerp(new THREE.Color(h), 0.45); };
+  D.suspend = (on) => { D._off = !!on; renderer.domElement.style.display = on ? 'none' : ''; if (!on) { poke = performance.now(); resize(); } };
   D.grabbing = () => !!grab;
   D.dropping = () => !!drop;
   D.setLabel = (L) => { label = L; if (!drop && !preparing && record) applyLabel(); };
