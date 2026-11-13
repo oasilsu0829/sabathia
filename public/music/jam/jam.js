@@ -1,5 +1,7 @@
 // 잼 모드 (2026-11-12). 음악 앱 위에 화면 전체를 덮는다: 불이 꺼지고 카세트 라디오(3D)와 J카드(손글씨 셋리스트)만 남는다
-// - 잼 하나 = Spotify 공동 작업 플레이리스트 하나("JAM 11.12"). 친구는 Spotify 앱에서 곡을 넣고, 나는 J카드 빈 줄을 눌러 곡·앨범을 넣는다
+// - 잼 하나 = Spotify 공동 작업 플레이리스트 하나("JAM 11.12"). 나는 J카드 빈 줄을 눌러 곡·앨범을 넣는다
+// - 친구는 이 앱(/music/#jam)을 열면 손님 창(guest.js)에서 곡을 보낸다(Spotify 로그인·공동 작업자 초대 필요 없음).
+//   서버 대기열(/api/music/jam/add)에 쌓이면 이 화면이 4초마다 가져가 내 토큰으로 넣는다(pullGuests). 셋리스트·지금 곡은 서버에 올려 손님 창이 읽는다(publish)
 // - 4초마다 플레이리스트를 읽어 새 줄을 손글씨로 적는다. 지금 곡은 형광펜, 들은 곡은 줄을 긋는다. 곡이 바뀌면 앨범 표지 폴라로이드가 데크 옆에 꽂힌다
 // - 건반: PLAY 재생 · PAUSE 잠깐 · FF/REW 다음/이전 · REC 장식(녹음 중 표시) · STOP/EJ 멈춤, 멈춘 채 두 번 = 잼 끝(테이프가 튀어나와 JAM 크레이트로)
 // - 저장 music.jam = { id, tape, at, name, replay } (새로고침해도 잼이 이어진다), music.jamTape = 바로 전 잼 테이프(겹치지 않게)
@@ -283,6 +285,7 @@ async function enter(animate, autoplay) {
   J.items = []; J.seen = new Set(); J.lastUri = ''; J.started = false; $('jamPola').innerHTML = ''; renderList();
   if (animate) await d.insert(c.tape, (k) => sfx[k] && sfx[k]()); else d.setTape(c.tape);
   if (!c.replay) { d.latch('REC', true); $('jam').classList.add('recording'); }
+  J.pubKey = '';
   await refresh(true);
   if (autoplay && J.items.length) playFrom(0);
   else if (!J.items.length && !c.replay) setTimeout(() => { if (J.on && !J.items.length) { J.autoHelp = true; toggleHelp(true); } }, 900);
@@ -315,11 +318,14 @@ async function refresh(first) {
   const fresh = [];
   list.forEach((x, i) => { const k = x.uri + '#' + i; if (!J.seen.has(k)) { J.seen.add(k); if (!first) fresh.push(i); } });
   const pg = new Set(J.cur.peng || []);
-  for (const x of list) { if (pg.has(x.uri)) { x.byName = 'p'; x.peng = true; } else if (x.by) x.byName = await nameOf(x.by); }
+  const gs = J.cur.guests || {};
+  for (const x of list) { if (pg.has(x.uri)) { x.byName = 'p'; x.peng = true; } else if (gs[x.uri]) { x.byName = gs[x.uri]; x.guest = true; } else if (x.by) x.byName = await nameOf(x.by); }
+  if (list.some((x, i) => x.guest && !J.seen.has('g' + i))) { J.lastFriend = Date.now(); list.forEach((x, i) => { if (x.guest) J.seen.add('g' + i); }); }
   const me = await me_();
   if (list.some((x, i) => x.by && me && x.by !== me.id && !J.seen.has('f' + i))) { J.lastFriend = Date.now(); list.forEach((x, i) => { if (x.by && me && x.by !== me.id) J.seen.add('f' + i); }); }
   const grew = list.length > J.items.length;
   J.items = list; renderList(first ? null : new Set(fresh));
+  publish();
   if (fresh.length) sfx.pen(Math.min(3, fresh.length));
   if (list.length && $('jamHelp').getAttribute('aria-pressed') === 'true' && J.autoHelp) { J.autoHelp = false; toggleHelp(false); }
   // 첫 곡이 들어오면 바로 녹음 겸 재생 시작
@@ -384,6 +390,8 @@ async function end() {
       C.saveJam({ id: c.id, k: 'pl', name: c.name, artist: `${J.items.length}곡${who.size ? ' · ' + [...who].slice(0, 3).join(', ') : ''}`, img: (J.items[0] && J.items[0].big) || '', year: ymd, n: J.items.length, t: c.tape });
       if (!c.replay) C.toast('테이프를 JAM 크레이트에 꽂았습니다', 3500);
     } else if (!c.replay) C.toast('곡이 없어 테이프를 남기지 않았습니다(플레이리스트는 Spotify에 남아 있습니다)', 5000);
+    C.srv('/api/music/jam?pid=' + encodeURIComponent(c.id), { method: 'DELETE' }).catch(() => {});
+    J.pubKey = '';
     C.LS.del('music.jam'); J.cur = null;
     await lightsOn();
   } finally { J.busy = false; }
@@ -392,7 +400,11 @@ async function end() {
 // ---------- 지금 곡 · 릴 · 폴라로이드 ----------
 function loop() {
   clearTimeout(J.pollT); clearInterval(J.tickT);
-  const poll = async () => { if (!J.on || !J.cur) return; if (document.visibilityState === 'visible') await refresh(false); J.pollT = setTimeout(poll, 4000); };
+  const poll = async () => {
+    if (!J.on || !J.cur) return;
+    if (document.visibilityState === 'visible') { await pullGuests(); await refresh(false); }
+    J.pollT = setTimeout(poll, 4000);
+  };
   J.pollT = setTimeout(poll, 4000);
   J.tickT = setInterval(tick, 250); tick();
 }
@@ -410,7 +422,7 @@ function tick() {
     let pos = s.progress_ms || 0; if (s.is_playing) pos += Date.now() - s.at;
     const before = J.items.slice(0, i).reduce((a, x) => a + x.ms, 0);
     J.deck.setProgress((before + Math.min(pos, J.items[i].ms)) / total);
-    if (J.items[i].uri !== J.lastUri) { J.lastUri = J.items[i].uri; pola(J.items[i]); renderList(); }
+    if (J.items[i].uri !== J.lastUri) { J.lastUri = J.items[i].uri; pola(J.items[i]); renderList(); publish(); }
   }
   if (now0() - (J.pengT || 0) > 2000) { J.pengT = now0(); penguin(); penguinSkip(); }
   const tot = J.items.reduce((a, x) => a + x.ms, 0);
@@ -547,18 +559,53 @@ async function add(x, t) {
 }
 
 // ---------- 친구 부르기 · 도움말 ----------
+// 친구에게는 이 앱 주소(/music/#jam)를 보낸다. 열면 손님 창이 바로 뜨고 로그인 없이 곡을 넣을 수 있다
 async function share() {
   if (!J.cur) return;
-  const url = 'https://open.spotify.com/playlist/' + J.cur.id;
+  publish(true);
+  const url = location.origin + '/music/#jam';
   try {
-    if (navigator.share) await navigator.share({ title: J.cur.name, text: '같이 잼 하자 — 이 플레이리스트에 곡을 넣어 줘', url });
-    else { await navigator.clipboard.writeText(url); C.toast('링크를 복사했습니다'); }
+    if (navigator.share) await navigator.share({ title: J.cur.name, text: '같이 잼 하자 — 열어서 곡 넣어 줘(로그인 필요 없음)', url });
+    else { await navigator.clipboard.writeText(url); C.toast('링크를 복사했습니다. 친구는 열어서 곡만 넣으면 됩니다', 4000); }
   } catch {}
-  C.toast('친구가 곡을 넣으려면 Spotify 앱에서 이 플레이리스트의 "공동 작업자 초대"로 불러야 합니다', 6500);
 }
+
+// ---------- 손님 곡 받기 · 셋리스트 올리기 (서버 /api/music/jam) ----------
+// 셋리스트나 지금 곡이 바뀌면 올리고, 바뀐 게 없어도 1분마다 한 번(잼이 살아 있다는 표시)
+function publish(force) {
+  if (!J.on || !J.cur) return;
+  const list = J.items.map((x) => ({ t: x.name, a: x.artist, by: x.byName || '' })), cur = curIndex();
+  const key = JSON.stringify([J.cur.id, list.length, list.map((x) => x.by).join('|'), cur]);
+  if (!force && key === J.pubKey && Date.now() - (J.pubAt || 0) < 60000) return;
+  J.pubKey = key; J.pubAt = Date.now();
+  C.srv('/api/music/jam', { method: 'PUT', body: { pid: J.cur.id, name: J.cur.name, tape: J.cur.tape, list, cur } }).catch(() => { J.pubKey = ''; });
+}
+async function pullGuests() {
+  if (!J.cur || J.pulling) return;
+  J.pulling = true;
+  try {
+    const { items: Q } = await C.srv('/api/music/jam/q');
+    if (!Q || !Q.length) return;
+    const done = [], gs = J.cur.guests = J.cur.guests || {};
+    let added = 0;
+    for (const g of Q) {
+      let uris = (g.uris || []).filter(Boolean);
+      if (!uris.length && g.q) { // 이름만 보냈으면 내가 찾아서 첫 곡
+        try { const j = await C.api(`/search?type=track&limit=1&q=${encodeURIComponent(g.q)}`); const t = j && j.tracks && j.tracks.items && j.tracks.items[0]; if (t) uris = [t.uri]; } catch {}
+        if (!uris.length) C.toast(`${g.by}: '${g.q}'를 찾지 못했습니다`, 3500);
+      }
+      if (uris.length) { try { await post(uris); uris.forEach((u) => { gs[u] = g.by; }); added += uris.length; } catch (e) { if (e.status === 429) break; } }
+      done.push(g.id);
+    }
+    save();
+    if (done.length) await C.srv('/api/music/jam/done', { method: 'POST', body: { ids: done } }).catch(() => {});
+    if (added) { J.lastFriend = Date.now(); bubbleGuest(Q[Q.length - 1]); }
+  } catch {} finally { J.pulling = false; }
+}
+function bubbleGuest(g) { if (g) C.toast(`${g.by} 님이 곡을 넣었습니다 — ${g.label}`, 3000); }
 const NOTES = [
   ['J카드 빈 줄을 누르면 곡 적기. "앨범 통째로"도 됩니다', '6%', '58%', -3, 0],
-  ['친구는 Spotify 앱에서 이 플레이리스트에 곡을 넣으면 여기 손글씨로 적혀요', '34%', '62%', 2, 0.08],
+  ['친구 부르기 = 링크 보내기. 친구는 열어서 곡만 넣으면 돼요(로그인 필요 없음). 넣은 곡은 여기 손글씨로 적혀요', '34%', '62%', 2, 0.08],
   ['PLAY 재생 · PAUSE 잠깐 · FF 다음 곡 · REW 이전 곡', '8%', '14%', 2.5, 0.16],
   ['STOP/EJ로 멈춘 뒤 한 번 더 = 잼 끝. 테이프는 JAM 크레이트에 꽂혀요', '36%', '10%', -2, 0.24],
   ['J카드의 곡을 누르면 그 곡부터 다시', '62%', '74%', 3, 0.32],

@@ -1,48 +1,169 @@
-// 음악 API (/api/music) — /music/ 앱이 기기 사이에 크레이트(앨범 묶음)를 맞춘다.
-// 문서 하나를 D1 settings 테이블의 k = 'music' 한 줄에 둔다. 합치기는 화면과 같은 코드(public/music/merge.js).
+// 음악 API (/api/music) — /music/ 앱
+// - 크레이트: Spotify 계정마다 따로(D1 settings k = 'music.u.<Spotify id>'). 요청에 X-Spotify(액세스 토큰)를 붙이면
+//   서버가 Spotify /me로 누구인지 확인한다(클라이언트가 id를 우기지 못하게). 합치기는 화면과 같은 코드(public/music/merge.js)
+//   예전(계정 나누기 전) 문서 k = 'music'은 처음 동기화한 계정이 가져간다(k = 'music.owner'에 기록)
+// - 잼: 지금 열린 잼 하나(k = 'music.jam')와 손님이 넣은 곡 대기열(jam_q 테이블). 손님은 Spotify 로그인 없이도
+//   곡 이름(또는 Spotify 링크)을 보내고, 호스트 화면이 4초마다 가져가 자기 토큰으로 플레이리스트에 넣는다
 import '../public/music/merge.js';
 import { json, httpError, readBody } from './util.js';
 
 const { clean, merge } = globalThis.MusicMerge;
 const MAX_BYTES = 500000;
+const JAM_TTL = 8 * 3600e3;       // 8시간 넘게 소식 없는 잼은 끝난 것으로 본다
+const MAX_Q = 40;                 // 손님 대기열 한도(잼마다)
 
-async function load(env) {
-  const row = await env.DB.prepare("SELECT v FROM settings WHERE k = 'music'").first();
-  let doc = null;
-  try { doc = row ? JSON.parse(row.v) : null; } catch {}
-  return clean(doc);
+// ---------- 누구인가: Spotify 토큰 → 계정 id (isolate 안에서 10분 기억) ----------
+const who = new Map();
+async function spotifyUser(req) {
+  const tk = (req.headers.get('X-Spotify') || '').trim();
+  if (!tk) return null;
+  const hit = who.get(tk);
+  if (hit && hit.exp > Date.now()) return hit;
+  const r = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: 'Bearer ' + tk } });
+  if (!r.ok) throw httpError(r.status === 401 ? 401 : 502, r.status === 401 ? 'Spotify 로그인이 만료되었습니다' : 'Spotify 확인 실패 ' + r.status);
+  const j = await r.json();
+  if (!j || !j.id) throw httpError(502, 'Spotify 계정을 읽지 못했습니다');
+  const u = { id: String(j.id), name: String(j.display_name || j.id).slice(0, 40), exp: Date.now() + 600000 };
+  if (who.size > 200) who.clear();
+  who.set(tk, u);
+  return u;
+}
+async function needUser(req) {
+  const u = await spotifyUser(req);
+  if (!u) throw httpError(401, 'Spotify 로그인이 필요합니다');
+  return u;
+}
+
+const getV = async (env, k) => {
+  const row = await env.DB.prepare('SELECT v FROM settings WHERE k = ?').bind(k).first();
+  return row ? row.v : null;
+};
+const putV = (env, k, v) => env.DB.prepare('INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').bind(k, v).run();
+const parse = (t) => { try { return t ? JSON.parse(t) : null; } catch { return null; } };
+const userKey = (id) => 'music.u.' + id.replace(/[^\w.-]/g, '_').slice(0, 80);
+
+// 계정 문서. 없으면: 예전 문서를 아무도 안 가져갔을 때 이 계정이 가져간다
+async function loadUser(env, uid) {
+  const own = await getV(env, userKey(uid));
+  if (own != null) return { doc: clean(parse(own)), claimed: false };
+  const owner = await getV(env, 'music.owner');
+  if (!owner) {
+    await putV(env, 'music.owner', uid);
+    return { doc: clean(parse(await getV(env, 'music'))), claimed: true };
+  }
+  if (owner === uid) return { doc: clean(parse(await getV(env, 'music'))), claimed: true };
+  return { doc: clean(null), claimed: false };
+}
+
+// ---------- 잼 ----------
+const SP_ID = /^[A-Za-z0-9]{10,40}$/;
+async function liveJam(env) {
+  const j = parse(await getV(env, 'music.jam'));
+  if (!j || !j.pid || Date.now() - (j.u || 0) > JAM_TTL) return null;
+  return j;
+}
+const s = (x, n) => (typeof x === 'string' ? x.trim().slice(0, n) : '');
+
+async function jamApi(req, env, path, m) {
+  if (path === '/api/music/jam' && m === 'GET') {
+    const j = await liveJam(env);
+    if (!j) return json({ jam: null });
+    const { results } = await env.DB.prepare('SELECT label, by FROM jam_q WHERE pid = ? ORDER BY at').bind(j.pid).all();
+    return json({ jam: { pid: j.pid, name: j.name, host: j.host, tape: j.tape, at: j.at, list: j.list || [], cur: j.cur ?? -1, u: j.u, wait: results || [] } });
+  }
+  // 호스트: 잼 열기·갱신(셋리스트 · 지금 곡). 가장 최근에 연 사람이 호스트
+  if (path === '/api/music/jam' && m === 'PUT') {
+    const u = await needUser(req);
+    const b = (await readBody(req)) || {};
+    if (!SP_ID.test(b.pid || '')) throw httpError(400, '플레이리스트 id가 필요합니다');
+    const old = await liveJam(env);
+    const list = (Array.isArray(b.list) ? b.list : []).slice(0, 300).map((x) => ({ t: s(x && x.t, 120), a: s(x && x.a, 120), by: s(x && x.by, 40) }));
+    const j = { pid: b.pid, name: s(b.name, 60) || 'JAM', host: u.name, hostId: u.id, tape: s(b.tape, 20), at: old && old.pid === b.pid ? old.at : Date.now(), list, cur: Number.isInteger(b.cur) ? b.cur : -1, u: Date.now() };
+    await putV(env, 'music.jam', JSON.stringify(j));
+    if (old && old.pid !== b.pid) await env.DB.prepare('DELETE FROM jam_q WHERE pid = ?').bind(old.pid).run();
+    return json({ ok: true });
+  }
+  if (path === '/api/music/jam' && m === 'DELETE') {
+    const u = await needUser(req);
+    const pid = new URL(req.url).searchParams.get('pid') || '';
+    const j = await liveJam(env);
+    if (j && j.pid === pid && j.hostId === u.id) {
+      await env.DB.prepare("DELETE FROM settings WHERE k = 'music.jam'").run();
+      await env.DB.prepare('DELETE FROM jam_q WHERE pid = ?').bind(pid).run();
+    }
+    return json({ ok: true });
+  }
+  // 손님: 곡 넣기 요청. uris(정확한 곡) 또는 q(곡 이름 — 호스트가 찾아서 첫 결과를 넣음)
+  if (path === '/api/music/jam/add' && m === 'POST') {
+    const b = (await readBody(req)) || {};
+    const j = await liveJam(env);
+    if (!j || j.pid !== b.pid) throw httpError(409, '이 잼은 끝났습니다');
+    const uris = (Array.isArray(b.uris) ? b.uris : []).filter((x) => /^spotify:track:[A-Za-z0-9]{10,40}$/.test(x)).slice(0, 50);
+    const q = s(b.q, 120);
+    if (!uris.length && !q) throw httpError(400, '곡을 골라 주세요');
+    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM jam_q WHERE pid = ?').bind(j.pid).first();
+    if (n && n.n >= MAX_Q) throw httpError(429, '대기 중인 곡이 많습니다. 잠시 뒤에 넣어 주세요');
+    const id = crypto.randomUUID();
+    await env.DB.prepare('INSERT INTO jam_q (id, pid, uris, q, label, by, at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, j.pid, JSON.stringify(uris), q, s(b.label, 120) || q, s(b.by, 24) || '손님', Date.now()).run();
+    return json({ ok: true, id });
+  }
+  // 호스트: 대기열 가져가기 → 넣은 뒤 done으로 지운다
+  if (path === '/api/music/jam/q' && m === 'GET') {
+    const u = await needUser(req);
+    const j = await liveJam(env);
+    if (!j || j.hostId !== u.id) return json({ items: [] });
+    const { results } = await env.DB.prepare('SELECT id, uris, q, label, by FROM jam_q WHERE pid = ? ORDER BY at LIMIT 20').bind(j.pid).all();
+    return json({ items: (results || []).map((x) => ({ ...x, uris: parse(x.uris) || [] })) });
+  }
+  if (path === '/api/music/jam/done' && m === 'POST') {
+    const u = await needUser(req);
+    const b = (await readBody(req)) || {};
+    const j = await liveJam(env);
+    if (!j || j.hostId !== u.id) return json({ ok: true });
+    const ids = (Array.isArray(b.ids) ? b.ids : []).filter((x) => typeof x === 'string').slice(0, 50);
+    if (ids.length) await env.DB.batch(ids.map((id) => env.DB.prepare('DELETE FROM jam_q WHERE id = ? AND pid = ?').bind(id, j.pid)));
+    return json({ ok: true });
+  }
+  return null;
 }
 
 export async function musicApi(req, env, path) {
   try {
     const m = req.method;
-    if (path === '/api/music' && m === 'GET') return json({ doc: await load(env) });
+    if (path.startsWith('/api/music/jam')) {
+      const r = await jamApi(req, env, path, m);
+      if (r) return r;
+    }
+    if (path === '/api/music' && m === 'GET') {
+      const u = await needUser(req);
+      return json({ doc: (await loadUser(env, u.id)).doc });
+    }
 
     // Spotify Client ID(공개값, 비밀 아님): 한 기기에서 로그인하면 올려 두고 다른 기기는 받아서 바로 로그인 버튼만 누른다
     if (path === '/api/music/cid') {
-      if (m === 'GET') {
-        const row = await env.DB.prepare("SELECT v FROM settings WHERE k = 'music.cid'").first();
-        return json({ cid: row ? row.v : '' });
-      }
+      if (m === 'GET') return json({ cid: (await getV(env, 'music.cid')) || '' });
       if (m === 'PUT') {
         const body = await readBody(req);
         const cid = String((body && body.cid) || '').trim();
         if (!/^[0-9a-f]{32}$/i.test(cid)) throw httpError(400, 'Client ID 모양이 아닙니다');
-        await env.DB.prepare("INSERT INTO settings (k, v) VALUES ('music.cid', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(cid).run();
+        await putV(env, 'music.cid', cid);
         return json({ ok: true });
       }
     }
 
-    // 기기가 가진 문서를 보내면 서버 것과 합쳐 저장하고, 합친 문서를 돌려준다
+    // 기기가 가진 문서를 보내면 그 계정의 서버 문서와 합쳐 저장하고, 합친 문서를 돌려준다
     if (path === '/api/music/sync' && m === 'POST') {
+      const u = await needUser(req);
       const body = await readBody(req);
       if (!body || typeof body.doc !== 'object' || !body.doc) throw httpError(400, 'doc이 필요합니다');
       const now = Date.now();
-      const next = merge(clean(await load(env), now), clean(body.doc, now));
+      const { doc: server, claimed } = await loadUser(env, u.id);
+      const next = merge(clean(server, now), clean(body.doc, now));
       const text = JSON.stringify(next);
       if (text.length > MAX_BYTES) throw httpError(413, '크레이트가 너무 큽니다. 안 쓰는 크레이트를 지워 주세요');
-      await env.DB.prepare("INSERT INTO settings (k, v) VALUES ('music', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(text).run();
-      return json({ doc: next });
+      await putV(env, userKey(u.id), text);
+      return json({ doc: next, claimed, user: u.id });
     }
     throw httpError(404, '없는 주소입니다');
   } catch (err) {

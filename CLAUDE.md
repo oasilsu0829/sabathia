@@ -132,6 +132,11 @@ public/music/mag/   잡지 MAG (2026-11-13). 위 줄 MAG 버튼 → mag.js(처�
                     - 첫 호 4권: Drop Vol.01(U2), feedback vol.01(Kings of Leon), Cypher Vol.01(Aesop Rock & Blockhead), 33⅓(유저별 자동, 정적 mo-00은 CSS만). 사진은 Flickr CC(Openverse 경유), 저작자는 각 호 판권 쪽
                     - 편집 방침·성격·로직: docs/magazine/ (editorial-logic.md, mags/*.md 바이블, logo-prompts.md). 시안 원본은 docs/magazine/issues/
                     - 지면 만드는 법(지금은 수작업): 세션 스크래치에서 HTML 시안 → 이미지 data URI를 파일로 빼고 펼침을 template으로 감싸 issue.html. 다음 단계는 예약 편집 세션이 자동으로
+                    - 친구 접속 손봄(2026-11-13): 크레이트는 Spotify 계정마다 따로(LS music.crates.<id>, 서버 k='music.u.<id>', 요청에 X-Spotify 토큰 → 서버가 /me로 확인). 로그인 전엔 동기화 안 함
+                      예전 공유 문서 k='music'은 처음 동기화한 계정이 가져감(k='music.owner'). 그 계정 기기의 예전 LS music.crates는 합치고, 다른 계정 기기는 버림
+                      잼 손님: 친구는 /music/#jam(또는 JAM 버튼, 초록 점 = 열린 잼)에서 jam/guest.js 창으로 곡을 보냄(로그인 없으면 '곡 이름 · 가수' 글자나 Spotify 링크). 서버 대기열 jam_q → 호스트 jam.js pullGuests()가 4초마다 가져가 자기 토큰으로 넣고 done. 셋리스트·지금 곡은 publish()로 k='music.jam'(8시간 지나면 끝난 것). 넣은 사람 이름은 music.jam.guests[uri]. 검증 test/music-api.mjs
+                      Device not found: api()가 /me/player 404면 recoverDevice(기기 목록 다시 → 고르기 pickDevice → transfer → 같은 요청 다시). PC 브라우저 플레이어는 다시 연결. 폰·패드는 SDK를 안 띄움(죽은 'Sabathia' 기기가 원인)
+                      버벅임: 유리 바·칸 backdrop-filter와 .dof 끔, 3D는 해상도 1.5배까지 · 평소 재생 30fps · 그림자는 움직일 때만 · 잼/숨김/화면 밖이면 안 그림. 라디오(boombox)는 잼 끝나면 멈춤(전엔 뒤에서 계속 그림), 그림자 1024 · 2번에 한 번
                     - LP 전체화면(2026-11-13): 턴테이블 줄 '전체화면' 버튼 또는 F 키. body.lpfull → 턴테이블 칸이 화면을 덮고 3초 손대지 않으면 위·아래 줄이 사라짐(lpidle), 왼쪽 아래 곡 이름 크게. Esc로 나감
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)

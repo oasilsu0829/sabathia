@@ -306,8 +306,10 @@ body.night .deckp input[type="range"]::-webkit-slider-runnable-track { backgroun
 .amb { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
 .amb i { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; }
 .amb i.on { opacity: 1; }
-.top, .bot { background: rgba(255,255,255,.72); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); border-color: rgba(0,0,0,.06); }
-.panel { background: rgba(255,255,255,.8); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-color: rgba(255,255,255,.6); }
+/* 유리 바·칸: 뒤 배경(.amb)이 부드러운 그라데이션이라 흐림(backdrop-filter)을 빼도 거의 같아 보인다.
+   흐림은 매 프레임 다시 계산돼 3D·모션과 겹치면 폰·패드에서 버벅였다(2026-11-13) → 조금 더 불투명한 색만 */
+.top, .bot { background: rgba(255,255,255,.8); border-color: rgba(0,0,0,.06); }
+.panel { background: rgba(255,255,255,.86); border-color: rgba(255,255,255,.6); }
 /* 턴테이블 칸 바닥 = 리넨 천(앨범 색이 살짝 배어든다) */
 .deckp { background:
   repeating-linear-gradient(0deg, rgba(90,70,50,.05) 0 1px, transparent 1px 3px),
@@ -324,7 +326,7 @@ body.night .tw { color: #f4e3c8; text-shadow: 0 0 8px rgba(255,200,140,.5); }
 .dof { position: absolute; left: 0; right: 0; top: 0; height: 34%; z-index: 4; pointer-events: none; display: none;
   backdrop-filter: blur(2.2px); -webkit-backdrop-filter: blur(2.2px);
   -webkit-mask: linear-gradient(#000, rgba(0,0,0,.5) 45%, transparent); mask: linear-gradient(#000, rgba(0,0,0,.5) 45%, transparent); }
-body.d3 .dof { display: block; }
+/* 먼 쪽 흐림은 끔(2026-11-13): WebGL 캔버스 위 backdrop-filter라 매 프레임 다시 흐려 가장 무거웠다 */
 body.d3 .deckp .stage::after { content: ''; position: absolute; inset: -16px; z-index: 5; pointer-events: none; background: radial-gradient(120% 95% at 50% 55%, transparent 55%, rgba(0,0,0,.18) 100%); }
 body.night.d3 .deckp .stage::after { background: radial-gradient(110% 90% at 48% 55%, transparent 45%, rgba(0,0,0,.55) 100%); }
 .tk-none { padding: 14px 8px; font-family: var(--mono); font-size: 10px; color: var(--muted); text-align: center; }
@@ -531,6 +533,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   .arm, .lp, .crate { transition: none; }
   .lp.shine .sheen { animation: none; }
 }
+.jamdot { background: #16a34a; box-shadow: 0 0 6px #16a34a; }
 .magdot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #e60012; }
 #magBtn { position: relative; }
 /* LP 전체화면: 턴테이블 칸이 화면을 덮는다. 3초 손대지 않으면 위·아래 줄이 사라진다 */
@@ -572,7 +575,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     <div class="t"><p class="t1" id="nowT">-</p><p class="t2" id="nowA">-</p></div>
     <div class="thumb" id="nowImg"></div>
     <button class="icon-btn jam-btn" id="magBtn" type="button" aria-label="잡지 우편함" title="잡지: 우편함과 책장"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zm16 0h-4a3 3 0 0 0-2 1v15a2 2 0 0 1 2-2h4z"/></svg><span>MAG</span><i class="magdot" id="magDot" hidden></i></button>
-    <button class="icon-btn jam-btn" id="jamBtn" type="button" aria-label="잼 시작" title="JAM: 친구와 곡을 하나씩 넣어 카세트에 녹음"><svg class="ico"><use href="#i-tape"/></svg><span>JAM</span></button>
+    <button class="icon-btn jam-btn" id="jamBtn" type="button" aria-label="잼 시작" title="JAM: 친구와 곡을 하나씩 넣어 카세트에 녹음"><svg class="ico"><use href="#i-tape"/></svg><span>JAM</span><i class="magdot jamdot" id="jamDot" hidden></i></button>
     <button class="icon-btn" id="setBtn" type="button" aria-label="Spotify 연결 설정"><svg class="ico"><use href="#i-gear"/></svg></button>
   </div>
 </header>
@@ -1010,9 +1013,21 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     }
     const txt = await res.text();
     let j = null; try { j = txt ? JSON.parse(txt) : null; } catch {}
+    // 재생 조작이 '기기 없음(Device not found)'으로 실패하면: 기기 목록을 다시 받아 살아 있는 기기로 옮기고 한 번 더
+    if (res.status === 404 && path.startsWith('/me/player') && !path.startsWith('/me/player/devices') && !opt.noRecover) {
+      const bad = (path.match(/[?&]device_id=([^&]+)/) || [])[1];
+      const id = await recoverDevice(bad ? decodeURIComponent(bad) : (S.st && S.st.device && S.st.device.id) || '');
+      if (id) {
+        const p2 = path.replace(/([?&])device_id=[^&]*&?/, '$1').replace(/[?&]$/, '');
+        return api(p2 + (p2.includes('?') ? '&' : '?') + 'device_id=' + encodeURIComponent(id), { ...opt, noRecover: true }, retry);
+      }
+    }
+    // Spotify가 가끔 내는 일시 오류(502·503)는 잠깐 뒤 한 번 더
+    if ((res.status === 502 || res.status === 503) && retry < 1) { await new Promise((r) => setTimeout(r, 700)); return api(path, opt, retry + 1); }
     if (!res.ok) {
       const er = (j && j.error) || {};
-      const e = new Error(ERR[er.reason] || er.message || 'Spotify 오류 ' + res.status);
+      const nf = res.status === 404 && /device/i.test(er.message || '');
+      const e = new Error(ERR[er.reason] || (nf ? ERR.NO_ACTIVE_DEVICE : '') || er.message || 'Spotify 오류 ' + res.status);
       e.status = res.status; e.reason = er.reason; throw e;
     }
     return j;
@@ -1021,6 +1036,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
 
   // ---------- 이 브라우저를 기기로 (Web Playback SDK) ----------
   function loadSdk() {
+    if (MOBILE) return; // 폰·태블릿 브라우저는 Spotify가 바로 재생을 막아 둔다: 올려 두면 죽은 'Sabathia' 기기만 남아 Device not found가 난다
     if (S.player || document.getElementById('sdk')) return;
     window.onSpotifyWebPlaybackSDKReady = () => {
       const p = new window.Spotify.Player({
@@ -1028,7 +1044,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
         getOAuthToken: (cb) => { token().then(cb, () => {}); },
       });
       p.addListener('ready', ({ device_id }) => { S.sdkId = device_id; S.sdkErr = ''; renderAuth(); refreshDevices(); });
-      p.addListener('not_ready', () => { S.sdkId = null; renderAuth(); });
+      p.addListener('not_ready', () => { S.sdkId = null; renderAuth(); setTimeout(() => { if (!S.sdkId && S.player === p) p.connect(); }, 1500); });
       p.addListener('initialization_error', () => { S.sdkErr = '이 브라우저는 Spotify 바로 재생을 지원하지 않습니다. 다른 기기 조작으로 쓰세요'; renderAuth(); });
       p.addListener('authentication_error', () => { S.sdkErr = '바로 재생 인증 실패. 로그아웃 후 다시 로그인하세요'; renderAuth(); });
       p.addListener('account_error', () => { S.sdkErr = '바로 재생은 Premium 계정만 됩니다'; renderAuth(); });
@@ -1046,9 +1062,12 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   // 브라우저 자동 재생 제한: 사용자가 누른 순간에 한 번 깨워 둔다
   const wake = () => { if (S.player && S.player.activateElement) S.player.activateElement().catch(() => {}); };
 
-  // ---------- 크레이트 (이 기기 music.crates 먼저, 고치면 /api/music/sync) ----------
+  // ---------- 크레이트 (이 기기 music.crates.<Spotify id> 먼저, 고치면 /api/music/sync) ----------
+  // 크레이트는 Spotify 계정마다 따로다(친구가 이 앱에 로그인해도 내 크레이트가 섞이지 않게). 로그인 전에는 서버와 맞추지 않는다
   const MM = window.MusicMerge;
-  let doc = MM.clean(LS.get('music.crates') || {});
+  let uid = LS.get('music.uid') || '';
+  const docKey = () => 'music.crates.' + uid;
+  let doc = MM.clean(uid ? LS.get(docKey()) || {} : {});
   const live = () => Object.values(doc.crates).filter((c) => !c.del).sort((a, b) => a.o - b.o || a.u - b.u);
   function ensureCrate() {
     if (live().length) return;
@@ -1060,24 +1079,45 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   const crate = () => { const L = live(); return L.find((c) => c.id === curCrate) || L[0]; };
   const pos = LS.get('music.pos') || {};
   const idxOf = (c) => Math.max(0, Math.min(pos[c.id] || 0, c.albums.length - 1));
-  const storeDoc = () => LS.set('music.crates', doc);
+  const storeDoc = () => { if (uid) LS.set(docKey(), doc); };
+  // 로그인한 계정이 바뀌면(처음 로그인 포함) 그 계정의 크레이트로 갈아 끼운다
+  function setUser(id) {
+    if (!id || id === uid) return;
+    uid = id; LS.set('music.uid', id);
+    doc = MM.clean(LS.get(docKey()) || {}); ensureCrate();
+    curCrate = LS.get('music.crate') || 'c-main';
+    renderCrates(); renderCrate(true); sync();
+  }
   function touch(c) { c.u = Date.now(); doc.crates[c.id] = c; storeDoc(); syncSoon(); }
 
   const cfg = () => ({ base: (LS.get('sab.base') || location.origin).replace(/\/+$/, ''), token: LS.get('sab.token') || '' });
+  // 서버 호출: 일정 앱의 토큰 + (로그인했으면) Spotify 토큰을 붙인다. 서버는 Spotify 토큰으로 계정을 확인한다
+  async function srv(path, opt = {}) {
+    const c = cfg(), h = {};
+    if (opt.body) h['Content-Type'] = 'application/json';
+    if (c.token) h.Authorization = 'Bearer ' + c.token;
+    if (opt.spotify !== false && loggedIn()) { try { const t = await token(); if (t) h['X-Spotify'] = t; } catch {} }
+    const r = await fetch(c.base + path, { method: opt.method || 'GET', headers: h, body: opt.body ? JSON.stringify(opt.body) : undefined, cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(j.error || 'HTTP ' + r.status), { status: r.status });
+    return j;
+  }
   let syncing = false, again = false, syncT = 0, lastSync = 0;
   function syncSoon() { clearTimeout(syncT); syncT = setTimeout(sync, 1500); }
   async function sync() {
     clearTimeout(syncT);
+    if (!uid || !loggedIn()) return; // 계정을 모르면 이 기기에만 둔다
     if (syncing) { again = true; return; }
     syncing = true;
-    const c = cfg(), note = $('syncNote');
+    const note = $('syncNote'), forUid = uid;
     try {
-      const h = { 'Content-Type': 'application/json' };
-      if (c.token) h.Authorization = 'Bearer ' + c.token;
-      const r = await fetch(c.base + '/api/music/sync', { method: 'POST', headers: h, body: JSON.stringify({ doc }), cache: 'no-store' });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(r.status === 401 ? '토큰이 맞지 않습니다(일정 앱 설정의 토큰)' : j.error || 'HTTP ' + r.status);
+      const j = await srv('/api/music/sync', { method: 'POST', body: { doc } });
+      if (forUid !== uid) throw new Error('계정이 바뀜');
+      if (j.user && j.user !== uid) { syncing = false; setUser(j.user); return; }
       doc = MM.merge(MM.clean(j.doc), doc);
+      // 계정 나누기 전에 이 기기에 있던 크레이트: 예전 문서를 가져간 계정(본인)이면 합치고, 아니면 버린다
+      const legacy = LS.get('music.crates');
+      if (legacy) { if (j.claimed) { doc = MM.merge(doc, MM.clean(legacy)); syncSoon(); } LS.del('music.crates'); }
       ensureCrate(); storeDoc(); lastSync = Date.now();
       const d = new Date();
       note.classList.remove('warn');
@@ -1085,7 +1125,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
       renderCrates(); renderCrate();
     } catch (e) {
       note.classList.add('warn');
-      note.textContent = '크레이트 동기화 안 됨: ' + (e.message || e) + ' (이 기기에는 저장됨)';
+      note.textContent = '크레이트 동기화 안 됨: ' + (e.status === 401 && /토큰/.test(e.message) ? '토큰이 맞지 않습니다(일정 앱 설정의 토큰)' : e.message || e) + ' (이 기기에는 저장됨)';
     }
     syncing = false;
     if (again) { again = false; syncSoon(); }
@@ -1574,17 +1614,47 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   async function loadMe() {
     try { S.me = await api('/me'); } catch { S.me = null; }
     renderAuth();
+    if (S.me && S.me.id) setUser(S.me.id);
   }
 
-  // 재생할 기기: 지금 쓰는 기기 → 이 브라우저(PC) → 목록 첫 기기
+  // 재생할 기기: 지금 쓰는 기기 → 이 브라우저(PC) → 목록에서 고름
   async function targetDevice() {
-    if (S.st && S.st.device && S.st.device.id) return S.st.device.id;
+    if (S.st && S.st.device && S.st.device.id && !S.st.device.is_restricted) return S.st.device.id;
     if (S.sdkId && !MOBILE) return S.sdkId;
-    const ds = await refreshDevices();
-    const d = ds.find((x) => x.is_active) || ds.find((x) => !x.is_restricted);
+    const d = pickDevice(await refreshDevices(), '');
     if (d) return d.id;
-    if (S.sdkId) return S.sdkId;
     throw Object.assign(new Error(ERR.NO_ACTIVE_DEVICE), { status: 404 });
+  }
+  // 목록에서 기기 고르기: 켜져 있는 것 → 이 브라우저(PC) → 폰 → 컴퓨터 → 나머지. 막힌 기기와 방금 실패한 기기는 뺀다
+  function pickDevice(ds, bad) {
+    // 다른 브라우저 탭이 남긴 'Sabathia'(닫힌 탭이면 죽은 기기)는 맨 뒤
+    const rank = (d) => (d.is_active ? 0 : !MOBILE && d.id === S.sdkId ? 1 : d.name === 'Sabathia' ? 5 : d.type === 'Smartphone' ? 2 : d.type === 'Computer' ? 3 : 4);
+    return ds.filter((d) => d.id && !d.is_restricted && d.id !== bad).sort((a, b) => rank(a) - rank(b))[0] || null;
+  }
+  // 기기를 잃었을 때(Spotify 앱이 잠들었거나, 이 브라우저 플레이어가 끊김): 다시 붙이고, 살아 있는 기기로 재생을 옮긴다
+  let recovering = null;
+  function recoverDevice(bad) {
+    recovering = recovering || (async () => {
+      if (S.st && S.st.device && S.st.device.id === bad) S.st.device = null;
+      if (S.player && !MOBILE && (!S.sdkId || S.sdkId === bad)) await reconnectSdk();
+      let d = pickDevice(await refreshDevices(), bad);
+      if (!d && bad) d = pickDevice(S.devices, ''); // 실패한 기기밖에 없으면 그거라도 다시 깨워 본다
+      if (!d) return null;
+      if (!d.is_active) {
+        try { await api('/me/player', { method: 'PUT', body: { device_ids: [d.id], play: false }, noRecover: true }); } catch {}
+        await new Promise((r) => setTimeout(r, 600));
+      }
+      return d.id;
+    })().finally(() => { setTimeout(() => { recovering = null; }, 1500); });
+    return recovering;
+  }
+  // 이 브라우저 플레이어(Web Playback SDK)를 다시 연결하고 준비될 때까지(최대 5초) 기다린다
+  async function reconnectSdk() {
+    if (!S.player) return;
+    S.sdkId = null;
+    try { S.player.disconnect(); } catch {}
+    try { await S.player.connect(); } catch {}
+    for (let i = 0; i < 25 && !S.sdkId; i++) await new Promise((r) => setTimeout(r, 200));
   }
 
   // ---------- 조작 ----------
@@ -2634,7 +2704,8 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   // ---------- 잼 모드 (jam/jam.js, 처음 누를 때 불러옴) ----------
   // 잼 테이프는 JAM 크레이트(c-jam)에 플레이리스트 항목(k: 'pl')으로 꽂히고, t = 카세트 디자인
   window.MusicCore = {
-    api, toast, LS, loggedIn, openDlg: connect, targetDevice, wake, state: () => S.st, poll: schedulePoll,
+    api, srv, toast, LS, loggedIn, openDlg: connect, targetDevice, wake, state: () => S.st, poll: schedulePoll, me: () => S.me,
+    startJam: () => jam().then((m) => m.start()),
     hasScope: (x) => ((LS.get('music.tok') || {}).s || '').split(' ').includes(x),
     relogin() { login(); },
     playAlbum: (a, trackUri) => playAlbum(a, trackUri), toAlbum: (raw) => toAlbum(raw), sfx,
@@ -2656,7 +2727,19 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   };
   let jamMod = null;
   const jam = () => (jamMod = jamMod || import('/music/jam/jam.js').catch((e) => { jamMod = null; toast('잼 모드를 불러오지 못했습니다'); throw e; }));
-  $('jamBtn').addEventListener('click', () => { sfx.unlock(); jam().then((m) => m.start()); });
+  // 친구가 연 잼이 있으면(이 기기가 호스트가 아니면) 손님 창: 곡만 넣는다(jam/guest.js). 없으면 내 잼 시작
+  let guestMod = null;
+  const guest = () => (guestMod = guestMod || import('/music/jam/guest.js').catch((e) => { guestMod = null; toast('잼 창을 불러오지 못했습니다'); throw e; }));
+  async function liveJam() {
+    try { const j = await srv('/api/music/jam', { spotify: false }); const J = j.jam, mine = LS.get('music.jam'); return J && !(mine && mine.id === J.pid) ? J : null; } catch { return null; }
+  }
+  async function checkJam() { const J = await liveJam(); $('jamDot').hidden = !J; $('jamBtn').title = J ? `JAM: ${J.host || '친구'} 님의 잼에 곡 넣기` : 'JAM: 친구와 곡을 하나씩 넣어 카세트에 녹음'; return J; }
+  $('jamBtn').addEventListener('click', async () => {
+    sfx.unlock();
+    if (!LS.get('music.jam')) { const J = await checkJam(); if (J) { guest().then((m) => m.open(J)); return; } }
+    jam().then((m) => m.start());
+  });
+  setInterval(() => { if (document.visibilityState === 'visible' && !window.MusicJamOn) checkJam(); }, 45000);
   // ---------- 잡지 (mag/mag.js, 처음 누를 때 불러옴) ----------
   let magMod = null;
   const mag = () => (magMod = magMod || import('/music/mag/mag.js').catch((e) => { magMod = null; toast('잡지를 불러오지 못했습니다'); throw e; }));
@@ -2674,7 +2757,9 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     setTab(LS.get('music.tab') === 'crate' ? 'crate' : 'now');
     renderCrates(); renderCrate(true); render(); renderTracks(true); renderAuth();
     sync();
-    if (!loggedIn()) { if (!(await fetchCid())) openDlg(); return; }
+    // 친구가 보낸 잼 링크(/music/#jam)로 들어오면 로그인 없이 바로 손님 창
+    checkJam().then((J) => { if (location.hash === '#jam') { if (J) guest().then((m) => m.open(J)); else toast('지금 열린 잼이 없습니다'); } });
+    if (!loggedIn()) { if (location.hash !== '#jam' && !(await fetchCid())) openDlg(); return; }
     loadSdk();
     loadMe(); refreshDevices(); poll();
     if (LS.get('music.jam')) jam().then((m) => m.resume()); // 잼이 진행 중이면 이어 한다
