@@ -18,6 +18,21 @@ export async function musicApi(req, env, path) {
     const m = req.method;
     if (path === '/api/music' && m === 'GET') return json({ doc: await load(env) });
 
+    // Spotify Client ID(공개값, 비밀 아님): 한 기기에서 로그인하면 올려 두고 다른 기기는 받아서 바로 로그인 버튼만 누른다
+    if (path === '/api/music/cid') {
+      if (m === 'GET') {
+        const row = await env.DB.prepare("SELECT v FROM settings WHERE k = 'music.cid'").first();
+        return json({ cid: row ? row.v : '' });
+      }
+      if (m === 'PUT') {
+        const body = await readBody(req);
+        const cid = String((body && body.cid) || '').trim();
+        if (!/^[0-9a-f]{32}$/i.test(cid)) throw httpError(400, 'Client ID 모양이 아닙니다');
+        await env.DB.prepare("INSERT INTO settings (k, v) VALUES ('music.cid', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(cid).run();
+        return json({ ok: true });
+      }
+    }
+
     // 기기가 가진 문서를 보내면 서버 것과 합쳐 저장하고, 합친 문서를 돌려준다
     if (path === '/api/music/sync' && m === 'POST') {
       const body = await readBody(req);
