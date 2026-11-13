@@ -18,7 +18,7 @@ const SHELLS = await (await fetch(base + 'tapes/shell.json')).json();
 const IMGS = {}; await Promise.all(Object.keys(SHELLS).map((k) => new Promise((ok) => { const im = new Image(); im.onload = im.onerror = ok; im.src = base + 'tapes/' + k + '.webp'; IMGS[k] = im; })));
 const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.NeutralToneMapping; r.toneMappingExposure = 1.0;
-r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap; r.shadowMap.autoUpdate = false; // 그림자는 frame()에서 2번에 한 번
 const scene = new THREE.Scene(); 
 // 반사 환경: 밝은 스튜디오(위 소프트박스 + 옆 스트립)
 {
@@ -28,7 +28,7 @@ const scene = new THREE.Scene();
   box(10, 3, 0, 6, 2, Math.PI / 2, 0, 4); box(1.5, 6, -6, 2, 2, 0, Math.PI / 2, 2.5); box(1.5, 6, 6, 2, 1, 0, -Math.PI / 2, 2); box(14, 4, 0, -4, 6, -0.3, 0, 1.4);
   scene.environment = new THREE.PMREMGenerator(r).fromScene(env, 0.02).texture;
 }
-const key = new THREE.DirectionalLight(0xffffff, 1.2); key.position.set(-2, 4, 5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+const key = new THREE.DirectionalLight(0xffffff, 1.2); key.position.set(-2, 4, 5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); // 화면을 세로 340px로 그리니 1024면 충분(2048은 그림자만 4배 무거움)
 Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3 }); key.shadow.radius = 6; scene.add(key);
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.18 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -0.87; floor.receiveShadow = true; scene.add(floor);
 
@@ -349,11 +349,12 @@ canvas.addEventListener('pointermove', (ev) => {
 canvas.addEventListener('pointerleave', () => { ptr.tx = 0; ptr.ty = 0; dirty = true; });
 
 const still = matchMedia('(prefers-reduced-motion: reduce)');
+let frameN = 0;
 function frame(now) {
   if (!alive) return;
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - (last || now)) / 1000);
-  if (document.hidden) return;
+  if (document.hidden || !window.MusicJamOn) return; // 잼이 끝나 겹이 숨으면 그리지 않는다(예전엔 끝난 뒤에도 뒤에서 계속 그렸다)
   for (const tw of [...tweens]) { const t = Math.min(1, (now - tw.t0) / tw.ms); tw.fn(t); if (t >= 1) { tweens.delete(tw); tw.ok(); } }
   const busy = tweens.size > 0;
   if (Math.abs(ptr.tx - ptr.x) + Math.abs(ptr.ty - ptr.y) > 0.002 && !still.matches) { ptr.x += (ptr.tx - ptr.x) * 0.08; ptr.y += (ptr.ty - ptr.y) * 0.08; dirty = true; }
@@ -367,6 +368,7 @@ function frame(now) {
     dirty = true;
   }
   last = now; dirty = false;
+  if (busy || (frameN = (frameN || 0) + 1) % 2 === 0) r.shadowMap.needsUpdate = true;
   place(); r.render(scene, cam);
 }
 requestAnimationFrame(frame);
