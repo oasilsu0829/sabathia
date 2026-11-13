@@ -159,18 +159,31 @@ function show(id) { for (const v of sh.querySelectorAll('.view')) v.hidden = v.i
 
 async function loadList() {
   const r = await fetch(BASE + 'index.json', { cache: 'no-cache' });
-  list = (await r.json()).issues || [];
+  const k = new Date(Date.now() + 9 * 3600e3), ym = k.toISOString().slice(0, 7), mon = k.getUTCMonth() + 1;
+  list = ((await r.json()).issues || []).map((x) => x.dynamic ? { ...x, id: `${x.mag}-${ym}`, vol: `${k.getUTCFullYear()}.${String(mon).padStart(2, '0')}`, date: `${ym.replace('-', '.')}.01`, title: `나의 ${mon}월 — 내 청취 기록으로 짠 호` } : x);
 }
 async function loadIssue(it) {
   if (issueCache.has(it.id)) return issueCache.get(it.id);
   const html = await (await fetch(BASE + it.dir + '/issue.html')).text();
+  if (it.dynamic) { // 33⅓: 지면 모양(CSS)은 정적 호에서, 내용은 그 자리에서 Spotify 기록으로
+    const v0 = parseIssue(it, html);
+    const m = await import('/music/mag/m33.js');
+    const r = await m.build(core());
+    it.tracks = r.tracks; it.singles = 1;
+    const v = { css: v0.css, sp: r.sp };
+    if (r.tracks.length) issueCache.set(it.id, v);
+    return v;
+  }
+  const v = parseIssue(it, html);
+  issueCache.set(it.id, v); return v;
+}
+function parseIssue(it, html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const link = doc.querySelector('link[rel=stylesheet]');
   if (link && !document.querySelector(`link[href="${link.href}"]`)) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = link.getAttribute('href'); document.head.appendChild(l); }
   const css = [...doc.querySelectorAll('style')].map((s) => s.textContent).join('\n').replace(/:root\s*\{/g, `.iss-${it.id}{`);
   const sp = [...doc.querySelectorAll('template.sp')].map((t) => t.innerHTML);
-  const v = { css, sp };
-  issueCache.set(it.id, v); return v;
+  return { css, sp };
 }
 
 /* ── 우편함 · 책장 ── */
@@ -333,6 +346,8 @@ function bindBook() {
     if (e.target.closest('a')) return;
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { turn(dx < 0 ? 1 : -1); return; }
     if (Math.abs(dx) > 8 || Math.abs(dy) > 8) return;
+    const act = e.target.closest('[data-act]');
+    if (act) { if (act.dataset.act === 'relogin') { const C = core(); if (C) C.relogin(); } return; }
     const one = e.target.closest('.single7');
     if (one) { takeSingle(one); return; }
     const r = bookEl.getBoundingClientRect();
@@ -342,23 +357,49 @@ function bindBook() {
 }
 
 /* ── 부록 싱글: 테이프를 떼고 Spotify에서 찾아 재생, 출판사 크레이트에 꽂기 ── */
-async function takeSingle(el) {
-  const s = (cur.tracks || [])[+el.dataset.i];
-  for (const x of sh.querySelectorAll(`.single7[data-i="${el.dataset.i}"]`)) x.classList.add('taken');
+async function takeSingle() {
+  for (const x of sh.querySelectorAll('.single7')) x.classList.add('taken');
   sfx.peel();
-  if (!s) return;
-  const C = core();
+  const C = core(), tracks = cur.tracks || [];
   if (!C || !C.loggedIn()) { toast('Spotify에 연결하면 이 싱글을 바로 들을 수 있습니다'); return; }
+  if (!tracks.length) return;
   try {
-    const q = `track:${s.t} artist:${s.a.split(' · ')[0]}`;
-    const j = await C.api('/search?' + new URLSearchParams({ type: 'track', limit: '1', q }));
-    const tr = j && j.tracks && j.tracks.items && j.tracks.items[0];
-    if (!tr) { toast(`'${s.t}'을 Spotify에서 찾지 못했습니다`); return; }
-    const album = C.toAlbum(tr.album);
-    C.addToCrate(cur.crate.id, cur.crate.name, cur.crate.o, album);
-    C.playAlbum(album, tr.uri);
-    toast(`▶ '${tr.name}' — ${cur.crate.name} 크레이트에 꽂았습니다`);
+    const saved = LS.get('mag.pl') || {};
+    let ent = saved[cur.id];
+    if (!ent) {
+      toast('부록 싱글을 꺼내는 중…');
+      const found = [];
+      for (const s of tracks) {
+        if (s.uri) { found.push({ uri: s.uri, img: s.img }); continue; }
+        const j = await C.api('/search?' + new URLSearchParams({ type: 'track', limit: '1', q: `track:${s.t} artist:${s.a.split(' · ')[0]}` })).catch(() => null);
+        const tr = j && j.tracks && j.tracks.items && j.tracks.items[0];
+        if (tr) found.push({ uri: tr.uri, img: tr.album && tr.album.images && tr.album.images[0] && tr.album.images[0].url });
+      }
+      if (!found.length) { toast('부록 곡을 Spotify에서 찾지 못했습니다'); return; }
+      const name = `${cur.name} ${cur.vol} 부록`;
+      ent = await makePlaylist(C, name, `${cur.publisher} · ${cur.date} · Sabathia 잡지 부록 싱글`, found.map((f) => f.uri)).catch(() => null);
+      if (!ent) { await playUris(C, found.map((f) => f.uri)); toast(`▶ 부록 ${found.length}곡 재생 (플레이리스트는 만들지 못했습니다)`); return; }
+      ent.img = found[0].img || ''; ent.n = found.length;
+      saved[cur.id] = ent; LS.set('mag.pl', saved);
+    }
+    C.addToCrate(cur.crate.id, cur.crate.name, cur.crate.o, ent);
+    C.playAlbum(ent);
+    toast(`▶ ${ent.name} — ${cur.crate.name} 크레이트에 꽂았습니다`);
   } catch (e) { toast(e.message || '재생하지 못했습니다'); }
+}
+async function makePlaylist(C, name, description, uris) {
+  if (!C.hasScope('playlist-modify-private')) throw new Error('scope');
+  const body = { name, description, public: false };
+  let pl;
+  try { pl = await C.api('/me/playlists', { method: 'POST', body }); }
+  catch { const me = await C.api('/me'); pl = await C.api(`/users/${encodeURIComponent(me.id)}/playlists`, { method: 'POST', body }); }
+  try { await C.api(`/playlists/${pl.id}/items`, { method: 'POST', body: { uris } }); }
+  catch { await C.api(`/playlists/${pl.id}/tracks`, { method: 'POST', body: { uris } }); }
+  return { k: 'pl', id: pl.id, name, artist: cur.publisher };
+}
+async function playUris(C, uris) {
+  const id = encodeURIComponent(await C.targetDevice());
+  await C.api('/me/player/play?device_id=' + id, { method: 'PUT', body: { uris } });
 }
 
 /* ── 책장에서 바로 펼치기 ── */

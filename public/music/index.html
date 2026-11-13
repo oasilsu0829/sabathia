@@ -826,7 +826,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     del(k) { try { localStorage.removeItem(k); } catch {} },
   };
   const REDIRECT = location.origin + '/music/';
-  const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public';
+  const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public user-top-read user-read-recently-played';
   const API = 'https://api.spotify.com/v1';
   const MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -1430,12 +1430,29 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   // ---------- 상태 ----------
   let pollT = 0;
   function schedulePoll(ms) { clearTimeout(pollT); pollT = setTimeout(poll, ms); }
+  // 33⅓용 청취 기록(music.plays): 재생 중일 때 지난 확인 이후 흐른 시간을 그날·그 시간·그 곡에 더한다(한국 시각).
+  // 곡이 바뀌면 그 곡 재생 횟수 +1. 앱이 열려 있는 동안만 셀 수 있다. 62일치만 남긴다
+  let lastLog = 0, lastLogId = '';
+  function logPlay(st) {
+    const now = Date.now(), dt = lastLog ? Math.min(now - lastLog, 15000) : 0; lastLog = now;
+    const it = st && st.item;
+    if (!st || !st.is_playing || !it || !it.id) return;
+    const k = new Date(now + 9 * 3600e3), day = k.toISOString().slice(0, 10), h = k.getUTCHours(), wd = (k.getUTCDay() + 6) % 7;
+    const L = LS.get('music.plays') || { v: 1, days: {}, meta: {} };
+    const D = L.days[day] = L.days[day] || { s: {}, c: {}, h: Array(24).fill(0), wd };
+    D.s[it.id] = Math.round((D.s[it.id] || 0) + dt / 1000); D.h[h] = Math.round(D.h[h] + dt / 1000);
+    if (it.id !== lastLogId) { D.c[it.id] = (D.c[it.id] || 0) + 1; lastLogId = it.id; }
+    if (!L.meta[it.id]) L.meta[it.id] = { n: it.name, a: (it.artists || []).map((x) => x.name).join(', '), al: it.album && it.album.name, img: pickImg(it.album && it.album.images, 300), u: it.uri };
+    const keys = Object.keys(L.days).sort(); while (keys.length > 62) delete L.days[keys.shift()];
+    LS.set('music.plays', L);
+  }
   async function poll() {
     clearTimeout(pollT);
     if (!loggedIn()) return;
     try {
       const st = await api('/me/player?additional_types=episode');
       S.st = st ? { ...st, at: Date.now() } : null;
+      logPlay(S.st);
       render();
     } catch (e) { if (e.status === 0) return; }
     if (document.visibilityState === 'visible') pollT = setTimeout(poll, S.st && S.st.is_playing ? 3000 : 6000);

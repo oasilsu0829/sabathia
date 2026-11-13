@@ -124,29 +124,16 @@
    "name": "33⅓",
    "vol": "Vol.00",
    "date": "2026.11",
-   "title": "창간 준비호 — 기록 0일치에서 시작한다",
+   "title": "나의 한 달 — 내 청취 기록으로 짠 호",
    "publisher": "사바시아 출판",
    "color": "#d62718",
-   "singles": 3,
+   "singles": 1,
    "crate": {
     "id": "c-pub-mo",
     "name": "사바시아 출판",
     "o": 904
    },
-   "tracks": [
-    {
-     "t": "Go (Carnaval De Luz)",
-     "a": "U2"
-    },
-    {
-     "t": "My Whole World",
-     "a": "Kings of Leon"
-    },
-    {
-     "t": "Trouble Trouble",
-     "a": "Aesop Rock"
-    }
-   ]
+   "dynamic": true
   }
  ]
 }
