@@ -743,6 +743,8 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
 <dialog id="dlg" aria-labelledby="dlgT">
   <div class="dlg">
     <h2 id="dlgT">Spotify 연결<button class="icon-btn" type="button" id="dlgX" aria-label="닫기">✕</button></h2>
+    <p class="note" id="easyNote" hidden>이 앱의 Client ID가 이미 저장되어 있습니다. 아래 버튼만 누르면 됩니다.</p>
+    <div id="setup">
     <div id="dlgOut">
       <ol>
         <li><a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>에서 Create app</li>
@@ -753,9 +755,11 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     </div>
     <div class="copy"><code id="redir"></code><button class="btn" type="button" id="copyBtn">복사</button></div>
     <label>CLIENT ID<input type="text" id="cid" autocomplete="off" spellcheck="false" placeholder="32자리 영문·숫자"></label>
+    </div>
     <div class="acts">
       <button class="btn dark" type="button" id="loginBtn">Spotify로 로그인</button>
       <button class="btn" type="button" id="logoutBtn" hidden>로그아웃</button>
+      <button class="btn" type="button" id="cidBtn" hidden>Client ID 바꾸기</button>
     </div>
     <p class="note" id="who"></p>
     <p class="note" id="sdkNote"></p>
@@ -765,7 +769,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     <p class="note" style="margin-top:-6px">Spotify 앱에서 위클리·데이리스트를 열고 공유 → 링크 복사 후 붙여넣기. 새로 나오는 날(위클리는 월요일, 데이리스트는 아침·오후·저녁·밤마다) 처음 열면 비닐에 싸인 판으로 뜹니다.</p>
     <label>위클리 링크<input type="text" id="lkWeekly" autocomplete="off" spellcheck="false" placeholder="https://open.spotify.com/playlist/…"></label>
     <label>데이리스트 링크<input type="text" id="lkDaylist" autocomplete="off" spellcheck="false" placeholder="https://open.spotify.com/playlist/…"></label>
-    <p class="note">비밀번호는 Spotify 화면에서만 입력합니다. 이 앱은 Client ID와 로그인 토큰만 이 기기에 저장합니다. 브라우저 안에서 바로 재생하려면 Premium이 필요하고, 폰·아이패드 브라우저는 Spotify가 바로 재생을 막아 두어 그 기기의 Spotify 앱을 조작하는 방식으로 씁니다.</p>
+    <p class="note">비밀번호는 Spotify 화면에서만 입력합니다. 로그인 토큰은 이 기기에만 저장하고, Client ID(공개값)는 다른 기기도 쓰도록 Sabathia 서버에 둡니다. 브라우저 안에서 바로 재생하려면 Premium이 필요하고, 폰·아이패드 브라우저는 Spotify가 바로 재생을 막아 두어 그 기기의 Spotify 앱을 조작하는 방식으로 씁니다.</p>
   </div>
 </dialog>
 
@@ -852,9 +856,32 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   }
   const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+  // 다른 기기에서 저장한 Client ID를 서버에서 받아 온다(이 기기에 없을 때만)
+  async function fetchCid() {
+    if (clientId()) return clientId();
+    try {
+      const c = cfg(), h = {};
+      if (c.token) h.Authorization = 'Bearer ' + c.token;
+      const r = await fetch(c.base + '/api/music/cid', { headers: h, cache: 'no-store' });
+      const j = await r.json();
+      if (r.ok && /^[0-9a-f]{32}$/i.test(j.cid || '')) LS.set('music.cid', j.cid);
+    } catch {}
+    return clientId();
+  }
+  function pushCid(cid) {
+    const c = cfg(), h = { 'Content-Type': 'application/json' };
+    if (c.token) h.Authorization = 'Bearer ' + c.token;
+    fetch(c.base + '/api/music/cid', { method: 'PUT', headers: h, body: JSON.stringify({ cid }) }).catch(() => {});
+  }
+  // 로그인 안 된 채 무언가를 누르면: Client ID를 알면 바로 Spotify로, 모르면 설정 창
+  async function connect() {
+    if (await fetchCid()) login(); else openDlg();
+  }
+
   async function login() {
-    const cid = $('cid').value.trim();
-    if (!/^[0-9a-f]{32}$/i.test(cid)) { toast('Client ID는 32자리 영문·숫자입니다'); $('cid').focus(); return; }
+    const typed = $('dlg').open && !$('setup').hidden ? $('cid').value.trim() : '';
+    const cid = typed || clientId();
+    if (!/^[0-9a-f]{32}$/i.test(cid)) { toast('Client ID는 32자리 영문·숫자입니다'); openDlg(true); $('cid').focus(); return; }
     LS.set('music.cid', cid);
     const v = rand(64), state = rand(16);
     LS.set('music.pkce', { v, state });
@@ -887,6 +914,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     if (!p || p.state !== q.get('state')) { toast('로그인 확인값이 맞지 않습니다. 다시 로그인하세요'); return; }
     try {
       await tokenReq({ grant_type: 'authorization_code', code: q.get('code'), redirect_uri: REDIRECT, code_verifier: p.v });
+      pushCid(clientId());
       toast('Spotify에 연결했습니다');
     } catch (e) { toast('토큰 받기 실패: ' + e.message + ' (Redirect URI와 Client ID 확인)', 6000); }
   }
@@ -912,7 +940,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
       if (e.status === 400 || e.status === 401) {
         const n = LS.get('music.tok');
         if (n && n.r && n.r !== t.r && n.e - Date.now() > 60000) return n.a; // 잠금이 없는 브라우저: 다른 탭이 이겼으면 그걸 쓴다
-        logout(true); toast('로그인이 만료되었습니다. 설정에서 다시 로그인하세요', 6000);
+        logout(true); toast('로그인이 만료되었습니다. 재생 버튼을 누르면 다시 연결합니다', 6000);
       }
       throw e;
     }
@@ -1528,7 +1556,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   // ---------- 조작 ----------
   const playing = () => !!(S.st && S.st.is_playing);
   async function toggle() {
-    if (!loggedIn()) { openDlg(); return; }
+    if (!loggedIn()) { connect(); return; }
     wake();
     try {
       if (playing()) { S.st.is_playing = false; render(); await api('/me/player/pause', { method: 'PUT' }); }
@@ -1539,7 +1567,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   }
   // 앨범(플레이리스트) 단위로 듣는다: 셔플을 끄고 처음(또는 고른 곡)부터. 판이 바뀌면 모션
   async function playAlbum(a, trackUri) {
-    if (!loggedIn()) { openDlg(); return; }
+    if (!loggedIn()) { connect(); return; }
     if (a && a.t && !trackUri) { jam().then((m) => m.replay(a)); return; } // JAM 크레이트 테이프 = 카세트로 다시 듣기
     wake(); sfx.unlock();
     const key = uriOf(a), changing = ctxKey(S.st) !== key;
@@ -2015,7 +2043,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     // 판을 갈아 끼우는 중이면(Spotify가 아직 예전 곡을 알려 줘도) 제목은 새 판으로
     const pend = S.pending && key !== S.pending.key && Date.now() - S.pending.at < 16000 ? S.pending : null;
     const t = pend ? (pend.track || pend.name) : it ? it.name : loggedIn() ? '재생 중인 곡 없음' : 'Spotify 연결 안 됨';
-    const a = pend ? (pend.track ? [pend.artist, pend.name].filter(Boolean).join(' · ') : pend.artist) : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '설정에서 로그인';
+    const a = pend ? (pend.track ? [pend.artist, pend.name].filter(Boolean).join(' · ') : pend.artist) : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '눌러서 Spotify 연결';
     $('nowT').textContent = t; $('nowA').textContent = a;
     $('botT').textContent = t; $('botA').textContent = a;
     $('nowImg').style.backgroundImage = pend ? bg(pend.img) : bg(small(it));
@@ -2023,7 +2051,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     if (!pend) S.pending = null;
     const L = pend || (key ? entryFor(key, it) : it ? { name: it.name, artist: artists(it), img: cover(it) } : null);
     $('labT').textContent = L ? L.name : 'NO RECORD';
-    $('labA').textContent = L ? L.artist : (loggedIn() ? '크레이트에서 고르세요' : '설정에서 로그인');
+    $('labA').textContent = L ? L.artist : (loggedIn() ? '크레이트에서 고르세요' : '눌러서 Spotify 연결');
     $('label').classList.toggle('art', !!(L && L.img));
     $('label').style.backgroundImage = bg(L && L.img);
     if (window.Deck3D && Deck3D.ok) Deck3D.setLabel(L ? { name: L.name, artist: L.artist, img: L.img, tracks: (pend ? pend.key : key) && S.tracksFor === (pend ? pend.key : key) ? trackGaps() : null } : null);
@@ -2090,7 +2118,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     $('npLed').classList.toggle('on', on);
     $('npK').textContent = !loggedIn() ? 'OFFLINE' : pend ? 'CHANGING RECORD' : on ? 'NOW PLAYING' : it ? 'PAUSED' : 'STANDBY';
     $('npT').textContent = pend ? (pend.track || pend.name) : it ? it.name : loggedIn() ? '재생 중인 곡 없음' : 'Spotify 연결 안 됨';
-    $('npA').textContent = pend ? (pend.track ? [pend.artist, pend.name].filter(Boolean).join(' · ') : pend.artist) : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '설정에서 로그인';
+    $('npA').textContent = pend ? (pend.track ? [pend.artist, pend.name].filter(Boolean).join(' · ') : pend.artist) : it ? artists(it) : loggedIn() ? '크레이트에서 앨범을 고르세요' : '눌러서 Spotify 연결';
     let m = '';
     if (!pend && it) {
       const alb = it.album || {}, yr = (alb.release_date || '').slice(0, 4);
@@ -2112,7 +2140,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     const set = (x, y) => { t.style.setProperty('--rx', (6 - y * 14).toFixed(2) + 'deg'); t.style.setProperty('--ry', (-10 + x * 22).toFixed(2) + 'deg'); sl.style.setProperty('--gx', (60 - x * 50).toFixed(1) + '%'); };
     st.addEventListener('pointermove', (e) => { const r = st.getBoundingClientRect(); set((e.clientX - r.left) / r.width - 0.5, (e.clientY - r.top) / r.height - 0.5); });
     st.addEventListener('pointerleave', () => { t.style.removeProperty('--rx'); t.style.removeProperty('--ry'); sl.style.removeProperty('--gx'); });
-    st.addEventListener('click', () => { if (loggedIn()) toggle(); else openDlg(); });
+    st.addEventListener('click', () => { if (loggedIn()) toggle(); else connect(); });
   })();
   // 탭: 기기마다 기억(music.tab)
   function setTab(tab) {
@@ -2260,7 +2288,9 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   }
 
   // ---------- 설정 창 ----------
-  function openDlg() {
+  function openDlg(edit) {
+    const known = !!clientId() && !edit;
+    $('setup').hidden = known; $('easyNote').hidden = !known || loggedIn(); $('cidBtn').hidden = !known;
     $('cid').value = clientId(); $('redir').textContent = REDIRECT; renderAuth();
     if (!$('dlg').open) $('dlg').showModal();
   }
@@ -2272,11 +2302,12 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   };
 
   // ---------- 이벤트 ----------
-  $('setBtn').addEventListener('click', openDlg);
+  $('setBtn').addEventListener('click', () => openDlg());
   $('dlgX').addEventListener('click', () => $('dlg').close());
   for (const id of ['dlg', 'find', 'cdlg', 'clist']) $(id).addEventListener('click', (e) => { if (e.target === $(id)) $(id).close(); });
   $('copyBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(REDIRECT); toast('주소를 복사했습니다', 1800); } catch { toast(REDIRECT); } });
   $('loginBtn').addEventListener('click', login);
+  $('cidBtn').addEventListener('click', () => openDlg(true));
   $('logoutBtn').addEventListener('click', () => { logout(); $('dlg').close(); });
   $('goBtn').addEventListener('click', toggle);
   $('playBtn').addEventListener('click', toggle);
@@ -2562,9 +2593,9 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   // ---------- 잼 모드 (jam/jam.js, 처음 누를 때 불러옴) ----------
   // 잼 테이프는 JAM 크레이트(c-jam)에 플레이리스트 항목(k: 'pl')으로 꽂히고, t = 카세트 디자인
   window.MusicCore = {
-    api, toast, LS, loggedIn, openDlg, targetDevice, wake, state: () => S.st, poll: schedulePoll,
+    api, toast, LS, loggedIn, openDlg: connect, targetDevice, wake, state: () => S.st, poll: schedulePoll,
     hasScope: (x) => ((LS.get('music.tok') || {}).s || '').split(' ').includes(x),
-    relogin() { const i = $('cid'); i.value = clientId(); login(); },
+    relogin() { login(); },
     playAlbum: (a, trackUri) => playAlbum(a, trackUri), toAlbum: (raw) => toAlbum(raw), sfx,
     // 잡지 부록 싱글: 출판사 크레이트에 그 곡의 앨범을 꽂는다
     addToCrate(cid, name, o, a) {
@@ -2602,7 +2633,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     setTab(LS.get('music.tab') === 'crate' ? 'crate' : 'now');
     renderCrates(); renderCrate(true); render(); renderTracks(true); renderAuth();
     sync();
-    if (!loggedIn()) { if (!clientId()) openDlg(); return; }
+    if (!loggedIn()) { if (!(await fetchCid())) openDlg(); return; }
     loadSdk();
     loadMe(); refreshDevices(); poll();
     if (LS.get('music.jam')) jam().then((m) => m.resume()); // 잼이 진행 중이면 이어 한다

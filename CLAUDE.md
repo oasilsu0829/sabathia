@@ -74,6 +74,7 @@ public/exam/        시험대비 (EXM-08, 2026-11-10). 2026 1학년 2학기 기�
                     - 18:30~19:30에 열면 '고비 시간' 띠(light 표시된 할 일 + 오답 확인)
 public/music/       음악 (MUS-09, 2026-11-11). Spotify 플레이어. Stitch 시안 "White Deck - iPad Edition"(턴테이블 + 플레이리스트 상자)을 옮김(상표·모델명은 뺌). theme.css를 쓰지 않는 자체 화면
                     - 로그인: PKCE(서버 없음). 사용자가 developer.spotify.com에 앱을 만들고 Client ID를 설정 창에 넣는다(localStorage music.cid, 토큰 music.tok). Redirect URI = <주소>/music/
+                      간편 로그인(2026-11-13): 로그인에 성공하면 Client ID(공개값)를 서버에 올림(PUT /api/music/cid, D1 settings k='music.cid'). 다른 기기는 열 때 받아 오고, 재생·OFFLINE을 누르면 설정 창 없이 바로 Spotify 동의 화면(connect()). 설정 창은 Client ID를 알면 안내·입력칸을 숨기고 'Client ID 바꾸기'로 펼침. 토큰은 기기마다(갱신 토큰이 매번 바뀌어 공유 불가)
                     - 조작은 Web API(/me/player…), 플레이리스트는 /me/playlists. Web Playback SDK로 이 브라우저를 'Sabathia' 기기로 올림(PC 크롬만. 폰·아이패드 브라우저는 Spotify가 막아서 기기 목록에서 폰 Spotify 앱을 조작)
                     - Premium 계정 필요(사용자 Premium 확인). 개발 모드 앱이라 사용자 본인 계정만 씀
                     - 크레이트(2026-11-11 사용자 요청): 오른쪽은 낡은 나무 상자(CSS 나뭇결) 안에 앨범을 세워 꽂고 앞으로 넘겨 고른다(밀기·휠·화살표). 플레이리스트는 뺐고 앨범 단위로 듣는다(재생 때 셔플 끔)
