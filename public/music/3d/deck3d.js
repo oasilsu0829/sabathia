@@ -32,12 +32,14 @@ try {
 if (renderer && host) start();
 
 function start() {
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  // 해상도: 레티나(2배)를 다 쓰면 픽셀이 4배라 패드·폰에서 버벅인다. 1.5배까지만(2026-11-13)
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   // 실제 그림자(판·톤암·본체가 책상에 떨어뜨리는 그림자)
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true; // 그림자는 움직일 때만 다시 그린다(loop)
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -399,7 +401,7 @@ function start() {
   const clips = [], clickables = [];
   let speed45 = false, volume = 50, cueUp = 1, coverK = 0, coverT = 0, idle = 0, dragCtl = null;
   // 마지막으로 뭔가 바뀐 시각(만짐·라벨·색·볼륨…). 2초 넘게 조용하면 프레임을 낮춘다(배터리)
-  let poke = 0;
+  let poke = 0, touchAt = 0; // poke: 깨우기(시간창 글자 등), touchAt: 손으로 만진 시각
   // 판을 간 뒤 음악 전 손놀림: cue = 'spin'(플래터만 돎) · 'lead'(톤암을 들어 판 가장자리 위로) · 'down'(큐 레버를 내려 바늘이 천천히 내려감). null이면 재생 상태를 따름
   let cue = null, brushT0 = -1, dustBrush = null;
 
@@ -766,16 +768,24 @@ function start() {
     dustBrush.rotation.set(0, lerp(0.5, 0, inK) + Math.sin(k * 12) * 0.02 * downK * (1 - upK), lerp(-0.25, 0, inK) - upK * 0.2);
   }
 
+  // 화면에 안 보이면(잼 모드로 가려짐 · 탭 숨김 · 칸이 화면 밖) 그리지 않는다
+  let onScreen = true;
+  if ('IntersectionObserver' in window) new IntersectionObserver((es) => { onScreen = es[es.length - 1].isIntersecting; }).observe(host);
+  let frameN = 0;
   function loop(now) {
     if (!parts) return;
     // 잡지처럼 화면 전체를 덮는 것이 떠 있으면 그리지 않는다(아이폰 사파리 메모리)
     if (D._off) { loop.last = now; setTimeout(() => requestAnimationFrame(loop), 500); return; }
+    if (document.hidden || window.MusicJamOn || !onScreen) { loop.last = now; requestAnimationFrame(loop); return; }
     // 조용할 때(멈춤 · 움직이는 것 없음 · 2초 넘게 안 만짐)는 초당 10번, 덮개가 닫혔으면 초당 2번만 그린다
     const calm = !(playing || grab || drop || dragCtl || cue || brushT0 >= 0 || shakeT >= 0 || fx.gaps.length) &&
       vel < 0.005 && Math.abs(yaw) < 0.001 && lift < 0.0005 && Math.abs(cueUp - 1) < 0.005 &&
       Math.abs(coverT - coverK) < 0.001 && Math.abs(nightT - night) < 0.001 &&
       Math.abs((0.25 - volume / 100 * 0.5) - ctl.knob.position.z) < 0.0005 && now - poke > 2000;
     if (calm && now - loop.last < (coverK > 0.99 ? 500 : 100)) { requestAnimationFrame(loop); return; }
+    // 판만 도는 평소 재생은 초당 30번이면 충분하다(120Hz 화면에서 4배 덜 그림). 판 갈기·잡기·조작 중엔 매 프레임
+    const lively = !!(grab || drop || dragCtl || cue || brushT0 >= 0 || shakeT >= 0) || now - touchAt < 1200;
+    if (!calm && !lively && now - loop.last < 31) { requestAnimationFrame(loop); return; }
     const dt = Math.min(calm ? 0.6 : 0.05, (now - loop.last) / 1000); loop.last = now;
     const busy = !!drop;
     // 플래터: 재생 중이면 33⅓ rpm까지 0.8초에 올라가고, 멈추면 천천히 선다
@@ -853,6 +863,9 @@ function start() {
       if (t >= 1) { deck.position.set(0, 0, 0); deck.rotation.z = 0; shakeT = -1; }
       else { const a = (1 - t) * (1 - t); deck.position.set(Math.sin(t * 60) * 0.018 * a, -Math.abs(Math.sin(t * 30)) * 0.012 * a, Math.cos(t * 47) * 0.012 * a); deck.rotation.z = Math.sin(t * 41) * 0.006 * a; }
     }
+    // 그림자: 판·톤암·덮개가 움직이는 동안은 매번, 판만 돌 땐 6번에 한 번(돌아가는 원판 그림자는 거의 안 바뀐다)
+    frameN++;
+    if (lively || far || Math.abs(coverT - coverK) > 0.001 || frameN % 6 === 0) renderer.shadowMap.needsUpdate = true;
     renderer.render(scene, cam);
     requestAnimationFrame(loop);
   }
@@ -1035,6 +1048,6 @@ function start() {
   for (const k of ['drop', 'shake', 'flashGap', 'coverOpen']) {
     const f = D[k]; D[k] = (...a) => { poke = performance.now(); return f(...a); };
   }
-  for (const ev of ['pointerdown', 'pointermove', 'wheel']) el.addEventListener(ev, () => { poke = performance.now(); }, { passive: true });
+  for (const ev of ['pointerdown', 'pointermove', 'wheel']) el.addEventListener(ev, () => { poke = touchAt = performance.now(); }, { passive: true });
   init();
 }

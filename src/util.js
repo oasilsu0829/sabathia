@@ -67,9 +67,18 @@ export function ensureTables(env) {
       // 장부: 프로젝트 하나가 한 줄. data는 JSON, updated는 ms, deleted는 지운 표시(다른 기기에도 지워지게 남겨 둔다)
       env.DB.prepare(`CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY, data TEXT NOT NULL, updated INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0)`),
+      // 음악 잼: 손님이 넣은 곡 대기열(호스트 화면이 가져가 Spotify 플레이리스트에 넣고 지운다)
+      env.DB.prepare(`CREATE TABLE IF NOT EXISTS jam_q (
+        id TEXT PRIMARY KEY, pid TEXT NOT NULL, uris TEXT NOT NULL DEFAULT '[]', q TEXT NOT NULL DEFAULT '',
+        label TEXT NOT NULL DEFAULT '', by TEXT NOT NULL DEFAULT '', at INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT '')`),
+      env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_jam_q ON jam_q (pid, at)'),
     ])
       // 예전에 만든 events 테이블에는 cat 열이 없다. 이미 있으면 duplicate column 오류가 나므로 무시한다.
       .then(() => env.DB.prepare("ALTER TABLE events ADD COLUMN cat TEXT NOT NULL DEFAULT ''").run().catch((e) => {
+        if (!/duplicate column/i.test(String(e && e.message))) throw e;
+      }))
+      // jam_q 첫 판에는 kind 열이 없었다
+      .then(() => env.DB.prepare("ALTER TABLE jam_q ADD COLUMN kind TEXT NOT NULL DEFAULT ''").run().catch((e) => {
         if (!/duplicate column/i.test(String(e && e.message))) throw e;
       }))
       .catch((e) => { ready = null; throw e; });

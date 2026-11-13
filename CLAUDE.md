@@ -138,6 +138,15 @@ public/music/mag/   잡지 MAG (2026-11-13). 위 줄 MAG 버튼 → mag.js(처�
                     - 첫 호 4권: Drop Vol.01(U2), feedback vol.01(Kings of Leon), Cypher Vol.01(Aesop Rock & Blockhead), 33⅓(유저별 자동, 정적 mo-00은 CSS만). 사진은 Flickr CC(Openverse 경유), 저작자는 각 호 판권 쪽
                     - 편집 방침·성격·로직: docs/magazine/ (editorial-logic.md, mags/*.md 바이블, logo-prompts.md). 시안 원본은 docs/magazine/issues/
                     - 지면 만드는 법(지금은 수작업): 세션 스크래치에서 HTML 시안 → 이미지 data URI를 파일로 빼고 펼침을 template으로 감싸 issue.html. 다음 단계는 예약 편집 세션이 자동으로
+                    - 친구 접속 손봄(2026-11-13): 크레이트는 Spotify 계정마다 따로(LS music.crates.<id>, 서버 k='music.u.<id>', 요청에 X-Spotify 토큰 → 서버가 /me로 확인). 로그인 전엔 동기화 안 함
+                      예전 공유 문서 k='music'은 처음 동기화한 계정이 가져감(k='music.owner'). 그 계정 기기의 예전 LS music.crates는 합치고, 다른 계정 기기는 버림
+                      잼 손님: 친구는 /music/#jam(또는 JAM 버튼, 초록 점 = 열린 잼)에서 jam/guest.js 창으로 곡을 보냄(로그인 없으면 '곡 이름 · 가수' 글자나 Spotify 링크). 서버 대기열 jam_q → 호스트 jam.js pullGuests()가 4초마다 가져가 자기 토큰으로 넣고 done. 셋리스트·지금 곡은 publish()로 k='music.jam'(8시간 지나면 끝난 것). 넣은 사람 이름은 music.jam.guests[uri]. 검증 test/music-api.mjs
+                      잼 참가(같은 날, 사용자 요청): 로그인한 친구는 손님 창 대신 같은 잼에 들어온다(jam.js join, music.jam.guest). 셋리스트는 서버에서(호스트 publish가 uri·ms·img·지금 곡·재생 여부·위치 ps를 올림, 서버가 pu=서버 시각, 읽을 때 now를 줘서 시계 차이 보정)
+                      친구 기기는 follow(): 호스트 지금 곡부터 uris로 자기 Spotify에 틀고, 곡이 다르거나 4초 넘게 어긋나면 다시(6초에 한 번까지), 호스트가 멈추면 멈춤. Premium 아니면 듣기만 빠짐
+                      친구 건반·J카드 누르기 = /api/music/jam/ctl(jam_q kind 'ctl') → 호스트 runCtl이 실행 → 모두 따라감. 곡 넣기도 서버 대기열. 참가자 표시 /api/music/jam/hello(2초, 서버는 10초에 한 번만 씀) → J카드 '함께:'. 친구의 STOP/EJ 두 번·'나가기' = leave(잼은 계속), 호스트가 끝내면 친구 화면도 닫힘
+                      로그인 안 한 친구는 예전처럼 guest.js 창(곡만 보냄)
+                      Device not found: api()가 /me/player 404면 recoverDevice(기기 목록 다시 → 고르기 pickDevice → transfer → 같은 요청 다시). PC 브라우저 플레이어는 다시 연결. 폰·패드는 SDK를 안 띄움(죽은 'Sabathia' 기기가 원인)
+                      버벅임: 유리 바·칸 backdrop-filter와 .dof 끔, 3D는 해상도 1.5배까지 · 평소 재생 30fps · 그림자는 움직일 때만 · 잼/숨김/화면 밖이면 안 그림. 라디오(boombox)는 잼 끝나면 멈춤(전엔 뒤에서 계속 그림), 그림자 1024 · 2번에 한 번
                     - 아이폰 사파리 탭 닫힘 대응(2026-11-13, 친구 제보 '문제가 반복적으로 발생'): 메모리 초과. 책은 지금 장 ±2만 내용을 넣고 나머지 장은 비워 display:none(mag.js near(), faces). 잡지가 열려 있으면 body.magon으로 뒤 앱(header·main·.amb·footer)을 숨기고 Deck3D.suspend(true)로 3D를 멈춤(닫으면 되돌림)
                     - LP 전체화면(2026-11-13): 턴테이블 줄 '전체화면' 버튼 또는 F 키. body.lpfull → 턴테이블 칸이 화면을 덮고 3초 손대지 않으면 위·아래 줄이 사라짐(lpidle), 왼쪽 아래 곡 이름 크게. Esc로 나감
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)

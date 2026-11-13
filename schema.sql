@@ -46,3 +46,15 @@ CREATE TABLE IF NOT EXISTS projects (
   updated INTEGER NOT NULL,
   deleted INTEGER NOT NULL DEFAULT 0
 );
+
+-- 음악 잼: 손님이 넣은 곡 대기열(호스트 화면이 가져가 Spotify 플레이리스트에 넣고 지운다)
+CREATE TABLE IF NOT EXISTS jam_q (
+  id    TEXT PRIMARY KEY,
+  pid   TEXT NOT NULL,
+  uris  TEXT NOT NULL DEFAULT '[]',
+  q     TEXT NOT NULL DEFAULT '',
+  label TEXT NOT NULL DEFAULT '',
+  by    TEXT NOT NULL DEFAULT '',
+  at    INTEGER NOT NULL,
+  kind  TEXT NOT NULL DEFAULT ''  -- '' 곡 넣기, 'ctl' 참가자 조작(q = 'next:-1' 등)
+);
