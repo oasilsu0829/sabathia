@@ -1,5 +1,5 @@
 /* 음악 크레이트 합치기 — 서버(src/music.js)와 화면(public/music/index.html)이 같이 쓴다.
-   문서 하나: { v: 1, crates: { id: { id, name, o, u, albums: [{ id, uri, name, artist, img, year, n, k?, p?, t? }] — k: 'pl' 이면 플레이리스트(앨범 한 장처럼 꽂힘), t는 잼 테이프 카세트 } } }
+   문서 하나: { v: 1, crates: { id: { id, name, o, u, albums: [{ id, uri, name, artist, img, year, n, k?, p?, t?, m? }] — k: 'pl' 이면 플레이리스트(앨범 한 장처럼 꽂힘), t는 잼 테이프 카세트 } } }
    - 크레이트마다 고친 시각 u. 두 기기 것을 합칠 때 크레이트 id마다 u가 늦은 쪽이 이긴다
    - 지운 크레이트는 { id, del: 1, u } 로 남겨 다른 기기에서도 지워지게 한다(180일 뒤 치움)
    - 기본 크레이트(c-main)는 기기마다 같은 id에 u: 0 이라 겹치지 않는다
@@ -20,9 +20,10 @@
     const img = str(a.img, 300), pl = a.k === 'pl';
     const y = {
       id: a.id, uri: (pl ? 'spotify:playlist:' : 'spotify:album:') + a.id, name: str(a.name, 200), artist: str(a.artist, 200),
-      img: /^https:\/\//.test(img) ? img : '', year: str(a.year, 10), n: Math.max(0, Math.floor(num(a.n))),
+      img: /^https:\/\//.test(img) || /^\/music\/mag\/sleeves\/[a-z0-9-]+\.webp$/.test(img) ? img : '', year: str(a.year, 10), n: Math.max(0, Math.floor(num(a.n))),
     };
     if (pl) y.k = 'pl';
+    if (pl && /^[a-z]{2,8}$/.test(a.m || '')) y.m = a.m; // 잡지 부록 LP: 잡지 키(drop·fb·cy·mo) → 투명 비닐 커버·라벨
     const p = Math.max(0, Math.floor(num(a.p)));
     if (p) y.p = Math.min(p, 99999); // 들은 횟수(슬리브 낡음)
     if (pl && /^[a-z0-9]{2,20}$/.test(a.t || '')) y.t = a.t; // 잼 테이프: 카세트 디자인(jam/boombox.js TAPES)

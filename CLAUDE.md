@@ -125,6 +125,10 @@ public/music/mag/   잡지 MAG (2026-11-13). 위 줄 MAG 버튼 → mag.js(처�
                     - 지면 = issues/<id>/issue.html (펼침마다 <template class="sp">, 이미지 파일 같은 폴더). 펼침을 두 배 폭으로 그리고 반쪽씩 보여 줘서 넓은 화면은 두 쪽 펼침, 폰은 한 쪽씩
                     - 목록 issues/index.json (id, 잡지, 호, 날짜, 출판사, 색, crate{id,name,o}, tracks[{t,a}] = 부록 싱글 순서). 헤더 MAG 버튼의 빨간 점 = 안 연 호
                     - 부록은 호마다 큰 싱글 한 장(그 호의 곡 전부 + 라이너 노트 쪽). 누르면 테이프가 떨어지고 곡을 찾아 비공개 Spotify 플레이리스트 '<잡지> <호>'를 만들어(mag.pl[id]에 기억, 실패하면 곡 목록만 재생) 플레이리스트로 재생(MusicCore.playAlbum), 출판사 크레이트(c-pub-drop/fb/cy/mo)에 꽂음(MusicCore.addToCrate)
+                    - 부록 LP(2026-11-13 사용자 요청): 싱글을 12인치 LP로. 투명 비닐(PVC) 커버 너머 검은 판이 보이고 비닐에 잡지사 시그니처(제호·줄임 마크·대표색)가 인쇄됨
+                      그림 mag/sleeves/<mag>.webp(커버 800px) · <mag>-l.webp(판 라벨). 원본 scripts/mag-sleeves.html, 다시 뽑기 node scripts/mag-sleeves.cjs <출력 폴더>(Playwright, png → webp)
+                      지면: mag.js lp12()가 .single7.bigs 안에 커버 그림을 끼움(테이프는 그대로). 크레이트 항목 = k 'pl' + m(잡지 키) + img(/music/mag/sleeves/…, merge.js가 이 경로만 허용)
+                      m이 있으면 클립보드가 아니라 LP: 크레이트에 커버 그림, 판 갈기는 앨범 슬리브 모션(slam 아님), 3D 판 라벨은 잡지사 라벨 그림 그대로(deck3d lblSrc, 글자 안 얹음)
                     - 33⅓은 유저마다 다름(2026-11-13): index.json에 dynamic: true면 issue.html은 CSS만 쓰고 지면은 mag/m33.js build(MusicCore)가 만든다. 호 id = mo-YYYY-MM(달마다 새 호)
                       재료: /me, /me/top/tracks·artists(short_term), /me/player/recently-played, 이 기기 재생 기록 LS music.plays(index.html logPlay: poll 때마다 날짜별 곡 초·횟수·시간대, 62일 보관, 한국 시각. 앱이 열려 있을 때만 쌓임)
                       지면: 표지(앨범 표지 4장 원본 그대로 · 이름 · 청취 시간) · 편지·목차 · TOP 20 + 1위 · 언제 듣나(히트맵) + 아티스트 다섯 · 허세 카드(최대 6장, 카드마다 근거 숫자) · 부록(TOP 5 싱글)
@@ -141,6 +145,7 @@ public/music/mag/   잡지 MAG (2026-11-13). 위 줄 MAG 버튼 → mag.js(처�
                       로그인 안 한 친구는 예전처럼 guest.js 창(곡만 보냄)
                       Device not found: api()가 /me/player 404면 recoverDevice(기기 목록 다시 → 고르기 pickDevice → transfer → 같은 요청 다시). PC 브라우저 플레이어는 다시 연결. 폰·패드는 SDK를 안 띄움(죽은 'Sabathia' 기기가 원인)
                       버벅임: 유리 바·칸 backdrop-filter와 .dof 끔, 3D는 해상도 1.5배까지 · 평소 재생 30fps · 그림자는 움직일 때만 · 잼/숨김/화면 밖이면 안 그림. 라디오(boombox)는 잼 끝나면 멈춤(전엔 뒤에서 계속 그림), 그림자 1024 · 2번에 한 번
+                    - 아이폰 사파리 탭 닫힘 대응(2026-11-13, 친구 제보 '문제가 반복적으로 발생'): 메모리 초과. 책은 지금 장 ±2만 내용을 넣고 나머지 장은 비워 display:none(mag.js near(), faces). 잡지가 열려 있으면 body.magon으로 뒤 앱(header·main·.amb·footer)을 숨기고 Deck3D.suspend(true)로 3D를 멈춤(닫으면 되돌림)
                     - LP 전체화면(2026-11-13): 턴테이블 줄 '전체화면' 버튼 또는 F 키. body.lpfull → 턴테이블 칸이 화면을 덮고 3초 손대지 않으면 위·아래 줄이 사라짐(lpidle), 왼쪽 아래 곡 이름 크게. Esc로 나감
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
