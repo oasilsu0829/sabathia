@@ -690,11 +690,11 @@ async function add(x, t) {
 }
 
 // ---------- 친구 부르기 · 도움말 ----------
-// 친구에게는 이 앱 주소(/music/#jam)를 보낸다. 열면 손님 창이 바로 뜨고 로그인 없이 곡을 넣을 수 있다
+// 친구에게는 이 앱 주소(/deck/#jam)를 보낸다. 열면 손님 창이 바로 뜨고 로그인 없이 곡을 넣을 수 있다
 async function share() {
   if (!J.cur) return;
   publish(true);
-  const url = location.origin + '/music/#jam';
+  const url = location.origin + '/deck/#jam';
   try {
     if (navigator.share) await navigator.share({ title: J.cur.name, text: '같이 잼 하자 — 열어서 곡 넣어 줘(로그인 필요 없음)', url });
     else { await navigator.clipboard.writeText(url); C.toast('링크를 복사했습니다. 친구는 열어서 곡만 넣으면 됩니다', 4000); }

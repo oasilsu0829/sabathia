@@ -6,8 +6,18 @@
 <title>음악</title>
 <meta name="description" content="Spotify 플레이어: 이 브라우저에서 재생하거나 폰·PC의 Spotify를 조작한다">
 <meta name="theme-color" content="#F3F4F6">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest" id="mf">
+<link rel="icon" type="image/png" href="/icon-192.png" id="fav">
+<script>
+  // 친구용 주소 /deck/: 같은 화면을 쓰되 이름·아이콘·설치 앱을 따로 두고, Client ID 설정 없이 로그인만 한다
+  window.FRIEND = location.pathname.startsWith('/deck');
+  if (FRIEND) {
+    document.title = 'Deck';
+    document.getElementById('mf').href = '/deck/manifest.webmanifest';
+    document.getElementById('fav').href = '/deck/icon-192.png';
+    document.documentElement.classList.add('friend');
+  }
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+KR:wght@500;700&display=swap">
@@ -415,6 +425,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 .cidrow .btn { min-height: 44px; flex: none; }
 .dlg #cid.ok { border-color: #16a34a; background: #f0fdf4; }
 .note.ok { color: #16a34a; }
+.friend .owner-only, html:not(.friend) .friend-only { display: none !important; }
 .copy { display: flex; gap: 8px; align-items: center; }
 .copy code { flex: 1; min-width: 0; padding: 10px 12px; background: var(--z100); border-radius: 8px; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
 .dlg .acts { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -777,11 +788,17 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
     <p class="note" id="sdkNote"></p>
     <label class="sfxrow"><input type="checkbox" id="sfxOn"> 효과음 (크레이트 넘김 · 판 갈아 끼우기)</label>
     <p class="note" id="syncNote"></p>
+    <div class="owner-only">
+      <h3 style="margin:6px 0 4px;font-size:14px">친구용 링크</h3>
+      <p class="note">친구에게는 이 링크를 보내세요. 로그인 버튼만 있고, 크레이트는 Spotify 계정마다 따로 저장됩니다. 먼저 Spotify 대시보드 → 내 앱 → <b>User Management</b>에 친구 Spotify 이메일을, <b>Redirect URIs</b>에 이 링크를 넣어 두세요.</p>
+      <div class="copy"><code id="deckUrl"></code><button class="btn" type="button" id="deckCopy">복사</button></div>
+    </div>
     <h3 style="margin:6px 0 0;font-size:14px">밀봉 신보</h3>
     <p class="note" style="margin-top:-6px">Spotify 앱에서 위클리·데이리스트를 열고 공유 → 링크 복사 후 붙여넣기. 새로 나오는 날(위클리는 월요일, 데이리스트는 아침·오후·저녁·밤마다) 처음 열면 비닐에 싸인 판으로 뜹니다.</p>
     <label>위클리 링크<input type="text" id="lkWeekly" autocomplete="off" spellcheck="false" placeholder="https://open.spotify.com/playlist/…"></label>
     <label>데이리스트 링크<input type="text" id="lkDaylist" autocomplete="off" spellcheck="false" placeholder="https://open.spotify.com/playlist/…"></label>
-    <p class="note">비밀번호는 Spotify 화면에서만 입력합니다. 로그인 토큰은 이 기기에만 저장하고, Client ID(공개값)는 다른 기기도 쓰도록 Sabathia 서버에 둡니다. 브라우저 안에서 바로 재생하려면 Premium이 필요하고, 폰·아이패드 브라우저는 Spotify가 바로 재생을 막아 두어 그 기기의 Spotify 앱을 조작하는 방식으로 씁니다.</p>
+    <p class="note friend-only">비밀번호는 Spotify 화면에서만 입력합니다. 재생 조작은 Spotify Premium 계정이 필요합니다. 폰·아이패드에서는 그 기기의 Spotify 앱을 조작하는 방식으로 씁니다.</p>
+    <p class="note owner-only">비밀번호는 Spotify 화면에서만 입력합니다. 로그인 토큰은 이 기기에만 저장하고, Client ID(공개값)는 다른 기기도 쓰도록 Sabathia 서버에 둡니다. 브라우저 안에서 바로 재생하려면 Premium이 필요하고, 폰·아이패드 브라우저는 Spotify가 바로 재생을 막아 두어 그 기기의 Spotify 앱을 조작하는 방식으로 씁니다.</p>
   </div>
 </dialog>
 
@@ -841,7 +858,8 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
     del(k) { try { localStorage.removeItem(k); } catch {} },
   };
-  const REDIRECT = location.origin + '/music/';
+  const HOME = FRIEND ? '/deck/' : '/music/';
+  const REDIRECT = location.origin + HOME;
   const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public user-top-read user-read-recently-played';
   const API = 'https://api.spotify.com/v1';
   const MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -887,7 +905,7 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   }
   // 로그인 안 된 채 무언가를 누르면: Client ID를 알면 바로 Spotify로, 모르면 설정 창
   async function connect() {
-    if (await fetchCid()) login(); else openDlg();
+    if (FRIEND || (await fetchCid())) login(); else openDlg();
   }
 
   // 붙여넣은 글에서 Client ID(32자리 16진수)만 골라낸다. 'Client ID: abc…' 같은 줄이나 공백이 섞여도 됨
@@ -918,8 +936,9 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   }
 
   async function login() {
-    const typed = $('dlg').open && !$('setup').hidden ? $('cid').value.trim() : '';
-    const cid = typed || clientId();
+    const typed = !FRIEND && $('dlg').open && !$('setup').hidden ? $('cid').value.trim() : '';
+    const cid = typed || clientId() || (FRIEND ? await fetchCid() : '');
+    if (FRIEND && !/^[0-9a-f]{32}$/i.test(cid)) { toast('아직 연결 준비가 안 됐습니다. 이 링크를 준 사람에게 알려 주세요', 6000); return; }
     if (!/^[0-9a-f]{32}$/i.test(cid)) { toast('Client ID는 32자리 영문·숫자입니다'); openDlg(true); $('cid').focus(); return; }
     LS.set('music.cid', cid);
     const v = rand(64), state = rand(16);
@@ -947,13 +966,13 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   async function handleRedirect() {
     const q = new URLSearchParams(location.search);
     if (!q.has('code') && !q.has('error')) return;
-    history.replaceState(null, '', '/music/');
+    history.replaceState(null, '', HOME + location.hash);
     const p = LS.get('music.pkce'); LS.del('music.pkce');
     if (q.get('error')) { toast(q.get('error') === 'access_denied' ? '로그인을 취소했습니다' : 'Spotify 로그인 실패: ' + q.get('error')); return; }
     if (!p || p.state !== q.get('state')) { toast('로그인 확인값이 맞지 않습니다. 다시 로그인하세요'); return; }
     try {
       await tokenReq({ grant_type: 'authorization_code', code: q.get('code'), redirect_uri: REDIRECT, code_verifier: p.v });
-      pushCid(clientId());
+      if (!FRIEND) pushCid(clientId());
       toast('Spotify에 연결했습니다');
     } catch (e) { toast('토큰 받기 실패: ' + e.message + ' (Redirect URI와 Client ID 확인)', 6000); }
   }
@@ -2396,8 +2415,9 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
 
   // ---------- 설정 창 ----------
   function openDlg(edit) {
-    const known = !!clientId() && !edit;
-    $('setup').hidden = known; $('easyNote').hidden = !known || loggedIn(); $('cidBtn').hidden = !known;
+    if (FRIEND) edit = false;
+    const known = FRIEND || (!!clientId() && !edit);
+    $('setup').hidden = known; $('easyNote').hidden = FRIEND || !known || loggedIn(); $('cidBtn').hidden = FRIEND || !known;
     $('cid').value = clientId(); checkCid(); $('redir').textContent = REDIRECT; renderAuth();
     if (!$('dlg').open) $('dlg').showModal();
   }
@@ -2415,6 +2435,9 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   $('copyBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(REDIRECT); toast('주소를 복사했습니다', 1800); } catch { toast(REDIRECT); } });
   $('loginBtn').addEventListener('click', login);
   $('cidBtn').addEventListener('click', () => openDlg(true));
+  $('deckUrl').textContent = location.origin + '/deck/';
+  $('deckCopy').addEventListener('click', async () => { const u = location.origin + '/deck/'; try { await navigator.clipboard.writeText(u); toast('친구용 링크를 복사했습니다', 1800); } catch { toast(u); } });
+  if (FRIEND) { const a = document.querySelector('.sab'); a.href = '/deck/'; a.setAttribute('aria-label', 'Deck'); }
   $('pasteBtn').addEventListener('click', pasteCid);
   $('cid').addEventListener('input', () => checkCid());
   $('cid').addEventListener('paste', (e) => {
@@ -2764,7 +2787,7 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
     sync();
     // 친구가 보낸 잼 링크(/music/#jam)로 들어오면 로그인 없이 바로 손님 창
     checkJam().then((J) => { if (location.hash === '#jam') { if (J) { history.replaceState(null, '', location.pathname); openJam(J); } else if (!LS.get('music.jam')) toast('지금 열린 잼이 없습니다'); } });
-    if (!loggedIn()) { if (location.hash !== '#jam' && !(await fetchCid())) openDlg(); return; }
+    if (!loggedIn()) { if (location.hash !== '#jam' && !(await fetchCid()) && !FRIEND) openDlg(); return; }
     loadSdk();
     loadMe(); refreshDevices(); poll();
     if (LS.get('music.jam')) jam().then((m) => m.resume()); // 잼이 진행 중이면 이어 한다

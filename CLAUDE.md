@@ -143,6 +143,9 @@ public/music/mag/   잡지 MAG (2026-11-13). 위 줄 MAG 버튼 → mag.js(처�
                       친구 기기는 follow(): 호스트 지금 곡부터 uris로 자기 Spotify에 틀고, 곡이 다르거나 4초 넘게 어긋나면 다시(6초에 한 번까지), 호스트가 멈추면 멈춤. Premium 아니면 듣기만 빠짐
                       친구 건반·J카드 누르기 = /api/music/jam/ctl(jam_q kind 'ctl') → 호스트 runCtl이 실행 → 모두 따라감. 곡 넣기도 서버 대기열. 참가자 표시 /api/music/jam/hello(2초, 서버는 10초에 한 번만 씀) → J카드 '함께:'. 친구의 STOP/EJ 두 번·'나가기' = leave(잼은 계속), 호스트가 끝내면 친구 화면도 닫힘
                       로그인 안 한 친구는 예전처럼 guest.js 창(곡만 보냄)
+                    - 친구용 링크 /deck/(2026-11-13 사용자 요청: 친구는 새 링크, 내 /music/은 그대로, 친구 관리는 사용자가 Spotify User Management로): Worker가 /deck/에 /music/index.html을 그대로 내줌(src/index.js). 화면 맨 위 스크립트 window.FRIEND = /deck 경로 → 제목 Deck, 매니페스트 public/deck/manifest.webmanifest(scope /deck/, 따로 설치), html.friend
+                      친구 모드: Client ID 입력·안내·바꾸기 없음(GET /api/music/cid는 토큰 없이 열림, 값 없으면 '준비 안 됨'), Client ID 올리지 않음, Redirect URI = <주소>/deck/(사용자가 Spotify 대시보드 Redirect URIs에 추가). .owner-only/.friend-only로 설정 창 문구를 나눔. 내 설정 창에 '친구용 링크' 복사. 잼 공유 링크도 /deck/#jam
+                      아이콘: 턴테이블 블루프린트(scripts/deck-icon.svg → node scripts/deck-icon.cjs → public/deck/icon-192·512·maskable-512.png)
                       Device not found: api()가 /me/player 404면 recoverDevice(기기 목록 다시 → 고르기 pickDevice → transfer → 같은 요청 다시). PC 브라우저 플레이어는 다시 연결. 폰·패드는 SDK를 안 띄움(죽은 'Sabathia' 기기가 원인)
                       버벅임: 유리 바·칸 backdrop-filter와 .dof 끔, 3D는 해상도 1.5배까지 · 평소 재생 30fps · 그림자는 움직일 때만 · 잼/숨김/화면 밖이면 안 그림. 라디오(boombox)는 잼 끝나면 멈춤(전엔 뒤에서 계속 그림), 그림자 1024 · 2번에 한 번
                     - 아이폰 사파리 탭 닫힘 대응(2026-11-13, 친구 제보 '문제가 반복적으로 발생'): 메모리 초과. 책은 지금 장 ±2만 내용을 넣고 나머지 장은 비워 display:none(mag.js near(), faces). 잡지가 열려 있으면 body.magon으로 뒤 앱(header·main·.amb·footer)을 숨기고 Deck3D.suspend(true)로 3D를 멈춤(닫으면 되돌림)
