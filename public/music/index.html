@@ -184,7 +184,7 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .chip[aria-pressed="true"] em { color: var(--z300); }
 .chip.add { border-style: dashed; color: var(--muted); }
 .crate-view { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; padding: 10px 0 4px; }
-.crate { container-type: inline-size; position: relative; width: min(100%, 380px); aspect-ratio: 38 / 34; touch-action: pan-y; flex: none; }
+.crate { container-type: inline-size; position: relative; width: min(100%, 540px); aspect-ratio: 38 / 34; touch-action: pan-y; flex: none; }
 .wood { background: linear-gradient(180deg, rgba(255,248,235,.18), transparent 38%, rgba(40,24,10,.22)), var(--grain), var(--wood); background-size: 100% 100%, 260px 70px, 100% 100%; }
 .wood-v { background: linear-gradient(90deg, rgba(255,248,235,.14), transparent 40%, rgba(30,18,8,.3)), var(--grainv), linear-gradient(180deg, #7f6750, #9a7f62 45%, #86694f); background-size: 100% 100%, 70px 260px, 100% 100%; }
 .back { position: absolute; left: 9%; right: 9%; top: 9%; bottom: 0; filter: brightness(.55) saturate(.9); box-shadow: inset 0 -60px 50px rgba(0,0,0,.6); }
@@ -426,7 +426,18 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 /* 오른쪽 칸 탭: 지금 재생 · 크레이트 */
 .tabs { flex-wrap: nowrap; }
 .tabs .seg button { padding: 5px 14px; }
-.cpanel[data-tab="now"] .cstrip, .cpanel[data-tab="now"] .crate-view { display: none !important; }
+.cpanel[data-tab="now"] .cstrip2, .cpanel[data-tab="now"] .crate-view, .cpanel[data-tab="now"] .cstore { display: none !important; }
+.cpanel[data-cv="store"] .cstrip2, .cpanel[data-cv="store"] .crate-view { display: none !important; }
+.cpanel:not([data-cv="store"]) .cstore { display: none !important; }
+/* 크레이트를 크게: 크레이트 하나를 볼 땐 아래 트랙 목록을 접는다(트랙은 지금 재생 탭에) */
+.cpanel[data-tab="crate"] > .strip.b { display: none !important; }
+.cstore { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 0 4px; }
+.cl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cl-head b { font-size: 17px; letter-spacing: -.01em; }
+.cl-head .btn { min-height: 38px; }
+.cstrip2 { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0 0; }
+.cstrip2 .btn { min-height: 38px; }
+.cstrip2 .n { font: 600 11px var(--mono, monospace); color: var(--muted); margin-left: 2px; }
 .cpanel:not([data-tab="now"]) .np { display: none; }
 /* 지금 재생: 떠 있는 앨범 슬리브(포인터 따라 기울고 빛이 흐름) + 재생 중이면 판이 옆으로 빠져나와 돈다 */
 .np { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; min-height: 0; padding: 22px 0 8px; container-type: inline-size; --s: min(300px, 64cqw); }
@@ -500,7 +511,7 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
   /* 남는 높이에 상자를 맞춘다(사파리는 주소창·탭 줄 때문에 화면이 낮다) */
   .crate-view { flex: 1 1 0; container-type: size; overflow: hidden; }
   .crate { touch-action: none; }
-  .crate { width: min(100%, 380px, max(150px, calc((100cqh - 112px) * 1.117))); }
+  .crate { width: min(100%, 540px, max(150px, calc((100cqh - 112px) * 1.117))); }
   .np { flex: 1 1 0; container-type: size; overflow: hidden; --s: min(340px, 64cqw, max(140px, calc(100cqh - 175px))); }
   .tracks { max-height: clamp(76px, calc(100dvh - 640px), 150px); }
   .panel > .strip.b { flex: none; }
@@ -536,6 +547,18 @@ dialog::backdrop { background: rgba(17,24,39,.35); }
 .jamdot { background: #16a34a; box-shadow: 0 0 6px #16a34a; }
 .magdot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #e60012; }
 #magBtn { position: relative; }
+/* 신간 팝업: 오른쪽 위 MAG 버튼 밑에서 내려온다 */
+.magpop { position: fixed; z-index: 260; top: 70px; right: max(16px, env(safe-area-inset-right, 0px)); width: min(340px, calc(100vw - 32px)); padding: 16px 16px 14px 20px; border-radius: 14px; background: rgba(20,20,22,.94); color: #f4f4f5; box-shadow: 0 18px 50px rgba(0,0,0,.35); border-left: 6px solid var(--mc, #e60012); opacity: 0; transform: translateY(-14px) scale(.98); transition: opacity .35s, transform .45s cubic-bezier(.2,.9,.25,1.2); }
+.magpop.on { opacity: 1; transform: none; }
+.magpop .mp-k { display: flex; align-items: center; gap: 8px; font: 700 11px/1 var(--mono, monospace); letter-spacing: .14em; color: #a1a1aa; text-transform: uppercase; }
+.magpop b { display: block; margin-top: 10px; font-size: 20px; letter-spacing: -.01em; }
+.magpop p { margin: 4px 0 0; font-size: 13px; line-height: 1.45; color: #d4d4d8; }
+.magpop small { display: block; margin-top: 6px; font-size: 12px; color: #a1a1aa; }
+.magpop .mp-acts { display: flex; gap: 8px; margin-top: 14px; }
+.magpop .mp-acts .btn { flex: 1; min-height: 40px; justify-content: center; }
+.magpop #mpOpen { background: #fff; color: #111; border-color: #fff; }
+.magpop #mpLater { background: transparent; color: #e4e4e7; border-color: rgba(255,255,255,.25); }
+@media (prefers-reduced-motion: reduce) { .magpop { transition: none; } }
 /* LP 전체화면: 턴테이블 칸이 화면을 덮는다. 3초 손대지 않으면 위·아래 줄이 사라진다 */
 body.lpfull { overflow: hidden; }
 body.lpfull .deckp { position: fixed; inset: 0; z-index: 300; border-radius: 0; border: 0; padding: max(14px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); }
@@ -576,7 +599,7 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   <div class="now">
     <div class="t"><p class="t1" id="nowT">-</p><p class="t2" id="nowA">-</p></div>
     <div class="thumb" id="nowImg"></div>
-    <button class="icon-btn jam-btn" id="magBtn" type="button" aria-label="잡지 우편함" title="잡지: 우편함과 책장"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zm16 0h-4a3 3 0 0 0-2 1v15a2 2 0 0 1 2-2h4z"/></svg><span>MAG</span><i class="magdot" id="magDot" hidden></i></button>
+    <button class="icon-btn jam-btn" id="magBtn" type="button" aria-label="잡지 책장" title="잡지 책장"><svg class="ico" viewBox="0 0 24 24"><path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zm16 0h-4a3 3 0 0 0-2 1v15a2 2 0 0 1 2-2h4z"/></svg><span>MAG</span><i class="magdot" id="magDot" hidden></i></button>
     <button class="icon-btn jam-btn" id="jamBtn" type="button" aria-label="잼 시작" title="JAM: 친구와 곡을 하나씩 넣어 카세트에 녹음"><svg class="ico"><use href="#i-tape"/></svg><span>JAM</span><i class="magdot jamdot" id="jamDot" hidden></i></button>
     <button class="icon-btn" id="setBtn" type="button" aria-label="Spotify 연결 설정"><svg class="ico"><use href="#i-gear"/></svg></button>
   </div>
@@ -658,7 +681,7 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
     </div>
   </section>
 
-  <section class="panel cpanel" aria-label="지금 재생 · 크레이트" data-tab="now" id="cpanel">
+  <section class="panel cpanel" aria-label="지금 재생 · 크레이트" data-tab="now" data-cv="store" id="cpanel">
     <div class="strip tabs">
       <div class="seg" role="tablist" aria-label="보기">
         <button type="button" role="tab" data-tab="now" aria-pressed="true"><span class="led"></span>지금 재생</button>
@@ -693,10 +716,23 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
       <div class="seal-t"><b id="sealT">-</b><span id="sealS">비닐을 손가락으로 죽 그어 뜯으세요</span></div>
       <div class="seal-acts"><button class="btn dark" type="button" id="sealPlay" hidden><svg class="ico"><use href="#i-play"/></svg>판 꺼내기</button><button class="btn" type="button" id="sealLater">나중에</button></div>
     </div>
-    <div class="strip cstrip">
-      <button class="btn clbtn" type="button" id="clBtn" aria-label="크레이트 목록 열기"><svg class="ico" aria-hidden="true"><use href="#i-crate"/></svg><span id="clN">1</span></button>
-      <div class="crates" id="crates" role="group" aria-label="크레이트 고르기"></div>
+    <div class="cstore" id="cstore">
+      <div class="cl-head"><b id="clT">크레이트 보관함</b><button class="btn dark" type="button" id="findBtn2"><svg class="ico"><use href="#i-search"/></svg><span>앨범 찾기</span></button></div>
+      <div class="cl-tools">
+        <input type="search" id="clQ" placeholder="크레이트·앨범·아티스트 찾기" autocomplete="off" aria-label="크레이트 찾기">
+        <div class="seg" role="group" aria-label="정렬" id="clSort">
+          <button type="button" data-s="o" aria-pressed="true">내 순서</button>
+          <button type="button" data-s="u" aria-pressed="false">최근</button>
+          <button type="button" data-s="n" aria-pressed="false">많은 순</button>
+          <button type="button" data-s="a" aria-pressed="false">이름</button>
+        </div>
+      </div>
+      <div class="cl-grid" id="clGrid"></div>
+    </div>
+    <div class="cstrip2">
+      <button class="btn" type="button" id="clBtn" aria-label="크레이트 보관함으로"><svg class="ico" aria-hidden="true"><use href="#i-left"/></svg><span>보관함</span><span class="n" id="clN">1</span></button>
       <button class="btn dark" type="button" id="findBtn"><svg class="ico"><use href="#i-search"/></svg><span>앨범 찾기</span></button>
+      <div class="crates" id="crates" hidden></div>
     </div>
     <div class="crate-view">
       <div class="crate" id="crate">
@@ -809,23 +845,13 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   </form>
 </dialog>
 
-<dialog id="clist" aria-labelledby="clT">
-  <div class="dlg cl">
-    <h2><span id="clT">크레이트</span><button class="icon-btn" type="button" id="clX" aria-label="닫기">✕</button></h2>
-    <div class="cl-tools">
-      <input type="search" id="clQ" placeholder="크레이트·앨범·아티스트 찾기" autocomplete="off" aria-label="크레이트 찾기">
-      <div class="seg" role="group" aria-label="정렬" id="clSort">
-        <button type="button" data-s="o" aria-pressed="true">내 순서</button>
-        <button type="button" data-s="u" aria-pressed="false">최근</button>
-        <button type="button" data-s="n" aria-pressed="false">많은 순</button>
-        <button type="button" data-s="a" aria-pressed="false">이름</button>
-      </div>
-    </div>
-    <div class="cl-grid" id="clGrid"></div>
-  </div>
-</dialog>
 
 <div class="amb" id="amb" aria-hidden="true"></div>
+<div class="magpop" id="magPop" role="dialog" aria-labelledby="mpName" hidden>
+  <div class="mp-k"><span class="led on"></span>신간 도착</div>
+  <b id="mpName">-</b><p id="mpTitle"></p><small id="mpMore"></small>
+  <div class="mp-acts"><button class="btn dark" type="button" id="mpOpen">지금 뜯기</button><button class="btn" type="button" id="mpLater">나중에</button></div>
+</div>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="/sabathia.js"></script>
@@ -1359,14 +1385,14 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   let clSort = LS.get('music.csort') || 'o';
   const playsOf = (c) => c.albums.reduce((x, a) => x + (a.p || 0), 0);
   function renderCList() {
-    if (!$('clist').open) return;
+    if ($('cpanel').dataset.cv !== 'store') return;
     const q = $('clQ').value.trim().toLowerCase(), cur = crate();
     let L = live();
     if (clSort === 'u') L = L.slice().sort((a, b) => b.u - a.u);
     else if (clSort === 'n') L = L.slice().sort((a, b) => b.albums.length - a.albums.length);
     else if (clSort === 'a') L = L.slice().sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     for (const b of document.querySelectorAll('#clSort button')) b.setAttribute('aria-pressed', String(b.dataset.s === clSort));
-    $('clT').textContent = `크레이트 ${live().length}개`;
+    $('clT').textContent = `크레이트 보관함 · ${live().length}개`;
     const box = $('clGrid'); box.innerHTML = '';
     let shown = 0;
     const all = live();
@@ -1397,7 +1423,7 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
       mk('✎', '이름 바꾸기·지우기', () => openCrateDlg(c));
       const go = () => {
         curCrate = c.id; LS.set('music.crate', c.id);
-        $('clist').close(); setTab('crate'); renderCrates(); renderCrate(true);
+        showCrate(); renderCrates(); renderCrate(true);
         if (q && hits) { const j = c.albums.findIndex((a) => (a.name + ' ' + a.artist).toLowerCase().includes(q)); if (j >= 0) { pos[c.id] = j; LS.set('music.pos', pos); renderCrate(true); } }
         sfx.flip();
       };
@@ -1419,9 +1445,11 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
     [a.o, b.o] = [b.o, a.o]; touch(a); touch(b);
     renderCrates(); renderCList();
   }
-  function openCList() { $('clQ').value = ''; $('clist').showModal(); renderCList(); if (!MOBILE) setTimeout(() => $('clQ').focus(), 30); }
-  $('clBtn').addEventListener('click', openCList);
-  $('clX').addEventListener('click', () => $('clist').close());
+  // 크레이트 탭은 보관함(목록)부터. 하나를 고르면 그 크레이트를 크게, '보관함'으로 돌아감
+  function openCList() { $('clQ').value = ''; $('cpanel').dataset.cv = 'store'; if ($('cpanel').dataset.tab !== 'crate') setTab('crate', true); renderCList(); }
+  function showCrate() { $('cpanel').dataset.cv = 'crate'; if ($('cpanel').dataset.tab !== 'crate') setTab('crate', true); renderCrate(true); }
+  $('clBtn').addEventListener('click', () => { sfx.flip(); openCList(); });
+  $('findBtn2').addEventListener('click', () => $('findBtn').click());
   $('clQ').addEventListener('input', renderCList);
   for (const b of document.querySelectorAll('#clSort button')) b.addEventListener('click', () => { clSort = b.dataset.s; LS.set('music.csort', clSort); renderCList(); });
 
@@ -2250,10 +2278,11 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
     st.addEventListener('click', () => { if (loggedIn()) toggle(); else connect(); });
   })();
   // 탭: 기기마다 기억(music.tab)
-  function setTab(tab) {
+  function setTab(tab, keep) {
+    if (tab === 'crate' && !keep) { $('cpanel').dataset.cv = 'store'; $('clQ').value = ''; } // 크레이트 탭에 들어오면 보관함부터
     $('cpanel').dataset.tab = tab; LS.set('music.tab', tab);
     for (const b of document.querySelectorAll('.tabs [data-tab]')) b.setAttribute('aria-pressed', String(b.dataset.tab === tab));
-    if (tab === 'crate') renderCrate();
+    if (tab === 'crate') { renderCrate(); renderCList(); }
   }
   for (const b of document.querySelectorAll('.tabs [data-tab]')) b.addEventListener('click', () => setTab(b.dataset.tab));
   // overflow: clip을 모르는 예전 사파리: 칸이 스크롤되면 바로 되돌린다
@@ -2411,7 +2440,7 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   // ---------- 이벤트 ----------
   $('setBtn').addEventListener('click', () => openDlg());
   $('dlgX').addEventListener('click', () => $('dlg').close());
-  for (const id of ['dlg', 'find', 'cdlg', 'clist']) $(id).addEventListener('click', (e) => { if (e.target === $(id)) $(id).close(); });
+  for (const id of ['dlg', 'find', 'cdlg']) $(id).addEventListener('click', (e) => { if (e.target === $(id)) $(id).close(); });
   $('copyBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(REDIRECT); toast('주소를 복사했습니다', 1800); } catch { toast(REDIRECT); } });
   $('loginBtn').addEventListener('click', login);
   $('cidBtn').addEventListener('click', () => openDlg(true));
@@ -2749,10 +2778,29 @@ body.magon > header.top, body.magon > main, body.magon > .amb, body.magon > foot
   let magMod = null;
   const mag = () => (magMod = magMod || import('/music/mag/mag.js').catch((e) => { magMod = null; toast('잡지를 불러오지 못했습니다'); throw e; }));
   $('magBtn').addEventListener('click', () => { sfx.unlock(); mag().then((m) => m.open()); });
+  // 신간 팝업(2026-11-13 사용자 요청: 우편함 대신). 안 연 호가 있으면 앱을 열 때 띄우고, '나중에'는 12시간 동안 다시 안 띄움
   fetch('/music/mag/issues/index.json').then((r) => r.json()).then((j) => {
-    const seen = LS.get('mag.opened') || {};
-    $('magDot').hidden = !(j.issues || []).some((x) => !seen[x.id]);
+    const seen = LS.get('mag.opened') || {}, later = LS.get('mag.later') || {};
+    const kst = new Date(Date.now() + 9 * 3600e3), ym = kst.toISOString().slice(0, 7);
+    const L = (j.issues || []).map((x) => (x.dynamic ? { ...x, id: `${x.mag}-${ym}`, vol: `${ym.replace('-', '.')}`, title: `나의 ${kst.getUTCMonth() + 1}월 — 내 청취 기록으로 짠 호` } : x));
+    const fresh = L.filter((x) => !seen[x.id]);
+    $('magDot').hidden = !fresh.length;
+    const show = fresh.filter((x) => !(later[x.id] > Date.now() - 12 * 3600e3));
+    if (show.length) setTimeout(() => newIssuePop(show), 1400);
   }).catch(() => {});
+  function newIssuePop(L) {
+    const it = L[0], el = $('magPop');
+    el.style.setProperty('--mc', it.color || '#e60012');
+    $('mpName').textContent = `${it.name} ${it.vol}`;
+    $('mpTitle').textContent = it.title || '';
+    $('mpMore').textContent = L.length > 1 ? `외 ${L.length - 1}권 더 도착` : `${it.publisher} · ${it.date || ''}`;
+    el.hidden = false; requestAnimationFrame(() => el.classList.add('on'));
+    sfx.flip && sfx.flip();
+    const hide = () => { el.classList.remove('on'); setTimeout(() => { el.hidden = true; }, 350); };
+    $('mpOpen').onclick = () => { hide(); sfx.unlock(); mag().then((m) => m.openIssue(it.id)); };
+    $('mpLater').onclick = () => { const l = LS.get('mag.later') || {}; for (const x of L) l[x.id] = Date.now(); LS.set('mag.later', l); hide(); };
+  }
+  $('magBtn').addEventListener('click', () => { const p = $('magPop'); p.classList.remove('on'); p.hidden = true; });
 
   // ---------- 시작 ----------
   (async () => {
