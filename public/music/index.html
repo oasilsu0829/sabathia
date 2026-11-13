@@ -2733,10 +2733,12 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
   async function liveJam() {
     try { const j = await srv('/api/music/jam', { spotify: false }); const J = j.jam, mine = LS.get('music.jam'); return J && !(mine && mine.id === J.pid) ? J : null; } catch { return null; }
   }
-  async function checkJam() { const J = await liveJam(); $('jamDot').hidden = !J; $('jamBtn').title = J ? `JAM: ${J.host || '친구'} 님의 잼에 곡 넣기` : 'JAM: 친구와 곡을 하나씩 넣어 카세트에 녹음'; return J; }
+  const openJam = (J) => (loggedIn() ? jam().then((m) => m.join(J)) : guest().then((m) => m.open(J)));
+  async function checkJam() { const J = await liveJam(); $('jamDot').hidden = !J; $('jamBtn').title = J ? `JAM: ${J.host || '친구'} 님의 잼에 참가` : 'JAM: 친구와 곡을 하나씩 넣어 카세트에 녹음'; return J; }
   $('jamBtn').addEventListener('click', async () => {
     sfx.unlock();
-    if (!LS.get('music.jam')) { const J = await checkJam(); if (J) { guest().then((m) => m.open(J)); return; } }
+    // 로그인했으면 같은 잼에 참가(카세트 화면 · 내 Spotify로 같이 듣기), 아니면 곡만 보내는 손님 창
+    if (!LS.get('music.jam')) { const J = await checkJam(); if (J) { openJam(J); return; } }
     jam().then((m) => m.start());
   });
   setInterval(() => { if (document.visibilityState === 'visible' && !window.MusicJamOn) checkJam(); }, 45000);
@@ -2758,7 +2760,7 @@ body.lpfull .lpmeta { display: block; position: absolute; left: 4px; bottom: 6px
     renderCrates(); renderCrate(true); render(); renderTracks(true); renderAuth();
     sync();
     // 친구가 보낸 잼 링크(/music/#jam)로 들어오면 로그인 없이 바로 손님 창
-    checkJam().then((J) => { if (location.hash === '#jam') { if (J) guest().then((m) => m.open(J)); else toast('지금 열린 잼이 없습니다'); } });
+    checkJam().then((J) => { if (location.hash === '#jam') { if (J) { history.replaceState(null, '', location.pathname); openJam(J); } else if (!LS.get('music.jam')) toast('지금 열린 잼이 없습니다'); } });
     if (!loggedIn()) { if (location.hash !== '#jam' && !(await fetchCid())) openDlg(); return; }
     loadSdk();
     loadMe(); refreshDevices(); poll();

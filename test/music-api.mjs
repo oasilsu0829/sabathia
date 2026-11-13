@@ -65,6 +65,23 @@ await call('POST', '/api/music/jam/done', { ids: [q[0].id] }, 'tok-fr'); // 남�
 assert.equal((await call('GET', '/api/music/jam/q', null, 'tok-me')).j.items.length, 2);
 await call('POST', '/api/music/jam/done', { ids: q.map((x) => x.id) }, 'tok-me');
 assert.equal((await call('GET', '/api/music/jam')).j.jam.wait.length, 0);
+// 참가(로그인한 친구): 들어와 있음 표시 · 조작은 로그인해야 · 호스트만 가져간다
+assert.equal((await call('POST', '/api/music/jam/ctl', { pid: 'abcdefghij12', k: 'next' })).status, 401);
+assert.equal((await call('POST', '/api/music/jam/ctl', { pid: 'abcdefghij12', k: 'rm -rf' }, 'tok-fr')).status, 400);
+assert.equal((await call('POST', '/api/music/jam/ctl', { pid: 'abcdefghij12', k: 'from', i: 1 }, 'tok-fr')).status, 200);
+await call('POST', '/api/music/jam/hello', { pid: 'abcdefghij12' }, 'tok-fr');
+await call('POST', '/api/music/jam/hello', { pid: 'abcdefghij12' }, 'tok-me'); // 호스트는 참가자 목록에 안 들어감
+g = (await call('GET', '/api/music/jam')).j;
+assert.deepEqual(g.jam.members, ['친구']); assert.equal(g.jam.wait.length, 0); assert.ok(g.now);
+const c = (await call('GET', '/api/music/jam/q', null, 'tok-me')).j.items;
+assert.equal(c.length, 1); assert.equal(c[0].kind, 'ctl'); assert.equal(c[0].q, 'from:1'); assert.equal(c[0].by, '친구');
+await call('POST', '/api/music/jam/done', { ids: [c[0].id] }, 'tok-me');
+await call('POST', '/api/music/jam/hello', { pid: 'abcdefghij12', bye: 1 }, 'tok-fr');
+assert.deepEqual((await call('GET', '/api/music/jam')).j.jam.members, []);
+// 재생 위치·곡 정보가 서버 시각과 같이 저장된다
+await call('PUT', '/api/music/jam', { pid: 'abcdefghij12', name: 'JAM 11.13', list: [{ t: 'A', a: 'B', uri: 'spotify:track:4uLU6hMCjMI75M1A2tKUQC', ms: 200000, img: 'https://i.scdn.co/image/a' }, { t: 'C', uri: 'javascript:x' }], cur: 0, on: true, ps: 30000 }, 'tok-me');
+g = (await call('GET', '/api/music/jam')).j.jam;
+assert.equal(g.on, true); assert.equal(g.ps, 30000); assert.ok(g.pu > 0); assert.equal(g.list[0].uri, 'spotify:track:4uLU6hMCjMI75M1A2tKUQC'); assert.ok(!g.list[1].uri);
 // 끝: 남이 끄면 안 꺼지고, 호스트가 끄면 꺼진다
 await call('DELETE', '/api/music/jam?pid=abcdefghij12', null, 'tok-fr');
 assert.ok((await call('GET', '/api/music/jam')).j.jam);

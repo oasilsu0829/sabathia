@@ -55,5 +55,6 @@ CREATE TABLE IF NOT EXISTS jam_q (
   q     TEXT NOT NULL DEFAULT '',
   label TEXT NOT NULL DEFAULT '',
   by    TEXT NOT NULL DEFAULT '',
-  at    INTEGER NOT NULL
+  at    INTEGER NOT NULL,
+  kind  TEXT NOT NULL DEFAULT ''  -- '' 곡 넣기, 'ctl' 참가자 조작(q = 'next:-1' 등)
 );

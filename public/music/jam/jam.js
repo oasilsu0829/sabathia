@@ -2,6 +2,10 @@
 // - 잼 하나 = Spotify 공동 작업 플레이리스트 하나("JAM 11.12"). 나는 J카드 빈 줄을 눌러 곡·앨범을 넣는다
 // - 친구는 이 앱(/music/#jam)을 열면 손님 창(guest.js)에서 곡을 보낸다(Spotify 로그인·공동 작업자 초대 필요 없음).
 //   서버 대기열(/api/music/jam/add)에 쌓이면 이 화면이 4초마다 가져가 내 토큰으로 넣는다(pullGuests). 셋리스트·지금 곡은 서버에 올려 손님 창이 읽는다(publish)
+// - 참가(2026-11-13): 로그인한 친구는 JAM 버튼(초록 점)이나 링크로 같은 잼에 들어온다(join, J.cur.guest).
+//   화면은 똑같은 카세트·J카드. 셋리스트는 서버에서 읽고(플레이리스트가 비공개라 친구 토큰으로는 못 읽음), 곡 넣기·건반·J카드 누르기는
+//   서버 조작 대기열(/api/music/jam/ctl)로 보내 호스트 화면이 실행한다. 친구 기기는 호스트의 지금 곡·위치를 따라 자기 Spotify로 튼다(follow)
+//   잼을 끝내는 건 호스트만. 참가자의 STOP/EJ 두 번 = 나가기
 // - 4초마다 플레이리스트를 읽어 새 줄을 손글씨로 적는다. 지금 곡은 형광펜, 들은 곡은 줄을 긋는다. 곡이 바뀌면 앨범 표지 폴라로이드가 데크 옆에 꽂힌다
 // - 건반: PLAY 재생 · PAUSE 잠깐 · FF/REW 다음/이전 · REC 장식(녹음 중 표시) · STOP/EJ 멈춤, 멈춘 채 두 번 = 잼 끝(테이프가 튀어나와 JAM 크레이트로)
 // - 저장 music.jam = { id, tape, at, name, replay } (새로고침해도 잼이 이어진다), music.jamTape = 바로 전 잼 테이프(겹치지 않게)
@@ -135,7 +139,7 @@ function mount() {
     <aside class="jcard" aria-label="셋리스트">
       <div class="jam-pola" id="jamPola"></div>
       <div class="band"></div>
-      <header><h2 id="jamTitle">JAM</h2><small id="jamDate"></small></header>
+      <header><h2 id="jamTitle">JAM</h2><small id="jamDate"></small><small id="jamWho"></small></header>
       <ol class="jlist" id="jamList"></ol>
       <footer><button class="jbtn" id="jamAdd" type="button">+ 곡 넣기</button><button class="jbtn" id="jamShare" type="button">친구 부르기</button><span class="sum" id="jamSum"></span><button class="jbtn k" id="jamEnd" type="button">잼 끝 ⏏</button></footer>
     </aside>
@@ -245,10 +249,28 @@ export async function start() {
     await lightsOn();
   } finally { J.busy = false; }
 }
-// 새로고침 뒤 이어 하기
+// 새로고침 뒤 이어 하기(참가 중이던 잼은 아직 열려 있을 때만)
 export async function resume() {
-  const c = load(); if (!c || !c.id || J.on) return;
+  const c = load(); if (!c || !c.id || J.on || J.busy) return;
+  if (c.guest) {
+    const R = await remote(); if (!R || R.pid !== c.id) { C.LS.del('music.jam'); return; }
+  }
   J.cur = c; mount(); await lightsOff(true); await enter(false);
+}
+// 친구가 연 잼에 참가(로그인한 상태). R = 서버의 잼(/api/music/jam)
+export async function join(R) {
+  if (J.on || J.busy || !R || !R.pid) return;
+  if (!C.loggedIn()) { C.openDlg(); return; }
+  J.busy = true; sfx.unlock();
+  try {
+    J.cur = { id: R.pid, tape: R.tape || tapeFor(R.pid), at: R.at || Date.now(), name: R.name || 'JAM', guest: true, host: R.host || '친구', replay: false };
+    J.remote = R; J.noListen = false; J.followAt = 0; J.following = false;
+    save(); mount(); await lightsOff(); await enter(true);
+  } finally { J.busy = false; }
+}
+// 서버의 잼 읽기. 서버 시각과 이 기기 시각 차이(J.skew)도 잰다
+async function remote() {
+  try { const j = await C.srv('/api/music/jam'); if (j.now) J.skew = j.now - Date.now(); return j.jam; } catch { return undefined; }
 }
 // JAM 크레이트의 테이프 다시 듣기
 export async function replay(a) {
@@ -279,16 +301,18 @@ async function enter(animate, autoplay) {
   const dt = new Date(c.at);
   $('jamTitle').textContent = c.name || 'JAM';
   $('jamDate').textContent = `SIDE A · ${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, '0')}.${String(dt.getDate()).padStart(2, '0')} · ${c.replay ? 'PLAYBACK' : 'C-90 REC'}`;
-  $('jamK').textContent = c.replay ? 'JAM · PLAYBACK' : 'JAM SESSION · REC';
-  $('jamShare').hidden = !!c.replay;
+  $('jamK').textContent = c.guest ? `JAM SESSION · ${c.host} 님의 잼` : c.replay ? 'JAM · PLAYBACK' : 'JAM SESSION · REC';
+  $('jamShare').hidden = !!c.replay || !!c.guest;
+  $('jamEnd').textContent = c.guest ? '나가기 ⏏' : '잼 끝 ⏏';
+  $('jamWho').textContent = '';
   try { const sh = await (await fetch(BASE + 'tapes/shell.json')).json(); document.querySelector('.jcard').style.setProperty('--tape', sh[c.tape] || '#c8402e'); } catch {}
   J.items = []; J.seen = new Set(); J.lastUri = ''; J.started = false; $('jamPola').innerHTML = ''; renderList();
   if (animate) await d.insert(c.tape, (k) => sfx[k] && sfx[k]()); else d.setTape(c.tape);
   if (!c.replay) { d.latch('REC', true); $('jam').classList.add('recording'); }
-  J.pubKey = '';
+  J.pubKey = ''; J.remote = c.guest ? J.remote : null;
   await refresh(true);
   if (autoplay && J.items.length) playFrom(0);
-  else if (!J.items.length && !c.replay) setTimeout(() => { if (J.on && !J.items.length) { J.autoHelp = true; toggleHelp(true); } }, 900);
+  else if (!J.items.length && !c.replay && !c.guest) setTimeout(() => { if (J.on && !J.items.length) { J.autoHelp = true; toggleHelp(true); } }, 900);
   loop();
 }
 
@@ -314,6 +338,7 @@ async function nameOf(id) {
 }
 async function refresh(first) {
   if (!J.cur) return;
+  if (J.cur.guest) return refreshGuest(first);
   let list; try { list = await items(J.cur.id); } catch { return; }
   const fresh = [];
   list.forEach((x, i) => { const k = x.uri + '#' + i; if (!J.seen.has(k)) { J.seen.add(k); if (!first) fresh.push(i); } });
@@ -332,10 +357,86 @@ async function refresh(first) {
   if (grew && !J.started && !J.cur.replay && !playingOurs()) playFrom(0);
 }
 
+// ---------- 참가자: 서버에서 셋리스트·지금 곡을 읽고 내 기기를 맞춘다 ----------
+async function refreshGuest(first) {
+  const R = await remote();
+  if (R === undefined) return; // 잠깐 끊김
+  if (!R || R.pid !== J.cur.id) {
+    if (J.on && !J.busy) { C.toast(`${J.cur.host} 님이 잼을 끝냈습니다`, 4000); leave(true); }
+    return;
+  }
+  J.remote = R;
+  const list = (R.list || []).map((x) => ({ uri: x.uri || '', name: x.t, artist: x.a, ms: x.ms || 0, img: x.img || '', big: x.img || '', byName: x.by || '' }));
+  const fresh = [];
+  list.forEach((x, i) => { const k = x.uri + '#' + i; if (!J.seen.has(k)) { J.seen.add(k); if (!first) fresh.push(i); } });
+  J.items = list; renderList(first ? null : new Set(fresh));
+  if (fresh.length) sfx.pen(Math.min(3, fresh.length));
+  showWho(R.members, R.host);
+  C.srv('/api/music/jam/hello', { method: 'POST', body: { pid: J.cur.id } }).catch(() => {});
+  follow();
+}
+function showWho(members, host) {
+  const L = [...new Set([...(J.cur.guest ? [host] : []), ...(members || [])].filter(Boolean))];
+  $('jamWho').textContent = L.length ? '함께: ' + L.join(', ') : '';
+}
+// 호스트 위치(서버 시각 기준으로 늘림)
+function remotePos() {
+  const R = J.remote; if (!R) return 0;
+  return (R.ps || 0) + (R.on ? Math.max(0, Date.now() + (J.skew || 0) - (R.pu || 0)) : 0);
+}
+// 내 Spotify가 호스트의 지금 곡·위치를 따라가게. 곡이 다르거나 4초 넘게 어긋나면 그 곡부터 다시 튼다(6초에 한 번까지)
+async function follow() {
+  const R = J.remote; if (!R || !J.on || J.followBusy || J.noListen) return;
+  const s = C.state(), list = J.items, tgt = list[R.cur];
+  const myUri = s && s.item && s.item.uri, mineOn = !!(s && s.is_playing);
+  const inJam = !!myUri && list.some((x) => x.uri === myUri);
+  if (!R.on || !tgt || !tgt.uri) {
+    if (J.following && mineOn && inJam && Date.now() - (J.followAt || 0) > 3000) { J.followAt = Date.now(); C.api('/me/player/pause', { method: 'PUT' }).catch(() => {}); C.poll(600); }
+    return;
+  }
+  const pos = Math.min(remotePos(), Math.max(0, (tgt.ms || 1e9) - 1500));
+  const myPos = s ? (s.progress_ms || 0) + (s.is_playing ? Date.now() - (s.at || Date.now()) : 0) : 0;
+  if (mineOn && myUri === tgt.uri && Math.abs(myPos - pos) < 4000) return;
+  if (Date.now() - (J.followAt || 0) < 6000) return; // 방금 틀었으면 상태가 따라올 때까지 기다림
+  J.followAt = Date.now(); J.followBusy = true;
+  try {
+    const uris = list.slice(R.cur, R.cur + 100).map((x) => x.uri).filter(Boolean);
+    C.wake(); const dev = await C.targetDevice();
+    await C.api('/me/player/play?device_id=' + encodeURIComponent(dev), { method: 'PUT', body: { uris, offset: { position: 0 }, position_ms: pos } });
+    J.following = true; C.poll(900);
+  } catch (e) {
+    if (e.reason === 'PREMIUM_REQUIRED' || e.status === 403) { J.noListen = true; note('Spotify Premium이 아니라 이 기기에서는 같이 들을 수 없습니다. 셋리스트 보기·곡 넣기·조작은 됩니다', 6000); }
+    else note(e.message || String(e), 4000);
+  } finally { J.followBusy = false; }
+}
+// 참가자 조작 → 호스트 화면이 실행
+async function ctl(k, i = -1) {
+  try { await C.srv('/api/music/jam/ctl', { method: 'POST', body: { pid: J.cur.id, k, i } }); J.followAt = 0; }
+  catch (e) { note(e.message || '보내지 못했습니다'); }
+}
+// 참가자 나가기: 내 음악만 멈추고 화면을 닫는다(잼은 호스트 쪽에서 계속)
+async function leave(ended) {
+  if (!J.on || J.busy) return;
+  J.busy = true;
+  clearTimeout(J.pollT); clearInterval(J.tickT);
+  try {
+    const s = C.state(), myUri = s && s.item && s.item.uri;
+    if (J.following && s && s.is_playing && J.items.some((x) => x.uri === myUri)) C.api('/me/player/pause', { method: 'PUT' }).catch(() => {});
+    if (!ended) C.srv('/api/music/jam/hello', { method: 'POST', body: { pid: J.cur.id, bye: 1 } }).catch(() => {});
+    toggleHelp(false); $('jamFind').hidden = true;
+    const d = J.deck; for (const k of ['REC', 'PLAY', 'PAUSE']) d.latch(k, false); d.setPlaying(false);
+    $('jam').classList.remove('recording');
+    await d.eject((k) => sfx[k] && sfx[k]());
+    C.LS.del('music.jam'); J.cur = null; J.remote = null; J.following = false;
+    await lightsOn();
+  } finally { J.busy = false; }
+}
+
 // ---------- 재생 ----------
 const ctxUri = () => 'spotify:playlist:' + J.cur.id;
 function playingOurs() { const s = C.state(); return !!(s && s.context && s.context.uri === ctxUri() && s.is_playing); }
 function curIndex() {
+  if (J.cur && J.cur.guest) return J.remote ? J.remote.cur : -1;
   const s = C.state(); if (!s || !s.item || !s.context || s.context.uri !== ctxUri()) return -1;
   const i = J.items.findIndex((x) => x.uri === s.item.uri); return i;
 }
@@ -350,6 +451,7 @@ async function cmd(path, method = 'POST') { try { await C.api(path, { method });
 
 async function onKey(k) {
   const d = J.deck; sfx.key();
+  if (J.cur && J.cur.guest) return onKeyGuest(k);
   const s = C.state(), ours = s && s.context && s.context.uri === ctxUri();
   if (k === 'PLAY') {
     d.tap('PLAY');
@@ -372,8 +474,23 @@ async function onKey(k) {
   }
 }
 
+// 참가자 건반: 모두의 잼을 움직인다(호스트 화면이 실행). STOP/EJ 두 번 = 나가기
+async function onKeyGuest(k) {
+  const d = J.deck, on = !!(J.remote && J.remote.on);
+  if (k === 'PLAY') { d.tap('PLAY'); if (!J.items.length) { note('먼저 J카드 빈 줄에 곡을 적으세요'); return; } J.noListen = false; await ctl('play'); }
+  else if (k === 'PAUSE') { d.latch('PAUSE', on); await ctl(on ? 'pause' : 'play'); }
+  else if (k === 'FF' || k === 'REW') { d.tap(k); sfx.whirr(); await ctl(k === 'FF' ? 'next' : 'prev'); }
+  else if (k === 'REC') { d.tap('REC'); note(`${J.cur.host} 님의 테이프에 녹음 중 — 넣는 곡이 모두 남습니다`, 3000); }
+  else if (k === 'STOP/EJ') {
+    d.tap('STOP/EJ');
+    if (Date.now() - J.endArm < 4000) { leave(); return; }
+    J.endArm = Date.now(); note('한 번 더 누르면 이 잼에서 나갑니다(잼은 계속됩니다)', 3000);
+  }
+}
+
 // ---------- 잼 끝: 테이프가 튀어나와 JAM 크레이트로 ----------
 async function end() {
+  if (J.cur && J.cur.guest) return leave();
   if (!J.on || J.busy) return;
   J.busy = true;
   clearTimeout(J.pollT); clearInterval(J.tickT);
@@ -402,14 +519,15 @@ function loop() {
   clearTimeout(J.pollT); clearInterval(J.tickT);
   const poll = async () => {
     if (!J.on || !J.cur) return;
-    if (document.visibilityState === 'visible') { await pullGuests(); await refresh(false); }
-    J.pollT = setTimeout(poll, 4000);
+    if (document.visibilityState === 'visible') { if (!J.cur.guest) await pullGuests(); await refresh(false); }
+    J.pollT = setTimeout(poll, J.cur && J.cur.guest ? 2000 : 4000);
   };
   J.pollT = setTimeout(poll, 4000);
   J.tickT = setInterval(tick, 250); tick();
 }
 function tick() {
   if (!J.on || !J.cur || !J.deck) return;
+  if (J.cur.guest) return tickGuest();
   const s = C.state(), ours = !!(s && s.context && s.context.uri === ctxUri());
   const on = ours && s.is_playing;
   J.deck.setPlaying(on);
@@ -427,6 +545,18 @@ function tick() {
   if (now0() - (J.pengT || 0) > 2000) { J.pengT = now0(); penguin(); penguinSkip(); }
   const tot = J.items.reduce((a, x) => a + x.ms, 0);
   $('jamSum').textContent = J.items.length ? `${J.items.length}곡 · ${fmt(tot)}` : '';
+}
+function tickGuest() {
+  const R = J.remote, on = !!(R && R.on), i = R ? R.cur : -1;
+  J.deck.setPlaying(on); J.deck.latch('PLAY', on); if (on) J.deck.latch('PAUSE', false);
+  const tot = J.items.reduce((a, x) => a + x.ms, 0);
+  if (i >= 0 && J.items[i]) {
+    const before = J.items.slice(0, i).reduce((a, x) => a + x.ms, 0);
+    J.deck.setProgress((before + Math.min(remotePos(), J.items[i].ms)) / (tot || 1));
+    if (J.items[i].uri !== J.lastUri) { J.lastUri = J.items[i].uri; pola(J.items[i]); renderList(); }
+  }
+  $('jamSum').textContent = J.items.length ? `${J.items.length}곡 · ${fmt(tot)}` : '';
+  if (now0() - (J.folT || 0) > 1000) { J.folT = now0(); follow(); }
 }
 function pola(x) {
   const box = $('jamPola'); if (!box) return;
@@ -488,7 +618,7 @@ const SKIP_LINES = ['별로. 넘김', '이건 아니야', '패스', '내 취향 
 const POKE_LINES = { ignore: ['...', '바쁨', '(못 들은 척)'], squawk: ['꽥!!', '왜!!', '건드리지 마'], flop: ['(벌러덩)', '아 미끄러워', '...안 넘어졌음'] };
 const pickL = (L) => L[(Math.random() * L.length) | 0];
 async function penguinSkip() {
-  if (!J.on || !J.cur || J.cur.replay || J.pengBusy || J.busy) return;
+  if (!J.on || !J.cur || J.cur.guest || J.cur.replay || J.pengBusy || J.busy) return;
   const s = C.state(), ours = s && s.context && s.context.uri === ctxUri(); if (!ours || !s.is_playing) return;
   const ci = curIndex(); if (ci < 0 || ci >= J.items.length - 1 || J.items[ci].peng) return;
   let pos = s.progress_ms || 0; pos += Date.now() - s.at; if (pos < 25000) return;
@@ -508,7 +638,7 @@ function poke() {
 }
 
 async function penguin() {
-  if (!J.on || !J.cur || J.cur.replay || J.pengBusy || J.busy) return;
+  if (!J.on || !J.cur || J.cur.guest || J.cur.replay || J.pengBusy || J.busy) return;
   const s = C.state(), ours = s && s.context && s.context.uri === ctxUri();
   const ci = curIndex(), alone = Date.now() - (J.lastFriend || 0) > 5 * 60000;
   const low = J.items.length ? ours && s.is_playing && ci >= J.items.length - 1 : Date.now() - J.cur.at > 25000 && !!J.cur.seed;
@@ -552,7 +682,8 @@ async function add(x, t) {
     else uris = [x.uri];
     if (!uris.length) return;
     J.pend = [...(J.pend || []), label]; renderList();
-    await post(uris);
+    if (J.cur.guest) await C.srv('/api/music/jam/add', { method: 'POST', body: { pid: J.cur.id, uris, label: t === 'album' ? label : `${x.name} — ${(x.artists || []).map((a) => a.name).join(', ')}` } });
+    else await post(uris);
   } catch (e) { C.toast(e.status === 403 ? '이 플레이리스트에 곡을 넣을 권한이 없습니다' : (e.message || String(e))); }
   J.pend = (J.pend || []).filter((n) => n !== label);
   await refresh(false);
@@ -572,23 +703,41 @@ async function share() {
 
 // ---------- 손님 곡 받기 · 셋리스트 올리기 (서버 /api/music/jam) ----------
 // 셋리스트나 지금 곡이 바뀌면 올리고, 바뀐 게 없어도 1분마다 한 번(잼이 살아 있다는 표시)
+// 참가자 기기가 따라 틀도록 지금 곡·재생 여부·위치(ps)도 올린다. 곡·재생 상태가 바뀌면 바로, 아니면 20초마다(멀리 감기 같은 건 이걸로 맞춤)
 function publish(force) {
-  if (!J.on || !J.cur) return;
-  const list = J.items.map((x) => ({ t: x.name, a: x.artist, by: x.byName || '' })), cur = curIndex();
-  const key = JSON.stringify([J.cur.id, list.length, list.map((x) => x.by).join('|'), cur]);
-  if (!force && key === J.pubKey && Date.now() - (J.pubAt || 0) < 60000) return;
+  if (!J.on || !J.cur || J.cur.guest) return;
+  const list = J.items.map((x) => ({ t: x.name, a: x.artist, by: x.byName || '', uri: x.uri, ms: x.ms, img: x.img })), cur = curIndex();
+  const s = C.state(), on = playingOurs();
+  const ps = s && cur >= 0 ? (s.progress_ms || 0) + (s.is_playing ? Date.now() - (s.at || Date.now()) : 0) : 0;
+  const key = JSON.stringify([J.cur.id, list.length, list.map((x) => x.by).join('|'), cur, on]);
+  if (!force && key === J.pubKey && Date.now() - (J.pubAt || 0) < 20000) return;
   J.pubKey = key; J.pubAt = Date.now();
-  C.srv('/api/music/jam', { method: 'PUT', body: { pid: J.cur.id, name: J.cur.name, tape: J.cur.tape, list, cur } }).catch(() => { J.pubKey = ''; });
+  C.srv('/api/music/jam', { method: 'PUT', body: { pid: J.cur.id, name: J.cur.name, tape: J.cur.tape, list, cur, on, ps } }).catch(() => { J.pubKey = ''; });
+}
+// 참가자가 누른 건반·J카드
+const CTL_LABEL = { play: '재생', pause: '잠깐 멈춤', next: '다음 곡', prev: '이전 곡', from: '이 곡부터' };
+async function runCtl(g) {
+  const [k, n] = String(g.q || '').split(':'), i = +n;
+  const s = C.state(), ours = s && s.context && s.context.uri === ctxUri();
+  if (k === 'play') { if (ours && s.item) await cmd('/me/player/play', 'PUT'); else if (J.items.length) await playFrom(Math.max(0, curIndex())); }
+  else if (k === 'pause') { if (ours && s.is_playing) await cmd('/me/player/pause', 'PUT'); }
+  else if (k === 'next' || k === 'prev') { if (ours) { sfx.whirr(); J.deck.tap(k === 'next' ? 'FF' : 'REW'); await cmd(k === 'next' ? '/me/player/next' : '/me/player/previous'); } }
+  else if (k === 'from' && i >= 0 && i < J.items.length) await playFrom(i);
+  else return;
+  note(`${g.by}: ${CTL_LABEL[k] || k}`, 2200);
+  setTimeout(() => publish(true), 1200);
 }
 async function pullGuests() {
   if (!J.cur || J.pulling) return;
   J.pulling = true;
   try {
+    if (Date.now() - (J.whoAt || 0) > 8000) { J.whoAt = Date.now(); remote().then((R) => { if (R && J.on && J.cur && !J.cur.guest) showWho(R.members); }); }
     const { items: Q } = await C.srv('/api/music/jam/q');
     if (!Q || !Q.length) return;
     const done = [], gs = J.cur.guests = J.cur.guests || {};
     let added = 0;
     for (const g of Q) {
+      if (g.kind === 'ctl') { try { await runCtl(g); } catch {} done.push(g.id); continue; }
       let uris = (g.uris || []).filter(Boolean);
       if (!uris.length && g.q) { // 이름만 보냈으면 내가 찾아서 첫 곡
         try { const j = await C.api(`/search?type=track&limit=1&q=${encodeURIComponent(g.q)}`); const t = j && j.tracks && j.tracks.items && j.tracks.items[0]; if (t) uris = [t.uri]; } catch {}
@@ -599,7 +748,7 @@ async function pullGuests() {
     }
     save();
     if (done.length) await C.srv('/api/music/jam/done', { method: 'POST', body: { ids: done } }).catch(() => {});
-    if (added) { J.lastFriend = Date.now(); bubbleGuest(Q[Q.length - 1]); }
+    if (added) { J.lastFriend = Date.now(); bubbleGuest(Q.filter((g) => g.kind !== 'ctl').pop()); }
   } catch {} finally { J.pulling = false; }
 }
 function bubbleGuest(g) { if (g) C.toast(`${g.by} 님이 곡을 넣었습니다 — ${g.label}`, 3000); }
@@ -623,12 +772,12 @@ function wire() {
   $('jamList').addEventListener('click', (ev) => {
     const li = ev.target.closest('li'); if (!li) return;
     if (li.dataset.add) { openFind(); return; }
-    if (li.dataset.i != null) { sfx.key(); playFrom(+li.dataset.i); }
+    if (li.dataset.i != null) { sfx.key(); if (J.cur && J.cur.guest) ctl('from', +li.dataset.i); else playFrom(+li.dataset.i); }
   });
   $('jamList').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ev.target.click(); });
   $('jamAdd').onclick = openFind;
   $('jamShare').onclick = share;
-  $('jamEnd').onclick = () => { if (Date.now() - J.endArm < 4000) end(); else { J.endArm = Date.now(); note('한 번 더 누르면 잼을 끝내고 테이프를 꺼냅니다', 3000); } };
+  $('jamEnd').onclick = () => { if (Date.now() - J.endArm < 4000) end(); else { J.endArm = Date.now(); note(J.cur && J.cur.guest ? '한 번 더 누르면 이 잼에서 나갑니다' : '한 번 더 누르면 잼을 끝내고 테이프를 꺼냅니다', 3000); } };
   $('jamHelp').onclick = () => toggleHelp();
   $('jamNotes').addEventListener('click', () => toggleHelp(false));
   $('jamFindX').onclick = () => { $('jamFind').hidden = true; };
@@ -640,11 +789,11 @@ function wire() {
   };
   document.addEventListener('keydown', (ev) => {
     if (!J.on || ev.target.closest && ev.target.closest('input')) return;
-    if (ev.key === ' ') { ev.preventDefault(); onKey(playingOurs() ? 'PAUSE' : 'PLAY'); }
+    if (ev.key === ' ') { ev.preventDefault(); onKey((J.cur && J.cur.guest ? J.remote && J.remote.on : playingOurs()) ? 'PAUSE' : 'PLAY'); }
     else if (ev.key === 'ArrowRight') onKey('FF'); else if (ev.key === 'ArrowLeft') onKey('REW');
     else if (ev.key === '?') toggleHelp();
     else if (ev.key === 'Escape') { if (!$('jamFind').hidden) $('jamFind').hidden = true; else if ($('jamHelp').getAttribute('aria-pressed') === 'true') toggleHelp(false); }
   });
 }
 
-window.MusicJam = { start, resume, replay, active };
+window.MusicJam = { start, resume, replay, join, active };
