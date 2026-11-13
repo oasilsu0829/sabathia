@@ -7,7 +7,7 @@ const LS = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 const BASE = '/music/mag/issues/';
-let root, sh, list = [], cur = null, spreads = [], state = 'home', tab = 'mail', k = 0, wide = false, leaves = [], torn = false, faces = [];
+let root, sh, list = [], cur = null, spreads = [], state = 'home', tab = 'shelf', k = 0, wide = false, leaves = [], torn = false, faces = [];
 const issueCache = new Map();
 const $ = (s) => sh.querySelector(s);
 
@@ -65,6 +65,9 @@ h2{margin:0 0 6px;font-family:'Noto Serif KR',Georgia,serif;font-weight:900;font
 .mini:hover,.mini:focus-visible{transform:translateY(-6px);outline:none}
 .mini .cv{position:relative;width:132px;aspect-ratio:3/4;overflow:hidden;box-shadow:0 8px 16px rgba(0,0,0,.45);background:#fff}
 .mini .cv .spw{position:absolute;inset:0}
+.mini{position:relative}
+.mini .newb{position:absolute;left:-6px;top:-8px;z-index:3;background:#e2341d;color:#fff;font:700 11px/1 monospace;letter-spacing:.08em;padding:5px 7px;border-radius:3px;transform:rotate(-6deg);box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.mini.new .cv::after{content:"";position:absolute;inset:0;background:linear-gradient(118deg,transparent 30%,rgba(255,255,255,.35) 38%,transparent 46%),rgba(220,228,236,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.4)}
 .mini small{display:block;margin-top:8px;font-size:12px;color:#cfc6b6;line-height:1.4}
 .mini small b{color:#f3eee6;font-weight:700}
 /* 상자 */
@@ -127,7 +130,7 @@ function ensureRoot() {
   root = document.createElement('div'); root.id = 'magRoot';
   sh = root.attachShadow({ mode: 'open' });
   sh.innerHTML = `<style>${CSS}</style><div class="wrapall">
-    <div class="mbar"><div class="tabs" role="tablist"><button class="chip" data-t="mail" type="button">우편함</button><button class="chip" data-t="shelf" type="button">책장</button></div>
+    <div class="mbar"><div class="tabs" role="tablist"><button class="chip" data-t="shelf" type="button" aria-pressed="true">책장</button></div>
       <div class="tabs"><button class="chip" id="back" type="button" hidden>← 목록</button><button class="chip" id="close" type="button" aria-label="잡지 닫기">닫기</button></div></div>
     <section class="view" id="vMail"></section>
     <section class="view" id="vShelf" hidden></section>
@@ -215,12 +218,13 @@ async function home() {
     const mags = [...new Map(list.map((x) => [x.mag, x])).values()];
     const read = opened();
     const shelves = mags.map((m) => {
-      const its = list.filter((x) => x.mag === m.mag && read[x.id]);
+      const its = list.filter((x) => x.mag === m.mag); // 안 연 새 호도 비닐째 꽂힘(NEW) → 누르면 상자부터
       return `<div class="shelf"><h3><span>${m.name} — ${m.publisher}</span><span>${its.length}권</span></h3>
-        <div class="ledge">${its.length ? its.map((x) => `<button class="mini" type="button" data-id="${x.id}"><div class="cv iss iss-${x.id}" data-cv="${x.id}"></div><small><b>${x.vol}</b> · ${x.date}<br>${x.title}</small></button>`).join('') : '<span class="empty" style="margin:20px 0">아직 꽂힌 호가 없습니다</span>'}</div><div class="board"></div></div>`;
+        <div class="ledge">${its.length ? its.map((x) => `<button class="mini${read[x.id] ? '' : ' new'}" type="button" data-id="${x.id}"><div class="cv iss iss-${x.id}" data-cv="${x.id}"></div>${read[x.id] ? '' : '<span class="newb">NEW</span>'}<small><b>${x.vol}</b> · ${x.date}<br>${x.title}</small></button>`).join('') : '<span class="empty" style="margin:20px 0">아직 꽂힌 호가 없습니다</span>'}</div><div class="board"></div></div>`;
     }).join('');
-    $('#vShelf').innerHTML = `<h2>책장</h2><p class="sub">읽은 호가 출판사별로 꽂힙니다. 누르면 바로 펼칩니다.</p>${shelves}`;
-    for (const b of sh.querySelectorAll('.mini')) b.addEventListener('click', () => openRead(list.find((x) => x.id === b.dataset.id)));
+    const nNew = list.filter((x) => !read[x.id]).length;
+    $('#vShelf').innerHTML = `<h2>책장</h2><p class="sub">${nNew ? `새 호 ${nNew}권이 비닐째 꽂혀 있습니다. 누르면 상자부터 엽니다.` : '출판사별로 꽂힙니다. 누르면 바로 펼칩니다.'}</p>${shelves}`;
+    for (const b of sh.querySelectorAll('.mini')) b.addEventListener('click', () => { const it = list.find((x) => x.id === b.dataset.id); if (opened()[it.id]) openRead(it); else openParcel(it); });
     for (const cv of sh.querySelectorAll('[data-cv]')) {
       const it = list.find((x) => x.id === cv.dataset.cv);
       loadIssue(it).then((v) => { ensureCss(it, v); cv.innerHTML = `<div class="spw" style="width:100%">${v.sp[0]}</div>`; }).catch(() => {});
@@ -440,8 +444,14 @@ export async function open() {
   // 뒤의 앱(3D 턴테이블·유리 칸)은 잡지를 보는 동안 그리지 않는다
   document.body.classList.add('magon'); if (window.Deck3D && Deck3D.suspend) Deck3D.suspend(true);
   try { await loadList(); } catch { list = []; }
-  tab = list.some((x) => !opened()[x.id]) ? 'mail' : 'shelf';
+  tab = 'shelf';
   home();
+}
+// 신간 팝업에서: 그 호를 바로 연다(안 연 호면 상자부터)
+export async function openIssue(id) {
+  await open();
+  const it = list.find((x) => x.id === id); if (!it) return;
+  if (opened()[it.id]) openRead(it); else openParcel(it);
 }
 export function close() {
   if (!root) return;
