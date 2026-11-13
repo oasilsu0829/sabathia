@@ -105,12 +105,6 @@
     return { pct: n ? sum / n * 100 : 0, badge: due, meta: n ? `${label} · ${doneN} / ${n}` : label };
   }
 
-  // 음악: 지금 곡 이름. 재생 중이면 모양을 다 채운다
-  function music() {
-    const r = Sabathia.read('music');
-    return { pct: r && r.playing ? 100 : 0, badge: 0, meta: r && r.title ? r.title : 'Spotify' };
-  }
-
   window.SABATHIA_APPS = [
     { id: 'plan', code: 'PLN-01', name: '15577', dock: '15577', href: '/plan/', color: ['#a35a00', '#f2a33a'], status: plan },
     { id: 'vocab', code: 'VOC-02', name: '어원 단어', dock: '단어', href: '/vocab/', color: ['#5b3fc0', '#a99bff'], status: vocab },
@@ -120,6 +114,5 @@
     { id: 'projects', code: 'PRJ-06', name: '장부', href: '/projects/', color: ['#8a2b5c', '#e07aae'], status: projects },
     { id: 'focus', code: 'FOC-07', name: '집중', href: '/focus/', color: ['#00658d', '#4fd0ff'], status: focus },
     { id: 'exam', code: 'EXM-08', name: '시험대비', href: '/exam/', color: ['#a8361f', '#ff8a70'], status: exam },
-    { id: 'music', code: 'MUS-09', name: '음악', href: '/music/', color: ['#3f3f46', '#d4d4d8'], status: music },
   ];
 })();
