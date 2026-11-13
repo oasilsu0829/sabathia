@@ -9,15 +9,16 @@ html,body{width:1000px;height:1000px;overflow:hidden;background:transparent}
   radial-gradient(140% 90% at 20% 0%,rgba(255,255,255,.55),transparent 60%),
   linear-gradient(160deg,#e3e5e6,#b9bdc0 55%,#d6d8da)}
 /* 판 */
-.rec{position:absolute;left:14px;top:14px;width:972px;height:972px;border-radius:50%;
+.rec{position:absolute;left:110px;top:110px;width:780px;height:780px;border-radius:50%;
   background:
    conic-gradient(from 20deg,rgba(255,255,255,0) 0deg,rgba(255,255,255,.16) 18deg,rgba(255,255,255,0) 40deg,rgba(255,255,255,0) 180deg,rgba(255,255,255,.12) 200deg,rgba(255,255,255,0) 222deg),
    repeating-radial-gradient(circle at 50% 50%,#0d0d10 0 2px,#16161a 2px 3.2px,#0b0b0d 3.2px 4.4px),
    #0c0c0f;
   box-shadow:0 0 0 2px #050506,0 6px 18px rgba(0,0,0,.35)}
 .rec::after{content:"";position:absolute;inset:6px;border-radius:50%;box-shadow:inset 0 0 0 10px #1c1c21,inset 0 0 0 11px rgba(255,255,255,.08)}
-.run{position:absolute;left:50%;top:50%;width:420px;height:420px;margin:-210px 0 0 -210px;border-radius:50%;background:#101013;box-shadow:0 0 0 2px rgba(255,255,255,.06)}
-.lab{position:absolute;left:50%;top:50%;width:336px;height:336px;margin:-168px 0 0 -168px;border-radius:50%;overflow:hidden}
+.run{position:absolute;left:50%;top:50%;width:337px;height:337px;margin:-168.5px 0 0 -168.5px;border-radius:50%;background:#101013;box-shadow:0 0 0 2px rgba(255,255,255,.06)}
+.lab{position:absolute;left:50%;top:50%;width:270px;height:270px;margin:-135px 0 0 -135px;border-radius:50%;overflow:hidden}
+.lab>.in{position:absolute;left:0;top:0;width:336px;height:336px;transform:scale(.8036);transform-origin:0 0}
 .hole{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:#cfd2d4;box-shadow:inset 0 2px 3px rgba(0,0,0,.5)}
 /* 비닐(PVC) 겉면 */
 .pvc{position:absolute;inset:0;pointer-events:none;
@@ -107,7 +108,7 @@ function print() {
     <div class="ink kr" style="right:60px;bottom:58px;text-align:right;font-size:30px;color:${C1};line-height:1.3">사이퍼 미디어<br><span class="mono" style="font-size:16px;color:#b0201e">SUPPLEMENT LP</span></div>
     <div class="ink mono" style="left:60px;bottom:60px;font-size:16px;color:#141414;line-height:1.6">01 / 08<br>NEXT IN THE CIRCLE</div>`; }
   return `
-    <div class="ink" style="left:14px;top:14px;width:972px;height:972px;border-radius:50%;background:conic-gradient(${C1} 0 120deg,transparent 120deg);opacity:.62"></div>
+    <div class="ink" style="left:110px;top:110px;width:780px;height:780px;border-radius:50%;background:conic-gradient(${C1} 0 120deg,transparent 120deg);opacity:.62"></div>
     <div class="ink" style="left:54px;top:30px;font:250px/1 'Archivo Black';color:#fff;letter-spacing:-.05em;opacity:.95">33⅓</div>
     <div class="ink mono" style="left:62px;top:280px;font-size:21px;color:#fff;opacity:.9">${SIG.day}</div>
     <div class="ink" style="left:0;right:0;bottom:0;height:150px;background:${C2};opacity:.82"></div>
@@ -119,7 +120,7 @@ if (part === 'label') {
   document.body.classList.add('L');
   S.innerHTML = `<div style="position:absolute;inset:0;border-radius:50%;overflow:hidden"><div style="position:absolute;left:50%;top:50%;width:336px;height:336px;margin:-168px 0 0 -168px;transform:scale(${600 / 336})">${label(336)}</div></div>`;
 } else {
-  S.innerHTML = `<div class="rec"><div class="run"></div><div class="lab">${label(336)}</div><div class="hole"></div></div>
+  S.innerHTML = `<div class="rec"><div class="run"></div><div class="lab"><div class="in">${label(336)}</div></div><div class="hole"></div></div>
    ${print()}<div class="grain"></div><div class="pvc"></div>
    <i class="crk" style="left:120px;top:880px;width:180px;transform:rotate(-8deg)"></i><i class="crk" style="left:700px;top:160px;width:140px;transform:rotate(14deg)"></i><i class="crk" style="left:820px;top:640px;width:110px;transform:rotate(-70deg)"></i>
    <div class="seam"></div>`;
