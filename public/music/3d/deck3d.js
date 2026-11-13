@@ -145,10 +145,14 @@ function start() {
     g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 8; g.beginPath(); g.arc(m, m, GO_PX + 7, 0, 7); g.stroke(); // 들어가는 홈
     const LR = 188;
     g.save(); g.beginPath(); g.arc(m, m, LR, 0, 7); g.clip();
-    if (img) { g.drawImage(img, m - LR, m - LR, LR * 2, LR * 2); g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(0, 0, S, S); }
+    const mg = !!(L && L.m && img); // 잡지 부록 LP: 잡지사 라벨 그림 그대로(글자 얹지 않음)
+    if (mg) g.drawImage(img, m - LR, m - LR, LR * 2, LR * 2);
+    else if (img) { g.drawImage(img, m - LR, m - LR, LR * 2, LR * 2); g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(0, 0, S, S); }
     else { g.fillStyle = '#f4f4f5'; g.fillRect(0, 0, S, S); }
     g.restore();
     g.strokeStyle = 'rgba(200,200,205,.9)'; g.lineWidth = 4; g.beginPath(); g.arc(m, m, LR, 0, 7); g.stroke();
+    if (mg) { g.fillStyle = '#d4d4d8'; g.beginPath(); g.arc(m, m, 13, 0, 7); g.fill(); g.fillStyle = '#27272a'; g.beginPath(); g.arc(m, m, 5, 0, 7); g.fill(); }
+    else {
     g.fillStyle = img ? '#fff' : '#111827'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = '700 22px "JetBrains Mono", monospace'; g.fillText('SABATHIA', m, m - 92);
     g.font = '700 40px "Space Grotesk", "Noto Sans KR", sans-serif';
@@ -157,6 +161,7 @@ function start() {
     g.font = '500 24px "JetBrains Mono", "Noto Sans KR", monospace'; g.globalAlpha = 0.8;
     g.fillText(clip(g, (L && L.artist) || '', 300), m, m + 58 + (lines.length - 1) * 20); g.globalAlpha = 1;
     g.fillStyle = '#d4d4d8'; g.beginPath(); g.arc(m, m + 118, 13, 0, 7); g.fill(); g.fillStyle = '#27272a'; g.beginPath(); g.arc(m, m + 118, 5, 0, 7); g.fill();
+    }
     // 판 위 먼지 몇 점(판과 같이 돈다)
     let x = [...((L && L.name) || 'x')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 2147483647, 11) || 11; const rnd = () => ((x = (x * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 16; i++) { const a = rnd() * 6.283, r = GI_PX + rnd() * (GO_PX - GI_PX); g.fillStyle = `rgba(255,255,255,${0.25 + rnd() * 0.45})`; g.beginPath(); g.arc(m + Math.cos(a) * r, m + Math.sin(a) * r, 0.8 + rnd() * 1.6, 0, 7); g.fill(); }
@@ -203,6 +208,8 @@ function start() {
     for (let i = 0; i < w * 40; i++) { const a = rnd() * W, b = rnd() * H, l = 10 + rnd() * 50, t = rnd() * 6.28; g.beginPath(); g.moveTo(a, b); g.lineTo(a + Math.cos(t) * l, b + Math.sin(t) * l); g.stroke(); }
     g.restore();
   }
+  // 판 라벨 그림: 잡지 부록 LP는 잡지사 라벨(sleeves/<m>-l.webp), 나머지는 표지
+  const lblSrc = (L) => (L && L.m ? `/music/mag/sleeves/${L.m}-l.webp` : L && L.img);
   const wearOf = (a) => Math.min(1, ((a && a.p) || 0) / 20);
   const seedOf = (a) => [...String((a && a.id) || 'x')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 2147483647, 7) || 7;
   function coverMat(img, a) {
@@ -619,7 +626,7 @@ function start() {
     poke = performance.now();
     if (target === record) labelKey = key;
     drawRecord(target.userData.R, L, null);
-    loadImg(L && L.img).then((img) => { if (img && (target !== record || labelKey === key)) drawRecord(target.userData.R, L, img); });
+    loadImg(lblSrc(L)).then((img) => { if (img && (target !== record || labelKey === key)) drawRecord(target.userData.R, L, img); });
   }
 
   // 바늘 끝이 판 중심에서 반지름 r에 오는 톤암 각(이분법). 각이 작아질수록(음수 쪽) 안쪽으로 간다
@@ -957,8 +964,9 @@ function start() {
   let lastDropV = -1;
   function build(a, slam, img) {
     const disc = makeRecord();
-    const L = { name: a.name, artist: a.artist, img: a.img, tracks: a.tracks || null };
-    drawRecord(disc.userData.R, L, img); if (!img && a.img) loadImg(a.img).then((im) => im && drawRecord(disc.userData.R, L, im));
+    const L = { name: a.name, artist: a.artist, img: a.img, m: a.m, tracks: a.tracks || null };
+    if (a.m) { drawRecord(disc.userData.R, L, null); loadImg(lblSrc(L)).then((im) => im && drawRecord(disc.userData.R, L, im)); }
+    else { drawRecord(disc.userData.R, L, img); if (!img && a.img) loadImg(a.img).then((im) => im && drawRecord(disc.userData.R, L, im)); }
     const sleeve = new THREE.Mesh(new THREE.BoxGeometry(slam ? 1.24 : 1.26, slam ? 1.3 : 1.26, slam ? 0.03 : 0.012), slam ? [side, side, side, side, clipMat(a, img), side] : [side, side, side, side, coverMat(img, a), side]);
     // 미리 GPU에 올려 둔다(처음 그릴 때 멈칫하지 않게)
     renderer.initTexture && [disc.userData.R.t, sleeve.material[4].map].forEach((t) => t && renderer.initTexture(t));

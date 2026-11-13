@@ -112,6 +112,10 @@ h2{margin:0 0 6px;font-family:'Noto Serif KR',Georgia,serif;font-weight:900;font
 .single7.taken{transform:rotate(0deg) translateY(-2cqw) scale(1.04)!important;z-index:5}
 .single7.taken .tp{transform:rotate(-35deg) translateY(-60%)!important;opacity:0}
 .single7:focus-visible{outline:2px solid #2a2fb0;outline-offset:4px}
+.single7.lp12 .sl,.single7.lp12 .bg{display:none}
+.single7.lp12 .lpimg{position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:.25cqw;box-shadow:0 .5cqw 1cqw rgba(0,0,0,.22),0 1.6cqw 3.4cqw rgba(0,0,0,.2);-webkit-user-drag:none;user-select:none}
+.single7.lp12 .tp{z-index:2}
+.single7.lp12.taken{transform:rotate(0deg) translateY(-2cqw) scale(1.03)!important}
 .toast{position:absolute;left:50%;top:60px;transform:translate(-50%,-30px);opacity:0;background:#fbfaf6;color:#161514;padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:.3s;z-index:70;max-width:calc(100% - 32px);pointer-events:none}
 .toast.on{transform:translate(-50%,0);opacity:1}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
@@ -170,12 +174,17 @@ async function loadIssue(it) {
     const m = await import('/music/mag/m33.js');
     const r = await m.build(core());
     it.tracks = r.tracks; it.singles = 1;
-    const v = { css: v0.css, sp: r.sp };
+    const v = { css: v0.css, sp: r.sp.map((x) => lp12(it, x)) };
     if (r.tracks.length) issueCache.set(it.id, v);
     return v;
   }
-  const v = parseIssue(it, html);
+  const v = parseIssue(it, html); v.sp = v.sp.map((x) => lp12(it, x));
   issueCache.set(it.id, v); return v;
+}
+// 부록 싱글 = 12인치 LP. 투명 비닐(PVC) 커버에 잡지사 시그니처가 인쇄된 그림(sleeves/<mag>.webp)으로 바꿔 끼운다
+const sleeveOf = (mag) => `/music/mag/sleeves/${mag}.webp`;
+function lp12(it, html) {
+  return html.replace(/<div class="single7 bigs"([^>]*)>/g, (_, rest) => `<div class="single7 bigs lp12"${rest.replace('부록 싱글', '부록 LP')}><img class="lpimg" src="${sleeveOf(it.mag)}" alt="${it.name} 부록 LP, 투명 비닐 커버" draggable="false">`);
 }
 function parseIssue(it, html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -197,7 +206,7 @@ async function home() {
     const fresh = list.filter((x) => !opened()[x.id]);
     $('#vMail').innerHTML = `<h2>우편함</h2><p class="sub">${fresh.length ? `잡지 ${fresh.length}권이 도착했습니다. 상자를 골라 여세요.` : '새로 온 잡지가 없습니다. 읽은 호는 책장에 꽂혀 있습니다.'}</p><div class="parcels">${fresh.map((x, i) => `
       <button class="parcel" type="button" data-id="${x.id}" style="--r:${[-3, 2, -1.5, 3][i % 4]}deg" aria-label="${x.name} 상자 열기">
-        <span class="lb"><b>${x.publisher} → 구독자 님</b>${x.name} ${x.vol}<br>부록 7인치 싱글 ${x.singles}장<br>${x.date}</span>
+        <span class="lb"><b>${x.publisher} → 구독자 님</b>${x.name} ${x.vol}<br>부록 LP 1장<br>${x.date}</span>
         <span class="dot" style="background:${x.color}">${x.name}</span></button>`).join('')}</div>`;
     for (const b of sh.querySelectorAll('.parcel')) b.addEventListener('click', () => openParcel(list.find((x) => x.id === b.dataset.id)));
   } else {
@@ -229,7 +238,7 @@ function openParcel(it) {
   show('vBox'); $('#back').hidden = false; measure();
   const box = $('#box'); box.classList.remove('open'); $('#slit').style.width = 0;
   box.style.setProperty('--magc', it.color);
-  $('#lbl').innerHTML = `<b>${it.publisher} → 구독자 님</b>보내는 곳: ${it.publisher}<br>받는 곳: Sabathia 우편함<br>내용물: ${it.name} ${it.vol} 1부<br>부록 7인치 싱글 ${it.singles}장<br>${it.date}`;
+  $('#lbl').innerHTML = `<b>${it.publisher} → 구독자 님</b>보내는 곳: ${it.publisher}<br>받는 곳: Sabathia 우편함<br>내용물: ${it.name} ${it.vol} 1부<br>부록 LP 1장(투명 비닐)<br>${it.date}`;
   hint('테이프를 따라 가로로 그어서 상자를 여세요', '칼로 자르기');
   loadIssue(it).catch(() => toast('잡지를 불러오지 못했습니다'));
   box.focus({ preventScroll: true });
@@ -287,14 +296,14 @@ function buildBook() {
   if (state === 'wrap' && !torn) bindWrap();
   apply();
 }
-const wrapHTML = () => `<div class="wrapv" aria-label="비닐 포장. 가로로 그어서 뜯기"><div class="wst">부록 싱글<br>${cur.singles}장 수록</div></div><div class="tearl"></div>`;
+const wrapHTML = () => `<div class="wrapv" aria-label="비닐 포장. 가로로 그어서 뜯기"><div class="wst">부록 LP<br>1장 수록</div></div><div class="tearl"></div>`;
 function apply(moving = -1) {
   const n = leaves.length;
   leaves.forEach((L, i) => { L.classList.toggle('flipped', i < k); L.style.zIndex = i === moving ? 200 : (i < k ? i + 1 : n - i + 10); });
   if (moving >= 0) setTimeout(() => apply(), 880);
   $('#book').style.transform = wide && k === 0 ? 'translateX(calc(var(--pw) * -.5))' : '';
   $('#pgno').textContent = state === 'read' ? `${k + 1} / ${n}` : '';
-  if (state === 'read') { hint(lastPage() ? '부록 싱글을 누르면 테이프를 떼고 재생합니다' : ''); const pg = LS.get('mag.page') || {}; pg[cur.id] = k; LS.set('mag.page', pg); }
+  if (state === 'read') { hint(lastPage() ? '부록 LP를 누르면 테이프를 떼고 재생합니다' : ''); const pg = LS.get('mag.page') || {}; pg[cur.id] = k; LS.set('mag.page', pg); }
 }
 const lastPage = () => k >= leaves.length - 1;
 function turn(d) {
@@ -361,13 +370,13 @@ async function takeSingle() {
   for (const x of sh.querySelectorAll('.single7')) x.classList.add('taken');
   sfx.peel();
   const C = core(), tracks = cur.tracks || [];
-  if (!C || !C.loggedIn()) { toast('Spotify에 연결하면 이 싱글을 바로 들을 수 있습니다'); return; }
+  if (!C || !C.loggedIn()) { toast('Spotify에 연결하면 이 LP를 바로 들을 수 있습니다'); return; }
   if (!tracks.length) return;
   try {
     const saved = LS.get('mag.pl') || {};
     let ent = saved[cur.id];
     if (!ent) {
-      toast('부록 싱글을 꺼내는 중…');
+      toast('부록 LP를 꺼내는 중…');
       const found = [];
       for (const s of tracks) {
         if (s.uri) { found.push({ uri: s.uri, img: s.img }); continue; }
@@ -377,11 +386,12 @@ async function takeSingle() {
       }
       if (!found.length) { toast('부록 곡을 Spotify에서 찾지 못했습니다'); return; }
       const name = `${cur.name} ${cur.vol} 부록`;
-      ent = await makePlaylist(C, name, `${cur.publisher} · ${cur.date} · Sabathia 잡지 부록 싱글`, found.map((f) => f.uri)).catch(() => null);
+      ent = await makePlaylist(C, name, `${cur.publisher} · ${cur.date} · Sabathia 잡지 부록 LP`, found.map((f) => f.uri)).catch(() => null);
       if (!ent) { await playUris(C, found.map((f) => f.uri)); toast(`▶ 부록 ${found.length}곡 재생 (플레이리스트는 만들지 못했습니다)`); return; }
-      ent.img = found[0].img || ''; ent.n = found.length;
+      ent.n = found.length;
       saved[cur.id] = ent; LS.set('mag.pl', saved);
     }
+    ent = { ...ent, m: cur.mag, img: sleeveOf(cur.mag) }; // 예전에 만든 것도 비닐 LP로
     C.addToCrate(cur.crate.id, cur.crate.name, cur.crate.o, ent);
     C.playAlbum(ent);
     toast(`▶ ${ent.name} — ${cur.crate.name} 크레이트에 꽂았습니다`);
