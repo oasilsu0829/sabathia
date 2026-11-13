@@ -118,6 +118,20 @@ public/music/       음악 (MUS-09, 2026-11-11). Spotify 플레이어. Stitch �
                       p(황제펭귄, 사용자 요청: Penguin Lifter처럼 실제 같은 모습·눈 안 보임, 이름 p, 성격 '지 맘대로', 행동 과장): 회전체 몸 + 정점 색(검은 등·흰 배·노란 가슴·주황 귀 무늬), 긴 부리, 납작한 날개. sea.js 상태 기계 — dance(크게 까딱)·wander(뒤뚱)·slide(배로 미끄럼)·stare(바다 보기)·preen·sleep(Z, 음악에 깸)·sulk(등 돌림), 무작위로 바뀜
                       혼자(5분 넘게 친구 곡 없음)이고 지금 곡이 마지막이면 잼 안 아티스트(없으면 cur.seed)로 곡을 찾아 넣음(곡마다 한 번, 공중제비 'add'). 남이 넣은 곡은 25초 지나면 1/7 확률로 라디오까지 걸어가 쪼아서 FF(penguinSkip, 곡마다 한 번, 마지막 곡·p 곡은 안 넘김). p를 누르면 무시·꽥·벌러덩 중 하나(poke). 말풍선(penguinAt) + 꽥 소리. J카드에 'p'(music.jam.peng에 uri)
                       index.html이 window.MusicCore(api·toast·LS·targetDevice·state·poll·saveJam·relogin)를 넘겨준다. 효과음은 jam.js 안 합성(music.sfx 따름): 스위치·핀 조명·문·꽂힘·건반·감기·펜
+public/music/mag/   잡지 MAG (2026-11-13). 위 줄 MAG 버튼 → mag.js(처음 누를 때 import). 화면 전체를 덮는 겹 하나를 Shadow DOM으로 그림(앱 CSS와 안 섞이게)
+                    - 우편함(안 연 호 = 택배 상자) → 테이프를 가로로 그어 자르기 → 비닐을 가로로 그어 찢기 → 한 장씩 넘겨 읽기 → 마지막 장 부록 싱글(비닐에 싸여 테이프로 붙음)
+                    - 책장: 읽은 호가 출판사별 선반에 꽂힘(표지는 지면 HTML을 그대로 작게 그림), 누르면 바로 펼침. 저장 mag.opened {id: 시각}, mag.page {id: 넘긴 장}
+                    - 지면 = issues/<id>/issue.html (펼침마다 <template class="sp">, 이미지 파일 같은 폴더). 펼침을 두 배 폭으로 그리고 반쪽씩 보여 줘서 넓은 화면은 두 쪽 펼침, 폰은 한 쪽씩
+                    - 목록 issues/index.json (id, 잡지, 호, 날짜, 출판사, 색, crate{id,name,o}, tracks[{t,a}] = 부록 싱글 순서). 헤더 MAG 버튼의 빨간 점 = 안 연 호
+                    - 부록은 호마다 큰 싱글 한 장(그 호의 곡 전부 + 라이너 노트 쪽). 누르면 테이프가 떨어지고 곡을 찾아 비공개 Spotify 플레이리스트 '<잡지> <호>'를 만들어(mag.pl[id]에 기억, 실패하면 곡 목록만 재생) 플레이리스트로 재생(MusicCore.playAlbum), 출판사 크레이트(c-pub-drop/fb/cy/mo)에 꽂음(MusicCore.addToCrate)
+                    - 33⅓은 유저마다 다름(2026-11-13): index.json에 dynamic: true면 issue.html은 CSS만 쓰고 지면은 mag/m33.js build(MusicCore)가 만든다. 호 id = mo-YYYY-MM(달마다 새 호)
+                      재료: /me, /me/top/tracks·artists(short_term), /me/player/recently-played, 이 기기 재생 기록 LS music.plays(index.html logPlay: poll 때마다 날짜별 곡 초·횟수·시간대, 62일 보관, 한국 시각. 앱이 열려 있을 때만 쌓임)
+                      지면: 표지(앨범 표지 4장 원본 그대로 · 이름 · 청취 시간) · 편지·목차 · TOP 20 + 1위 · 언제 듣나(히트맵) + 아티스트 다섯 · 허세 카드(최대 6장, 카드마다 근거 숫자) · 부록(TOP 5 싱글)
+                      권한 user-top-read·user-read-recently-played를 SCOPES에 더함 → 예전 토큰은 지면에 '다시 로그인' 버튼(data-act=relogin)
+                    - 첫 호 4권: Drop Vol.01(U2), feedback vol.01(Kings of Leon), Cypher Vol.01(Aesop Rock & Blockhead), 33⅓(유저별 자동, 정적 mo-00은 CSS만). 사진은 Flickr CC(Openverse 경유), 저작자는 각 호 판권 쪽
+                    - 편집 방침·성격·로직: docs/magazine/ (editorial-logic.md, mags/*.md 바이블, logo-prompts.md). 시안 원본은 docs/magazine/issues/
+                    - 지면 만드는 법(지금은 수작업): 세션 스크래치에서 HTML 시안 → 이미지 data URI를 파일로 빼고 펼침을 template으로 감싸 issue.html. 다음 단계는 예약 편집 세션이 자동으로
+                    - LP 전체화면(2026-11-13): 턴테이블 줄 '전체화면' 버튼 또는 F 키. body.lpfull → 턴테이블 칸이 화면을 덮고 3초 손대지 않으면 위·아래 줄이 사라짐(lpidle), 왼쪽 아래 곡 이름 크게. Esc로 나감
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
