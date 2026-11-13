@@ -114,7 +114,5 @@
     { id: 'projects', code: 'PRJ-06', name: '장부', href: '/projects/', color: ['#8a2b5c', '#e07aae'], status: projects },
     { id: 'focus', code: 'FOC-07', name: '집중', href: '/focus/', color: ['#00658d', '#4fd0ff'], status: focus },
     { id: 'exam', code: 'EXM-08', name: '시험대비', href: '/exam/', color: ['#a8361f', '#ff8a70'], status: exam },
-    // 음악은 별도 앱 T/L/L(tll.oasilsu0829.workers.dev). /music/ 이 처음 한 번 이 기기 기록을 담아 넘긴다
-    { id: 'music', code: 'TLL', name: 'T/L/L', href: '/music/', color: ['#18181b', '#ef4444'], status: null },
   ];
 })();

@@ -74,7 +74,7 @@ public/exam/        시험대비 (EXM-08, 2026-11-10). 2026 1학년 2학기 기�
                     - 18:30~19:30에 열면 '고비 시간' 띠(light 표시된 할 일 + 오답 확인)
 public/music/index.html  음악은 별도 앱 T/L/L(저장소 oasilsu0829/tll, https://tll.oasilsu0829.workers.dev)로 옮김(2026-11-13).
                     이 페이지는 처음 한 번 이 기기의 music.*·mag.* (토큰 제외)를 #from= 에 담아 넘기고, 그 뒤엔 그냥 넘긴다(tll.moved).
-                    /deck/·/music/<파일>은 Worker가 새 주소로 301, /api/music/* 은 410. 홈 아이콘 'T/L/L'은 /music/ 을 연다. D1(jarvis-db)은 T/L/L과 같이 씀(settings music.* · jam_q)
+                    /deck/·/music/<파일>은 Worker가 새 주소로 301, /api/music/* 은 410. T/L/L은 Sabathia와 연결 없는 독자 앱(사용자 결정): 홈 아이콘 없음, D1도 따로(tll-db). jarvis-db의 music.*·jam_q는 T/L/L이 한 번 복사해 간 뒤 안 씀
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
