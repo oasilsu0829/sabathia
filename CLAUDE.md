@@ -55,6 +55,7 @@ public/sw.js        서비스 워커 하나가 / 전체를 맡음. 캐시를 먼
 public/manifest.webmanifest  PWA 하나 (scope /)
 public/plan/        15577 공부 블록 플래너 (Block-planner 사본). 온라인 저장은 Firestore planners/{ID}
 public/vocab/       어원 단어 (Block-planner/vocab 사본을 v1.0으로 다시 그림). Firestore planners/v-{ID}
+                    Day 46~60은 학교 시험지(표제어+동반의어+파생어) 목록. 셋째 칸이 어원 대신 묶음 이름. 기록 키가 단어 번호라 목록을 바꾸면 normalize()에 이주 함수를 단다(v2 migrate46, v4 migrate48). Day 54 25번은 사진에 가려 빠짐
 public/pdf/         사진 PDF 묶음기 (llm-wiki-private/tools 사본, v1.0)
 public/focus/       집중 타이머 Aero Focus (FOC-07). 파일 하나. theme.css를 쓰지 않는 몰입 화면(사용자 결정: CRT 열대 해변)
                     - 배경은 저해상도 캔버스에 그려 Skylance 2099와 같은 WebGL CRT 셰이더로 출력. 글자·버튼은 Inter + 글로우 + 약한 글리치(DOM)
