@@ -85,9 +85,9 @@ src/projects.js     /api/projects/sync 장부 동기화 (merge.js로 항목 단�
 src/webpush.js      RFC 8291(aes128gcm) + RFC 8292(VAPID), WebCrypto만 사용
 schema.sql          참고용 (subscriptions, reminders, events, settings, repeats, push_log, projects)
 src/events.js       /api/events 일정 API
-src/mcp.js          AI 연결(2026-11-17): /mcp MCP 서버(Streamable HTTP, 상태 없음, POST JSON). 도구 list_events·get_event·add_events·update_event·delete_event는 eventsApi를 그대로 거친다(AI가 넣으면 source 'AI')
-                    토큰은 Bearer 헤더 또는 /mcp/<API_TOKEN>(claude.ai 커스텀 커넥터처럼 헤더를 못 넣는 곳). /api/*·/mcp 는 CORS * (쿠키 없음, 토큰이 지킴)
-public/llms.txt     AI용 안내, public/openapi.json 일정 API 명세(둘 다 토큰 없이 공개). 홈·일정 <head>에 rel=alternate·service-desc 링크와 ai-agent:mcp 표시. 일정 설정 → 'AI 연결'에 주소 복사
+public/llms.txt     AI용 안내, public/openapi.json 일정 API 명세(둘 다 토큰 없이 공개). 홈·일정 <head>에 rel=alternate·service-desc 링크. /api/* 는 CORS *
+                    MCP(/mcp)는 2026-11-17에 넣었다가 같은 날 사용자 요청으로 지움
+                    구글 드라이브 사본: 내 드라이브/GCOO/일정/'Sabathia 일정' 스프레드시트(id 1MsiGvcJP3z6kbc7wu4Jjof2lof0jYahbPB8c_WdCnV4). /api/events 전체를 표로 덮어씀(Worker는 드라이브에 못 씀, Claude 세션이 드라이브 커넥터로 올림)
 public/schedule/    일정 PWA (홈·캘린더·일정·설정). 디자인 언어 v1.0. ?theme=projector&kiosk=1 은 책상 프로젝터용
 openclaw-skill/     OpenClaw 스킬 sabathia-schedule (SKILL.md + sched.mjs). PC의 OpenClaw가 이걸로 일정을 넣는다
 android/            홈 런처 앱(WebView, JS 브리지 window.Jarvis: launch/apps/open). Actions가 빌드해 릴리스 'launcher'에 jarvis.apk 게시

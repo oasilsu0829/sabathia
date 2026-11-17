@@ -10,8 +10,7 @@ export const json = (data, status = 200) =>
 export const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version',
-  'Access-Control-Expose-Headers': 'Mcp-Session-Id',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Accept',
   'Access-Control-Max-Age': '86400',
 };
 export function withCors(res) {
@@ -35,7 +34,7 @@ export async function readBody(req) {
 }
 
 // Worker에 API_TOKEN 비밀값이 있으면 Authorization: Bearer <토큰> 이 맞아야 한다. 없으면 열려 있다.
-// given을 넘기면(예: /mcp/<토큰> 주소) 헤더 대신 그 값을 확인한다.
+// given을 넘기면 헤더 대신 그 값을 확인한다.
 export function authorized(req, env, given) {
   const token = (env.API_TOKEN || '').trim();
   if (!token) return true;

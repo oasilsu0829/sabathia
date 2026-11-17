@@ -2,7 +2,6 @@ import { eventsApi } from './events.js';
 import { notifyApi, tick } from './notify.js';
 import { projectsApi } from './projects.js';
 import { examApi } from './exam.js';
-import { mcpApi } from './mcp.js';
 import { json, authorized, ensureTables, CORS, withCors } from './util.js';
 
 const TLL = 'https://tll.oasilsu0829.workers.dev/';
@@ -15,10 +14,9 @@ export default {
     if (path === '/deck' || path.startsWith('/deck/')) return Response.redirect(TLL + path.replace(/^\/deck\/?/, 'deck/') + new URL(req.url).search, 301);
     if (path.startsWith('/music/') && path !== '/music/' && path !== '/music/index.html') return Response.redirect(TLL + path.slice(7), 301);
     if (path.startsWith('/api/music')) return json({ error: '음악은 ' + TLL + ' 로 옮겼습니다' }, 410);
-    const isMcp = path === '/mcp' || path.startsWith('/mcp/');
-    if (!path.startsWith('/api/') && !isMcp) return env.ASSETS.fetch(req);
+    if (!path.startsWith('/api/')) return env.ASSETS.fetch(req);
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
-    return withCors(await api(req, env, path, isMcp));
+    return withCors(await api(req, env, path));
   },
 
   // 1분마다 실행: 일정 시작 전 알림, 아침 요약, 전날 저녁 마감 알림, 반복 알림, 한 번짜리 리마인더
@@ -27,17 +25,7 @@ export default {
   },
 };
 
-async function api(req, env, path, isMcp) {
-  // AI 연결(MCP): /mcp 는 Bearer 토큰, /mcp/<토큰> 은 주소 안의 토큰으로 확인
-  if (isMcp) {
-    const seg = path.split('/').filter(Boolean);
-    if (seg.length > 2) return json({ error: '없는 경로입니다' }, 404);
-    const ok = seg[1] ? authorized(req, env, decodeURIComponent(seg[1])) : authorized(req, env);
-    if (!ok) return json({ error: '토큰이 맞지 않습니다' }, 401);
-    try { await ensureTables(env); } catch (err) { return json({ error: err.message || String(err) }, 500); }
-    return mcpApi(req, env);
-  }
-
+async function api(req, env, path) {
   // 푸시 공개 키는 누구나 읽어도 된다(구독할 때 브라우저가 쓴다)
   if (path === '/api/vapid') return json({ key: env.VAPID_PUBLIC || '' });
 

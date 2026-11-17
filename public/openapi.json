@@ -3,7 +3,7 @@
   "info": {
     "title": "Sabathia 일정 API",
     "version": "1.0.0",
-    "description": "개인 일정(약속·할 일·마감) 읽기·쓰기. 날짜·시각은 한국 시각(UTC+9). AI 도구는 /mcp (MCP Streamable HTTP)도 쓸 수 있다. 안내: /llms.txt"
+    "description": "개인 일정(약속·할 일·마감) 읽기·쓰기. 날짜·시각은 한국 시각(UTC+9). 안내: /llms.txt"
   },
   "servers": [{ "url": "/" }],
   "security": [{ "bearer": [] }],
