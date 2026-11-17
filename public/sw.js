@@ -4,7 +4,7 @@
 // - 설치할 때 모든 앱 화면을 미리 받아 둔다. 한 번도 안 연 앱도 오프라인에서 열린다
 // - 글꼴·jsPDF는 따로 캐시해서 VERSION을 올려도 다시 받지 않는다. /api/ 는 건드리지 않는다
 // 공통 파일(theme.css, sabathia.js, today.js, apps.js)이나 여러 화면을 함께 고쳤으면 VERSION을 올린다
-const VERSION = 'sabathia-v41';
+const VERSION = 'sabathia-v42';
 const FONTS = 'sabathia-fonts-1';
 const CDN = 'sabathia-cdn-1';
 const KEEP = [VERSION, FONTS, CDN];
@@ -89,7 +89,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  if (url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
+  if (url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/mcp')) return;
 
   // 화면(HTML)은 ?theme=… 같은 꼬리를 떼고 주소 하나로 저장한다
   const nav = req.mode === 'navigate';

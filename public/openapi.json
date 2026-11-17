@@ -1,0 +1,99 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sabathia 일정 API",
+    "version": "1.0.0",
+    "description": "개인 일정(약속·할 일·마감) 읽기·쓰기. 날짜·시각은 한국 시각(UTC+9). AI 도구는 /mcp (MCP Streamable HTTP)도 쓸 수 있다. 안내: /llms.txt"
+  },
+  "servers": [{ "url": "/" }],
+  "security": [{ "bearer": [] }],
+  "paths": {
+    "/api/events": {
+      "get": {
+        "operationId": "listEvents",
+        "summary": "기간 안의 일정 목록(날짜·시각순)",
+        "parameters": [
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "시작 날짜(포함)" },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "끝 날짜(포함)" }
+        ],
+        "responses": {
+          "200": { "description": "목록", "content": { "application/json": { "schema": { "type": "object", "properties": { "events": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } } },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "operationId": "addEvents",
+        "summary": "일정 추가(1~200개). 같은 id가 있으면 고친다",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "events": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/components/schemas/EventInput" } } }, "required": ["events"] } } }
+        },
+        "responses": {
+          "201": { "description": "넣은 일정", "content": { "application/json": { "schema": { "type": "object", "properties": { "events": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/events/{id}": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": {
+        "operationId": "getEvent",
+        "summary": "일정 하나",
+        "responses": {
+          "200": { "description": "일정", "content": { "application/json": { "schema": { "type": "object", "properties": { "event": { "$ref": "#/components/schemas/Event" } } } } } },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "patch": {
+        "operationId": "updateEvent",
+        "summary": "준 칸만 고치기(끝냄은 done: true)",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EventPatch" } } } },
+        "responses": {
+          "200": { "description": "고친 일정", "content": { "application/json": { "schema": { "type": "object", "properties": { "event": { "$ref": "#/components/schemas/Event" } } } } } },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteEvent",
+        "summary": "일정 지우기(되돌릴 수 없음)",
+        "responses": {
+          "200": { "description": "지움", "content": { "application/json": { "schema": { "type": "object", "properties": { "deleted": { "type": "string" } } } } } },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer", "description": "Worker 비밀값 API_TOKEN" } },
+    "responses": { "Error": { "description": "오류", "content": { "application/json": { "schema": { "type": "object", "properties": { "error": { "type": "string" } } } } } } },
+    "schemas": {
+      "EventPatch": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "maxLength": 200 },
+          "date": { "type": "string", "format": "date" },
+          "time": { "type": ["string", "null"], "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$", "description": "시작 시각(24시간제). null이면 하루 종일" },
+          "end": { "type": ["string", "null"], "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+          "kind": { "type": "string", "enum": ["event", "task", "deadline"], "default": "event" },
+          "cat": { "type": "string", "enum": ["", "report", "school", "academy", "none"] },
+          "done": { "type": "boolean" },
+          "note": { "type": "string", "maxLength": 500 },
+          "source": { "type": "string", "maxLength": 40 }
+        }
+      },
+      "EventInput": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EventPatch" },
+          { "type": "object", "properties": { "id": { "type": "string", "pattern": "^[\\w.-]{1,64}$" } }, "required": ["title", "date"] }
+        ]
+      },
+      "Event": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EventInput" },
+          { "type": "object", "properties": { "updated": { "type": "string", "format": "date-time" } } }
+        ]
+      }
+    }
+  }
+}

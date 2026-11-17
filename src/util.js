@@ -6,6 +6,20 @@ export const json = (data, status = 200) =>
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
   });
 
+// 외부(다른 주소의 웹 앱·AI 도구)에서도 부를 수 있게 CORS를 연다. 데이터는 토큰이 지킨다(쿠키를 쓰지 않음).
+export const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version',
+  'Access-Control-Expose-Headers': 'Mcp-Session-Id',
+  'Access-Control-Max-Age': '86400',
+};
+export function withCors(res) {
+  const r = new Response(res.body, res);
+  for (const [k, v] of Object.entries(CORS)) r.headers.set(k, v);
+  return r;
+}
+
 export function httpError(status, message) {
   const e = new Error(message);
   e.status = status;
@@ -21,11 +35,14 @@ export async function readBody(req) {
 }
 
 // Worker에 API_TOKEN 비밀값이 있으면 Authorization: Bearer <토큰> 이 맞아야 한다. 없으면 열려 있다.
-export function authorized(req, env) {
+// given을 넘기면(예: /mcp/<토큰> 주소) 헤더 대신 그 값을 확인한다.
+export function authorized(req, env, given) {
   const token = (env.API_TOKEN || '').trim();
   if (!token) return true;
-  const h = req.headers.get('Authorization') || '';
-  const given = h.startsWith('Bearer ') ? h.slice(7).trim() : '';
+  if (given == null) {
+    const h = req.headers.get('Authorization') || '';
+    given = h.startsWith('Bearer ') ? h.slice(7).trim() : '';
+  }
   if (given.length !== token.length) return false;
   let diff = 0;
   for (let i = 0; i < token.length; i++) diff |= given.charCodeAt(i) ^ token.charCodeAt(i);
