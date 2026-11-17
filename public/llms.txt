@@ -1,14 +1,8 @@
 # Sabathia 일정
 
-> 한 학생의 개인 일정 앱(약속·수업, 할 일, 마감). AI는 아래 MCP 서버나 REST API로 일정을 읽고, 넣고, 고치고, 지울 수 있다. 모든 날짜·시각은 한국 시각(UTC+9).
+> 한 학생의 개인 일정 앱(약속·수업, 할 일, 마감). AI는 아래 REST API로 일정을 읽고, 넣고, 고치고, 지울 수 있다. 모든 날짜·시각은 한국 시각(UTC+9).
 
 데이터는 토큰(API_TOKEN)으로 보호된다. 토큰은 주인이 직접 AI 도구에 넣어 준다. 이 문서와 /openapi.json 은 토큰 없이 읽을 수 있다.
-
-## MCP (권장)
-
-- 주소: `/mcp` — MCP Streamable HTTP, POST만, 상태 없음. 헤더 `Authorization: Bearer <토큰>`
-- 헤더를 넣을 수 없는 클라이언트(claude.ai 커스텀 커넥터 등): `/mcp/<토큰>`
-- 도구: `list_events(from, to)`, `get_event(id)`, `add_events(events[])`, `update_event(id, ...)`, `delete_event(id)`
 
 ## REST API
 
@@ -28,4 +22,5 @@
 
 ## 사람용 화면
 
-- [일정 앱](/schedule/): 오늘·캘린더·일정·설정. 설정 → "AI 연결"에 주소가 있다
+- [일정 앱](/schedule/): 오늘·캘린더·일정·설정
+- 구글 드라이브 GCOO/일정/"Sabathia 일정" 스프레드시트에 사본이 동기화된다(읽기용)
