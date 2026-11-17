@@ -1,0 +1,31 @@
+# Sabathia 일정
+
+> 한 학생의 개인 일정 앱(약속·수업, 할 일, 마감). AI는 아래 MCP 서버나 REST API로 일정을 읽고, 넣고, 고치고, 지울 수 있다. 모든 날짜·시각은 한국 시각(UTC+9).
+
+데이터는 토큰(API_TOKEN)으로 보호된다. 토큰은 주인이 직접 AI 도구에 넣어 준다. 이 문서와 /openapi.json 은 토큰 없이 읽을 수 있다.
+
+## MCP (권장)
+
+- 주소: `/mcp` — MCP Streamable HTTP, POST만, 상태 없음. 헤더 `Authorization: Bearer <토큰>`
+- 헤더를 넣을 수 없는 클라이언트(claude.ai 커스텀 커넥터 등): `/mcp/<토큰>`
+- 도구: `list_events(from, to)`, `get_event(id)`, `add_events(events[])`, `update_event(id, ...)`, `delete_event(id)`
+
+## REST API
+
+- [OpenAPI 명세](/openapi.json): `/api/events` 일정 API 전체
+- `GET /api/events?from=YYYY-MM-DD&to=YYYY-MM-DD` 기간 목록
+- `POST /api/events` 추가(객체 하나, 배열, 또는 `{events: [...]}`; 같은 id면 고침)
+- `PATCH /api/events/{id}` 일부 고치기, `DELETE /api/events/{id}` 지우기
+- 인증: `Authorization: Bearer <토큰>`. 틀리면 401
+
+## 일정 모양
+
+- `title` 제목(필수), `date` YYYY-MM-DD(필수), `time`·`end` HH:MM(선택, 24시간제)
+- `kind`: `event` 약속·수업 / `task` 할 일 / `deadline` 마감
+- `cat`: `report` 보고서 제출 / `school` 학교 수행 / `academy` 학원 수행 / `none` / 빈 값(제목으로 짐작)
+- `done` 끝냄, `note` 메모, `source` 누가 넣었는지(AI가 넣으면 "AI")
+- 180일 지난 일정은 자동으로 정리된다
+
+## 사람용 화면
+
+- [일정 앱](/schedule/): 오늘·캘린더·일정·설정. 설정 → "AI 연결"에 주소가 있다
