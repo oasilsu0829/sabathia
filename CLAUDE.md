@@ -75,12 +75,18 @@ public/exam/        시험대비 (EXM-08, 2026-11-10). 2026 1학년 2학기 기�
 public/music/index.html  음악은 별도 앱 T/L/L(저장소 oasilsu0829/tll, https://tll.oasilsu0829.workers.dev)로 옮김(2026-11-13).
                     이 페이지는 처음 한 번 이 기기의 music.*·mag.* (토큰 제외)를 #from= 에 담아 넘기고, 그 뒤엔 그냥 넘긴다(tll.moved).
                     /deck/·/music/<파일>은 Worker가 새 주소로 301, /api/music/* 은 410. T/L/L은 Sabathia와 연결 없는 독자 앱(사용자 결정): 홈 아이콘 없음, D1도 따로(tll-db). jarvis-db의 music.*·jam_q는 T/L/L이 한 번 복사해 간 뒤 안 씀
-public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 명세(sabathiaWS 저장소에서 만든 MVP를 옮김). 규칙 기반, AI 호출 없음
-                    - engine/: 순수 모듈(time·config·planner·capacity·simulate·decide). test/decide.mjs(명세 §11 완료 기준 + 어댑터)
-                    - sources.js: 다른 앱 기록을 읽기만 한다. 15577 blockplanner.v1(블록 = 작업, 문풀은 est·정리/인강은 dur, 사용자가 누른 progress만 반영, 고정 블록은 날짜별로 펼침·자습/schoolOff 반영, log로 과목별 오차 보정 5건부터, D-day가 시험이면 시험 집중), /api/events(시각+끝 시각 일정 = 바쁜 시간, 할 일·마감 = 마감 목록. 예상 시간을 넣거나 15577 블록과 연결해야 계산에 들어감), projects.v1(진행 중 프로젝트의 다음 단계, 예상 60분 임시), exam.v1(이번 주 남은 할 일 수 = 과목 필요도. 주차 날짜는 /exam/ WEEKS와 같이 바꿀 것)
-                    - 이 앱의 저장은 decide.v1 하나: settings(요일별 기상·취침, 시험 목록 기본 2학기 기말 12/10, 지연 분, 기준), ov(항목별 마감 연결·남은 시간·종류·예상 시간), log(남은 시간 수정: 일정 비용과 학습(개념 확인)을 따로)
-                    - 완료·진행률·블록 시간은 15577에서 바꾼다(여기서 15577 기록을 쓰지 않음). 홈 아이콘 보고 Sabathia.report('decide', {mode, badge=마감 위험 수})
-                    - 아직 동기화 없음(기기마다 decide.v1). 홈 앱 격자 9번째라 셋째 줄에 혼자 있음(배치는 사용자에게 물을 것)
+public/decide/      판단 (DEC-09) · Study Workspace. Decision Engine v1.0(2026-11-18) + 워크스페이스 개선(같은 날, 사용자 요청서 기준). 규칙 기반, AI 호출 없음
+                    - 디자인 예외(사용자 결정 2026-11-18): theme.css 대신 Liquid Glass 창 화면(집중 앱처럼). 다크 모드 없음은 그대로
+                    - 창: NOW(지금/다음 15577 블록 + 그 블록의 숙제, '시작' = 15577 시트 열기) · TODAY(남은 시간 블록 그래프 1칸=60분, 오늘 배치, 끝낸 블록의 계획 vs 실제) · DEADLINES(소속별/마감순, 위험도=채도, 임박도=바탕 농도) · PLANNER(15577 iframe) · 설정
+                    - 배치: 정렬(3열, 1100px 미만 2열, 700px 미만 1열·정렬만) / 자유(제목 줄 끌기, 오른쪽 아래 손잡이로 크기, 접기, 크게 보기, 기본 배치). localStorage decide.layout. 정렬→자유 첫 전환은 보이는 자리 그대로. PLANNER iframe은 옮기면 다시 불러오므로 책상의 직접 자식으로 고정
+                    - engine/: 순수 모듈(time·config·planner·capacity·simulate·decide). test/decide.mjs(명세 §11 + 어댑터), test/hw.mjs(숙제·진행률·위험도)
+                    - sources.js: 다른 앱 기록을 읽기만 한다. 15577 blockplanner.v1(블록 = 작업, 문풀은 est·정리/인강은 dur, 사용자가 누른 progress만, 고정 블록 날짜별 펼침·자습/schoolOff, log로 과목별 오차 보정 5건부터, D-day가 시험이면 시험 집중), /api/events(시각+끝 시각 일정 = 바쁜 시간. 응답 필드는 end(D1 열은 end_time) — 처음 판은 end_time만 읽어 바쁜 시간이 빠져 있었음. '야자·자습·독서실·스터디카페'는 공부 가능 시간), projects.v1, exam.v1
+                    - homework.js: 숙제 = 일정의 할 일·마감(id로 참조, 복제 안 함). 진행 = 15577 블록 기록 합(메모의 'N문제 남음'보다 작으면 메모 기준, 중복 합산 안 함). 남은 시간 = 직접 입력 → 계획 블록(몫 = 1/연결 수) → 같은 숙제 실제 속도(10문제·20분 이상일 때 최대 50%만 섞음) → 15577 과거 기록(5건) → 모름. 계획 블록보다 더 필요하면 hx:<id> '추가로 필요' 작업으로 엔진에 넣음(블록은 안 고침). 위험도 = 엔진 지연(예상/비관) + 그 마감까지 끝낼 작업 ÷ 가용 시간(마감이 더 먼 작업은 안 셈). 준비물(챙겨가기)은 따로
+                    - 저장: decide.v1(settings, ov = 항목별 남은 시간·종류·마감·숙제 전체 문제 수(total)·예상 시간, log = 남은 시간 수정의 일정 비용/학습 구분), decide.layout. 기기마다 따로(동기화 없음)
+                    - 홈 아이콘 보고 Sabathia.report('decide', {mode, badge = 위험 숙제 수})
+public/hw.js        숙제 해석 공용(15577·판단·테스트). count(): "313~395번"→83(양 끝 포함), "51문제", 여러 개면 합, 괄호 밖 우선, 쪽 단위 따로. 번호 목록·선택 풀이·분량 없는 덩어리·뒤집힌 범위는 certain:false 또는 null(추측 안 함). group(): 소속(ACADEMIES에 학원 이름: 백인대장·국좋/장훈고1·영어 저녁반·박상현과학, 새 학원은 여기 한 줄) → 학교·보고서·과목 학원 순
+public/plan/ 숙제 연결 (2026-11-18): 문풀 시트에 '연결된 숙제'. 블록 b.hw = [{id: 일정 id, n: 이 블록에서 푼 수}] (없으면 필드 없음 = 예전 데이터 그대로). 누적은 모든 블록 n 합. '일정에서 완료'를 눌렀을 때만 PATCH /api/events/<id> {done:true}.
+                    주소 /plan/?block=<id>&hw=<일정 id> (블록 시트 + 숙제 추가, 저장은 사용자), /plan/?add=1&hw=<id>&date=YYYY-MM-DD. 판단 앱은 15577 기록을 직접 쓰지 않고 이 주소로 연다. 되돌리려면 b.hw 필드만 무시하면 됨
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
@@ -143,4 +149,4 @@ test/               notify.mjs(알림 고르기), merge.mjs(장부 합치기), e
 ## 사용자 선호
 - 답변은 짧고 직접적으로. 이모지 쓰지 않기
 - 모바일(안드로이드) 기준으로 안내. 다만 아이패드·컴퓨터도 많이 씀(가로 화면 중요)
-- 디자인은 `public/theme.css`(시안 스타일 v2) + 디자인 언어 v1.0의 배치 규칙을 따른다. 시안을 여러 개 보여 주고 고르게 하는 방식을 좋아함. 질문은 적극적으로
+- 디자인은 `public/theme.css`(시안 스타일 v2) + 디자인 언어 v1.0의 배치 규칙을 따른다(예외: 집중 /focus/, 판단 /decide/ 는 사용자 결정으로 독자 디자인). 시안을 여러 개 보여 주고 고르게 하는 방식을 좋아함. 질문은 적극적으로

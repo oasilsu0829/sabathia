@@ -293,6 +293,22 @@ main[data-enter] .settle>:nth-child(n+4),main[data-enter] .stats>:nth-child(n+4)
 .in.unit{flex:0 0 90px}
 .textbtn{font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:3px;margin-top:12px}
 .textbtn.sm{margin:0;font-size:12px;letter-spacing:0;font-weight:500}
+/* 연결된 숙제 (일정 앱의 할 일·마감을 id로 참조, 블록마다 푼 문제 수 n) */
+.hwrow{padding:10px 0;border-top:1px solid var(--hair)}
+.hwrow:first-of-type{border-top:0}
+.hwt{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:700;line-height:1.35}
+.hwt .x{color:var(--muted);font-weight:500;padding:0 4px}
+.hwm{font-size:12px;color:var(--muted);margin-top:2px}
+.hwbar{height:6px;border-radius:99px;background:var(--soft-2,#eee);overflow:hidden;margin:6px 0}
+.hwbar i{display:block;height:100%;background:var(--accent)}
+.hwbar i.me{background:color-mix(in srgb,var(--accent) 45%,transparent)}
+.hwstep{display:flex;align-items:center;gap:6px}
+.hwstep button{height:34px;min-width:40px;padding:0 8px;border:1px solid var(--hair);border-radius:10px;font-weight:700}
+.hwstep input{width:64px;height:34px;text-align:center;border:1px solid var(--hair);border-radius:10px;font:700 15px/1 var(--font-num)}
+.hwstep .done{margin-left:auto;color:var(--ok,#00632b);border-color:currentColor}
+.hwcand{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.hwcand .chip{height:auto;min-height:36px;padding:6px 12px;text-align:left;justify-content:space-between;gap:8px}
+.hwcand .chip small{margin:0;font-size:11px;white-space:nowrap}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{height:36px;padding:0 12px;border:var(--line-thin) solid var(--ink);font-size:14px;display:inline-flex;align-items:center}
 .chip[aria-pressed="true"]{color:var(--accent);font-weight:800;border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
@@ -461,6 +477,7 @@ body.sheet-open main{overflow:hidden}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="/sabathia.js"></script>
+<script src="/hw.js"></script>
 <script>
 (function(){
 let PX = 1.8; try{ const z = +localStorage.getItem('blockplanner.zoom'); if(z >= 1.2 && z <= 3.2) PX = z; }catch(e){}
@@ -1104,6 +1121,7 @@ function blockHTML(a){
   const s = blkSt.get(b.id);
   const chip = over ? '<span class="sc late">초과</span>' : s === 'late' || s === 'next' ? `<span class="sc ${s}">${ST_LABEL[s]}</span>` : '';
   const units = b.review ? '<span>정리</span>' : b.lecture ? '<span>인강</span>' : b.units ? `<span>${b.units}${esc(b.unit)}</span>` : '';
+  const hwTag = !isLite(b) && b.hw && b.hw.length ? `<span>숙제 ${b.hw.length}${b.hw.some(h => h.n) ? ` · ${b.hw.reduce((a, h) => a + (+h.n || 0), 0)}개 풂` : ''}</span>` : '';
   let acts = '';
   if(b.lecture){
     const lp = Math.round(progOf(b)*100);
@@ -1117,7 +1135,7 @@ function blockHTML(a){
   }
   return `<div class="${cls.join(' ')}" data-id="${b.id}" style="top:${top}px;height:${h}px">${b.done ? '<i class="dchk" aria-hidden="true">✓</i>' : ''}
     <div class="blk-body"><div class="r1"><span class="title"><span>${esc(b.title)}</span></span>${chip}</div>
-      <div class="meta"><span class="code">${esc(c.name)}</span><span class="tm">${fmt(a.s)}–${fmt(a.s + a.d)}</span>${units}<span class="st">${statusText(b)}</span></div></div>
+      <div class="meta"><span class="code">${esc(c.name)}</span><span class="tm">${fmt(a.s)}–${fmt(a.s + a.d)}</span>${units}${hwTag}<span class="st">${statusText(b)}</span></div></div>
     ${acts}<div class="grip" aria-label="옮기기"></div><div class="resize" aria-label="길이 조절"></div></div>`;
 }
 
@@ -1275,11 +1293,13 @@ function openSheet(mode, id, kind){
   }
   if(b && (b.review || b.lecture)) d.est = b.dur;
   d.progress = b ? progOf(b) : 0;
+  d.hw = b && Array.isArray(b.hw) ? clone(b.hw) : [];
   const lecture = kind === 'lecture' || !!(b && b.lecture);
   SH = {mode, id, d, lecture, review: !lecture && (kind === 'review' || !!(b && b.review)), done: !!(b && b.done), touched: mode !== 'add', arm:false};
   renderSheet();
   sheetWrap.hidden = false;
   if(mode === 'add') setTimeout(() => $('#fTitle')?.focus(), 60);
+  if(!SH.review) hwLoad().then(() => { if(SH && SH.d.hw) hwPaint(); });
 }
 let sheetCloseT = null;
 const sheetAnim = () => !matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1310,7 +1330,8 @@ function renderSheet(){
     ${review ? '' : `<div class="f"><span>분량 (선택)</span><div class="row">
       <input class="in" id="fUnits" type="number" inputmode="numeric" min="0" placeholder="예: 15" value="${esc(d.units)}">
       <input class="in unit" id="fUnit" value="${esc(d.unit)}" aria-label="단위"></div>
-      <small>개수로 넣으면 개당 걸리는 시간을 배워서 다음 예상에 써요.</small></div>`}
+      <small>개수로 넣으면 개당 걸리는 시간을 배워서 다음 예상에 써요.</small></div>
+    <div class="f" id="fHwBox">${hwHTML()}</div>`}
     ${done && !review ? '' : `<div class="f"><span>${review ? '길이' : '예상 시간'}</span>
       ${dialHTML()}
       ${review ? '' : '<div class="hint" id="fHint"></div>'}</div>`}
@@ -1522,11 +1543,13 @@ function saveFixed(){
 function saveSheet(){
   readFields();
   const {mode, d, lecture} = SH, review = SH.review || lecture;
-  const title = d.title.trim() || (lecture ? catOf(d.cat).name + ' 인강' : review ? catOf(d.cat).name + ' 정리' : catOf(d.cat).name);
+  const hw0 = !review && d.hw && d.hw[0] ? hwEv(d.hw[0].id) : null;
+  const title = d.title.trim() || (hw0 ? SabathiaHW.shortTitle(hw0.title) : '') || (lecture ? catOf(d.cat).name + ' 인강' : review ? catOf(d.cat).name + ' 정리' : catOf(d.cat).name);
   const start = Math.max(DAY_START, parseTime(d.start) ?? placeStart());
   if(mode === 'add'){
     const b = {id:uid(), title, cat:d.cat, units:review ? 0 : (+d.units || 0), unit:d.unit, est:d.est, dur:d.est, start,
                elapsed:0, runningSince:null, done:false, created:todayKey(), planStart:start};
+    if(!review && !lecture && hwClean(d.hw).length) b.hw = hwClean(d.hw);
     if(lecture){ b.lecture = true; b.progress = d.progress || 0; b.done = d.progress === 1; }
     else if(review) b.review = true;
     dayList(cur).push(b); S.lastCat = d.cat;
@@ -1536,6 +1559,7 @@ function saveSheet(){
   const {b, k} = findB(SH.id); if(!b){ closeSheet(); return; }
   b.title = title;
   b.cat = d.cat; if(!review){ b.units = +d.units || 0; b.unit = d.unit; }
+  if(!review){ const hw = hwClean(d.hw); if(hw.length) b.hw = hw; else delete b.hw; }
   if(!b.done || isLite(b)){ b.est = d.est; b.dur = d.est; }
   if(b.lecture){ b.progress = d.progress || 0; b.done = d.progress === 1; }
   b.start = start;
@@ -1549,6 +1573,142 @@ function saveSheet(){
   closeSheet();
   if(mode === 'complete') complete(id, Math.max(1, +d.actual || d.est));
   else { save(); render(); }
+}
+
+/* ---------- 연결된 숙제 ----------
+   숙제의 원본은 일정 앱(/api/events)의 할 일·마감. 블록은 b.hw = [{id: 일정 id, n: 이 블록에서 푼 문제 수}] 로 참조만 한다.
+   한 블록에 숙제 여러 개, 한 숙제를 여러 블록에 나눠 둘 수 있다. 누적 = 모든 블록의 n 합.
+   전체 문제 수는 제목에서 센 값(/hw.js) 또는 판단 앱(decide.v1)에서 고친 값. 일정 기록은 '일정에서 완료'를 눌렀을 때만 고친다 */
+let HWC = null;
+const jget = k => { try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } };
+function apiBase(){ return (jget('sab.base') || location.origin).replace(/\/+$/, ''); }
+function apiHead(){ const t = jget('sab.token') || ''; return t ? {authorization:'Bearer ' + t} : {}; }
+async function hwLoad(force){
+  if(HWC && !force && Date.now() - HWC.at < 60000) return HWC.list;
+  let list = null;
+  try{
+    const t = Date.now(), from = keyOf(new Date(t - 60*864e5)), to = keyOf(new Date(t + 60*864e5));
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 5000);
+    const r = await fetch(`${apiBase()}/api/events?from=${from}&to=${to}`, {headers:apiHead(), cache:'no-store', signal:ctl.signal});
+    clearTimeout(timer);
+    if(r.ok) list = (await r.json()).events;
+  }catch(e){}
+  if(!list){ const c = jget('sab.cache'); list = c && Array.isArray(c.events) ? c.events : (HWC ? HWC.list : []); }
+  HWC = {list, at:Date.now()};
+  return list;
+}
+const hwEv = id => (HWC ? HWC.list : []).find(e => e.id === id) || null;
+const CAT_SUBJ = {math:'math', eng:'english', kor:'korean', sci:'science'};
+function hwInfo(id, selfN){
+  const ev = hwEv(id), ov = ((jget('decide.v1') || {}).ov || {})['ev:' + id] || {};
+  const c = ev ? SabathiaHW.count(ev.title, ev.note) : null;
+  const total = ov.total || (c ? c.n : null), unit = ov.total ? '문제' : (c ? c.unit : '문제');
+  let others = 0;
+  for(const k in S.days) for(const b of S.days[k]) if(!SH || b.id !== SH.id) for(const h of (b.hw || [])) if(h.id === id) others += +h.n || 0;
+  const nl = ev ? SabathiaHW.noteLeft(ev.note) : null;
+  const base = nl && total ? Math.max(0, total - nl.left) : 0;
+  const cum = Math.max(others + (selfN || 0), base);
+  return {ev, total, unit, certain: !!ov.total || !!(c && c.certain), others, cum, nl};
+}
+function hwClean(list){ return (list || []).filter(h => h && h.id).map(h => (h.n ? {id:h.id, n:Math.max(0, Math.round(+h.n))} : {id:h.id})); }
+function hwRow(h){
+  const I = hwInfo(h.id, +h.n || 0), ev = I.ev;
+  const name = ev ? SabathiaHW.shortTitle(ev.title) : '불러오는 중…';
+  const g = ev ? SabathiaHW.group(ev) : null;
+  const due = ev ? (ev.date === todayKey() ? '오늘' : ev.date === addDays(todayKey(), 1) ? '내일' : md(dateOf(ev.date))) + (ev.kind === 'deadline' ? ' 마감' : '까지') : '';
+  const pct = I.total ? Math.min(100, I.others / I.total * 100) : 0, me = I.total ? Math.min(100 - pct, (+h.n || 0) / I.total * 100) : 0;
+  const prog = I.total ? `누적 ${I.cum} / ${I.total}${I.unit}${I.certain ? '' : ' (범위 확인 필요)'}` : I.nl ? `메모 기준 ${I.nl.left}문제 남음` : '전체 분량 미확인';
+  const finished = ev && !ev.done && I.total && I.cum >= I.total;
+  return `<div class="hwrow" data-hwrow="${esc(h.id)}">
+    <div class="hwt"><span>${esc(name)}</span><button class="x" data-act="hwdel" data-id="${esc(h.id)}" aria-label="연결 끊기">✕</button></div>
+    <div class="hwm">${esc([g && g.label, due].filter(Boolean).join(' · '))}${ev && ev.done ? ' · 일정에서 완료됨' : ''}</div>
+    ${I.total ? `<div class="hwbar"><i style="width:${pct}%;float:left"></i><i class="me" style="width:${me}%;float:left"></i></div>` : ''}
+    <div class="hwm">${esc(prog)}</div>
+    <div class="hwstep" style="margin-top:6px"><span class="hwm" style="margin:0 4px 0 0">이 블록에서</span>
+      <button data-act="hwstep" data-id="${esc(h.id)}" data-v="-1">−</button>
+      <input data-hwn="${esc(h.id)}" type="number" inputmode="numeric" min="0" value="${+h.n || 0}" aria-label="이 블록에서 푼 ${esc(I.unit)} 수">
+      <button data-act="hwstep" data-id="${esc(h.id)}" data-v="1">+1</button>
+      <button data-act="hwstep" data-id="${esc(h.id)}" data-v="5">+5</button>
+      ${finished ? `<button class="done" data-act="hwdone" data-id="${esc(h.id)}">일정에서 완료</button>` : ''}</div></div>`;
+}
+function hwHTML(){
+  if(!SH || !SH.d.hw) return '';
+  const linked = SH.d.hw, ids = new Set(linked.map(h => h.id));
+  let cand = '';
+  if(SH.hwOpen){
+    const subj = CAT_SUBJ[SH.d.cat] || SabathiaHW.subjectOf(catOf(SH.d.cat).name);
+    const list = (HWC ? HWC.list : []).filter(e => e.kind !== 'event' && !e.done && e.date >= addDays(todayKey(), -3) && !ids.has(e.id))
+      .map(e => ({e, g:SabathiaHW.group(e)}))
+      .sort((a, b) => (b.g.subject === subj) - (a.g.subject === subj) || a.e.date.localeCompare(b.e.date));
+    cand = `<div class="hwcand">${list.length ? list.slice(0, 12).map(({e, g}) => {
+      const c = SabathiaHW.count(e.title, e.note);
+      return `<button class="chip" data-act="hwadd" data-id="${esc(e.id)}"><span>${esc(SabathiaHW.shortTitle(e.title))}</span><small>${esc(g.label)} · ${md(dateOf(e.date))}${c ? ` · ${c.n}${c.unit}` : ''}</small></button>`;
+    }).join('') : `<small>${HWC ? '연결할 숙제가 없어요. 일정 앱에 할 일로 넣으면 여기 나와요.' : '불러오는 중…'}</small>`}</div>`;
+  }
+  return `<span class="lbl-row">연결된 숙제<button class="textbtn sm" data-act="hwpick">${SH.hwOpen ? '닫기' : '+ 숙제 연결'}</button></span>
+    ${linked.map(hwRow).join('')}${cand}
+    ${!linked.length && !SH.hwOpen ? '<small>일정 앱의 숙제를 연결하면 이 블록에서 푼 문제 수가 숙제 진행률로 모여요. 안 해도 돼요.</small>' : ''}`;
+}
+function hwPaint(focusId){
+  const box = $('#fHwBox'); if(!box || !SH) return;
+  if(focusId){
+    /* 숫자를 치는 중에는 입력칸을 다시 그리지 않고 막대·글자만 바꾼다 */
+    const row = box.querySelector(`[data-hwrow="${CSS.escape(focusId)}"]`), h = SH.d.hw.find(x => x.id === focusId);
+    if(row && h){ const tmp = document.createElement('div'); tmp.innerHTML = hwRow(h);
+      const nb = tmp.querySelector('.hwbar'), ob = row.querySelector('.hwbar'); if(nb && ob) ob.replaceWith(nb);
+      row.querySelectorAll('.hwm')[1].textContent = tmp.querySelectorAll('.hwm')[1].textContent;
+      const nd = tmp.querySelector('.done'), od = row.querySelector('.done');
+      if(nd && !od) row.querySelector('.hwstep').appendChild(nd); else if(!nd && od) od.remove();
+      return; }
+  }
+  box.innerHTML = hwHTML();
+}
+async function hwAction(t, a){
+  const id = t.dataset.id, list = SH.d.hw;
+  if(a === 'hwpick'){ SH.hwOpen = !SH.hwOpen; hwPaint(); if(SH.hwOpen) hwLoad(true).then(() => SH && hwPaint()); return; }
+  if(a === 'hwadd'){ if(!list.some(h => h.id === id)) list.push({id, n:0}); SH.hwOpen = false;
+    const ev = hwEv(id), ti = $('#fTitle');
+    if(ev && ti && !ti.value.trim() && SH.mode === 'add'){ ti.value = SabathiaHW.shortTitle(ev.title); readFields(); }
+    return hwPaint(); }
+  if(a === 'hwdel'){ SH.d.hw = list.filter(h => h.id !== id); return hwPaint(); }
+  if(a === 'hwstep'){ const h = list.find(x => x.id === id); if(h){ h.n = Math.max(0, (+h.n || 0) + (+t.dataset.v)); const inp = sheet.querySelector(`[data-hwn="${CSS.escape(id)}"]`); if(inp) inp.value = h.n; hwPaint(id); } return; }
+  if(a === 'hwdone'){
+    t.disabled = true; t.textContent = '보내는 중…';
+    try{
+      const r = await fetch(`${apiBase()}/api/events/${encodeURIComponent(id)}`, {method:'PATCH', headers:{'content-type':'application/json', ...apiHead()}, body:JSON.stringify({done:true})});
+      if(!r.ok) throw new Error(r.status);
+      const ev = hwEv(id); if(ev) ev.done = true;
+      toast('일정에서 완료로 바꿨어요');
+    }catch(e){ toast('일정에 못 보냈어요. 연결을 확인해 주세요'); }
+    hwPaint(); return;
+  }
+}
+/* 판단 앱에서 여는 주소: /plan/?block=<블록 id>&hw=<일정 id>  또는  /plan/?add=1&hw=<일정 id>&date=YYYY-MM-DD
+   블록 시트를 열고 숙제를 연결해 둔다(저장은 사용자가 누를 때) */
+function deepLink(){
+  if(VIEW_ID) return;
+  const q = new URLSearchParams(location.search), bid = q.get('block'), add = q.get('add'), hw = q.get('hw'), date = q.get('date');
+  if(!bid && !add) return;
+  history.replaceState(null, '', location.pathname);
+  const withHw = () => { if(hw && SH && SH.d.hw && !SH.d.hw.some(h => h.id === hw)) SH.d.hw.push({id:hw, n:0}); hwPaint(); };
+  if(bid){
+    const {b, k} = findB(bid); if(!b){ toast('그 블록을 찾지 못했어요'); return; }
+    if(k !== cur) goDay(k);
+    openSheet('edit', bid); withHw();
+  } else {
+    if(date && /^\d{4}-\d\d-\d\d$/.test(date) && date !== cur) goDay(date);
+    openSheet('add');
+    hwLoad().then(() => {
+      if(!SH || SH.mode !== 'add') return;
+      const ev = hw && hwEv(hw);
+      if(ev){
+        const subj = SabathiaHW.group(ev).subject, cat = Object.keys(CAT_SUBJ).find(c => CAT_SUBJ[c] === subj);
+        if(cat && S.cats.some(c => c.id === cat)){ SH.d.cat = cat; sheet.querySelectorAll('[data-cat]').forEach(c => c.setAttribute('aria-pressed', c.dataset.cat === cat)); }
+        const ti = $('#fTitle'); if(ti && !ti.value.trim()){ ti.value = SabathiaHW.shortTitle(ev.title); readFields(); }
+      }
+      withHw();
+    });
+  }
 }
 
 /* ---------- events ---------- */
@@ -1651,6 +1811,7 @@ sheetWrap.addEventListener('click', e => {
   if(t.dataset.cat){ readFields(); SH.d.cat = t.dataset.cat;
     sheet.querySelectorAll('[data-cat]').forEach(c => c.setAttribute('aria-pressed', c.dataset.cat === SH.d.cat)); autoEst(); updateHint(); return; }
   const a = t.dataset.act;
+  if(a && a.startsWith('hw')) return hwAction(t, a);
   if(a === 'close') return closeSheet();
   if(a === 'minus'){ SH.touched = true; return setEst(SH.d.est - 5); }
   if(a === 'plus'){ SH.touched = true; return setEst(SH.d.est + 5); }
@@ -1685,6 +1846,7 @@ sheetWrap.addEventListener('input', e => {
     return;
   }
   if(e.target.id === 'fUnits' || e.target.id === 'fUnit'){ readFields(); autoEst(); updateHint(); }
+  if(e.target.dataset.hwn){ const h = (SH.d.hw || []).find(x => x.id === e.target.dataset.hwn); if(h){ h.n = Math.max(0, Math.round(+e.target.value || 0)); hwPaint(e.target.dataset.hwn); } }
 });
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape' && SH){ if(SH.kind === 'cats') catDone(); else closeSheet(); }
@@ -2055,6 +2217,7 @@ render();
 initialScroll();
 initSync();
 cloudBoot();
+deepLink();
 if(S.focus && !VIEW_ID) setTimeout(() => openFocus(), 300);
 if(!S.seenPinch && !VIEW_ID){ S.seenPinch = 1; localSave(); setTimeout(() => toast('타임라인 확대는 두 손가락으로 벌리기'), 900); }
 
