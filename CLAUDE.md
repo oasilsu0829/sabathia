@@ -80,6 +80,7 @@ public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 �
                     - sources.js: 다른 앱 기록을 읽기만 한다. 15577 blockplanner.v1(블록 = 작업, 문풀은 est·정리/인강은 dur, 사용자가 누른 progress만 반영, 고정 블록은 날짜별로 펼침·자습/schoolOff 반영, log로 과목별 오차 보정 5건부터, D-day가 시험이면 시험 집중), /api/events(시각+끝 시각 일정 = 바쁜 시간, 할 일·마감 = 마감 목록. 예상 시간을 넣거나 15577 블록과 연결해야 계산에 들어감), projects.v1(진행 중 프로젝트의 다음 단계, 예상 60분 임시), exam.v1(이번 주 남은 할 일 수 = 과목 필요도. 주차 날짜는 /exam/ WEEKS와 같이 바꿀 것)
                     - 이 앱의 저장은 decide.v1 하나: settings(요일별 기상·취침, 시험 목록 기본 2학기 기말 12/10, 지연 분, 기준), ov(항목별 마감 연결·남은 시간·종류·예상 시간), log(남은 시간 수정: 일정 비용과 학습(개념 확인)을 따로)
                     - 완료·진행률·블록 시간은 15577에서 바꾼다(여기서 15577 기록을 쓰지 않음). 홈 아이콘 보고 Sabathia.report('decide', {mode, badge=마감 위험 수})
+                    - ws.html·ws.js (2026-11-18): 같은 buildState·decide 결과를 WS 창 화면(NOW·TODAY·DEADLINES·PLANNER, 정돈/자유 모드)으로 그린다. 읽기 전용, 시작·완료는 15577, 마감은 일정 앱. 기존 화면 제목 옆 'WS 화면' 링크
                     - 아직 동기화 없음(기기마다 decide.v1). 홈 앱 격자 9번째라 셋째 줄에 혼자 있음(배치는 사용자에게 물을 것)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
