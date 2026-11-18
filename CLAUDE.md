@@ -75,6 +75,12 @@ public/exam/        시험대비 (EXM-08, 2026-11-10). 2026 1학년 2학기 기�
 public/music/index.html  음악은 별도 앱 T/L/L(저장소 oasilsu0829/tll, https://tll.oasilsu0829.workers.dev)로 옮김(2026-11-13).
                     이 페이지는 처음 한 번 이 기기의 music.*·mag.* (토큰 제외)를 #from= 에 담아 넘기고, 그 뒤엔 그냥 넘긴다(tll.moved).
                     /deck/·/music/<파일>은 Worker가 새 주소로 301, /api/music/* 은 410. T/L/L은 Sabathia와 연결 없는 독자 앱(사용자 결정): 홈 아이콘 없음, D1도 따로(tll-db). jarvis-db의 music.*·jam_q는 T/L/L이 한 번 복사해 간 뒤 안 씀
+public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 명세(sabathiaWS 저장소에서 만든 MVP를 옮김). 규칙 기반, AI 호출 없음
+                    - engine/: 순수 모듈(time·config·planner·capacity·simulate·decide). test/decide.mjs(명세 §11 완료 기준 + 어댑터)
+                    - sources.js: 다른 앱 기록을 읽기만 한다. 15577 blockplanner.v1(블록 = 작업, 문풀은 est·정리/인강은 dur, 사용자가 누른 progress만 반영, 고정 블록은 날짜별로 펼침·자습/schoolOff 반영, log로 과목별 오차 보정 5건부터, D-day가 시험이면 시험 집중), /api/events(시각+끝 시각 일정 = 바쁜 시간, 할 일·마감 = 마감 목록. 예상 시간을 넣거나 15577 블록과 연결해야 계산에 들어감), projects.v1(진행 중 프로젝트의 다음 단계, 예상 60분 임시), exam.v1(이번 주 남은 할 일 수 = 과목 필요도. 주차 날짜는 /exam/ WEEKS와 같이 바꿀 것)
+                    - 이 앱의 저장은 decide.v1 하나: settings(요일별 기상·취침, 시험 목록 기본 2학기 기말 12/10, 지연 분, 기준), ov(항목별 마감 연결·남은 시간·종류·예상 시간), log(남은 시간 수정: 일정 비용과 학습(개념 확인)을 따로)
+                    - 완료·진행률·블록 시간은 15577에서 바꾼다(여기서 15577 기록을 쓰지 않음). 홈 아이콘 보고 Sabathia.report('decide', {mode, badge=마감 위험 수})
+                    - 아직 동기화 없음(기기마다 decide.v1). 홈 앱 격자 9번째라 셋째 줄에 혼자 있음(배치는 사용자에게 물을 것)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
