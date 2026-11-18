@@ -7,6 +7,10 @@
 import { makeTask, detectSubject, detectKind } from './engine/planner.js';
 import { addDays, hmStr, daysBetween, weekdayOf } from './engine/time.js';
 import { DEFAULT_UNCERTAINTY } from './engine/config.js';
+import { buildHomework, deadlineFor } from './homework.js';
+
+// 이 이름이 든 일정은 공부할 수 있는 시간이다(바쁜 시간으로 보지 않는다)
+export const STUDY_EVENTS = ['야자', '자습', '독서실', '스터디카페'];
 
 const CAT_SUBJECT = { math: 'math', eng: 'english', kor: 'korean', sci: 'science', etc: 'other' };
 
@@ -81,6 +85,9 @@ export function fromPlan(S, ov, [from, to], today) {
         }),
       );
       tasks.at(-1).source = 'plan';
+      tasks.at(-1).planMin = pm; // 15577 블록의 계획 시간
+      tasks.at(-1).actual = b.done ? b.actual || null : null; // 완료할 때 기록한 실제 시간(있을 때만)
+      tasks.at(-1).progress = prog;
       tasks.at(-1).link = o.link ?? null;
       tasks.at(-1).lite = isLite(b) ? (b.review ? '정리' : '인강') : '문풀';
     }
@@ -116,8 +123,10 @@ export function fromEvents(events, ov, linkedIds, [from, to], today) {
   for (const e of events || []) {
     if (!e || !e.date || e.date > to) continue;
     if (e.kind === 'event') {
-      if (e.time && e.end_time && e.date >= from)
-        fixed.push({ id: 'ev:' + e.id, label: e.title, kind: e.cat === 'academy' ? 'academy' : e.cat === 'school' ? 'school' : 'other', date: e.date, start: e.time, end: e.end_time });
+      const end = e.end ?? e.end_time; // /api/events 응답은 end (D1 열 이름이 end_time)
+      if (STUDY_EVENTS.some((w) => (e.title || '').includes(w))) continue;
+      if (e.time && end && e.date >= from)
+        fixed.push({ id: 'ev:' + e.id, label: e.title, kind: e.cat === 'academy' ? 'academy' : e.cat === 'school' ? 'school' : 'other', date: e.date, start: e.time, end });
       continue;
     }
     if (e.done || e.date < addDays(today, -1)) continue;
@@ -231,18 +240,22 @@ export function buildState({ plan, events, projects, examDoc, local, today }) {
   const ov = local.ov || {};
   const range = [addDays(today, -3), addDays(today, 29)];
   const P = fromPlan(plan, ov, range, today);
-  const linkedIds = new Set(P.tasks.map((t) => t.link).filter(Boolean));
-  const E = fromEvents(events, ov, linkedIds, range, today);
-  const evById = new Map(E.deadlines.map((d) => [d.id, d]));
+  const E = fromEvents(events, ov, new Set(), range, today);
+  const HW = buildHomework({ events, plan, ov, today, settings: local.settings });
+  const hwByEv = new Map(HW.list.map((h) => [h.evId, h]));
 
-  // 15577 블록을 일정의 마감과 연결했다면 그 마감을 블록의 마감으로
+  // 15577 블록에 숙제를 연결했다면 가장 이른 숙제 마감이 그 블록의 마감 (직접 넣은 마감이 있으면 그쪽)
   for (const t of P.tasks) {
-    if (!t.deadline && t.link && evById.has(t.link)) {
-      const d = evById.get(t.link);
-      t.deadline = d.date;
-      t.deadlineTime = d.time;
+    const L = HW.links.get(t.id.slice(2));
+    if (!L) continue;
+    t.hwIds = L.ids;
+    if (!t.deadline) {
+      const d = deadlineFor(t.id.slice(2), HW.links, hwByEv);
+      if (d) { t.deadline = d.date; t.deadlineTime = d.time; }
     }
   }
+  // 계획한 블록만으로 모자란 만큼은 '추가로 필요한 시간'으로 넣어 마감까지 들어가는지 본다(블록은 고치지 않음)
+  const extra = HW.extraTasks.map((x) => Object.assign(makeTask(x), { source: 'homework', hwId: x.hwId }));
 
   const cal = calibrate(P.log, P.cats);
   const settings = { ...local.settings, uncertainty: { ...cal.uncertainty, ...(local.settings.uncertaintyOverride || {}) } };
@@ -253,11 +266,12 @@ export function buildState({ plan, events, projects, examDoc, local, today }) {
     exams.push({ id: 'dday', name: P.dday.title, date: P.dday.date, subjects: [], from: '15577' });
   settings.exams = exams;
 
-  const tasks = [...P.tasks, ...E.tasks, ...fromProjects(projects, ov)];
+  const tasks = [...P.tasks, ...extra, ...fromProjects(projects, ov)];
   return {
     state: { settings, fixed: [...P.fixed, ...E.fixed], tasks, examPending: examPending(examDoc, today) },
     meta: {
       deadlines: E.deadlines,
+      homework: HW.list,
       calibration: cal.info,
       counts: { blocks: P.tasks.length, events: (events || []).length, projects: tasks.filter((t) => t.source === 'projects').length },
       hasPlan: !!plan,

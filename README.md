@@ -13,7 +13,7 @@
 | `/projects/` | 장부 (프로젝트·단계·마감, 기기 간 동기화) |
 | `/focus/` | 집중 타이머 |
 | `/exam/` | 시험대비 |
-| `/decide/` | 판단 (15577·일정·장부를 읽고 지금 할 일과 마감 위험 계산) |
+| `/decide/` | 판단 · Study Workspace (지금 할 블록과 숙제, 남은 시간 블록 그래프, 소속별 마감 위험, 15577 창) |
 
 디자인 규칙은 [`docs/design-language.md`](docs/design-language.md). 새 앱은 `public/<폴더>/`에 넣고 `public/apps.js`에 한 항목을 더하면 홈에 나옵니다.
 
@@ -30,7 +30,7 @@ src/webpush.js  웹 푸시 암호화/VAPID (외부 라이브러리 없음)
 src/util.js     공통 도구, 테이블 자동 생성
 schema.sql      DB 테이블 (참고용. Worker가 첫 요청 때 스스로 만든다)
 scripts/gen-keys.mjs  VAPID 키 + API 토큰 생성
-test/           node test/notify.mjs (알림 고르기), ece.mjs · vapid.mjs (푸시 암호화), decide.mjs (판단 엔진)
+test/           node test/notify.mjs (알림 고르기), ece.mjs · vapid.mjs (푸시 암호화), decide.mjs (판단 엔진), hw.mjs (숙제·진행률·위험도)
 ```
 
 ## 알림

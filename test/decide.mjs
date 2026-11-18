@@ -237,21 +237,23 @@ test('일정: 시각 있는 일정은 바쁜 시간, 연결한 마감은 블록�
   const L = local();
   L.ov['p:b1'] = { link: 'ev:hw1' };
   const events = [
-    { id: 'aca2', title: '영어 학원', date: WED, time: '17:30', end_time: '18:00', kind: 'event', cat: 'academy' },
+    { id: 'aca2', title: '영어 학원', date: WED, time: '17:30', end: '18:00', kind: 'event', cat: 'academy' },
+    { id: 'yaja', title: '야자', date: WED, time: '16:00', end: '23:00', kind: 'event', cat: '' },
     { id: 'hw1', title: '수학 숙제', date: THU, time: '18:00', kind: 'deadline', cat: 'academy' },
     { id: 'rep', title: '보고서 제출', date: THU, kind: 'task', cat: 'report' },
   ];
   const { state, meta } = buildState({ plan: plan15577(), events, projects: null, examDoc: null, local: L, today: WED });
-  assert.ok(state.fixed.some((f) => f.label === '영어 학원' && f.date === WED));
+  assert.ok(state.fixed.some((f) => f.label === '영어 학원' && f.date === WED)); // API는 end 필드
+  assert.ok(!state.fixed.some((f) => f.label === '야자')); // 야자는 공부할 수 있는 시간
   const b1 = state.tasks.find((t) => t.id === 'p:b1');
   assert.equal(b1.deadline, THU);
   assert.equal(b1.deadlineTime, '18:00');
-  assert.equal(meta.deadlines.find((d) => d.id === 'ev:hw1').linked, true);
+  assert.deepEqual(meta.homework.find((h) => h.evId === 'hw1').blocks.map((b) => b.id), ['b1']); // 예전 판단 앱 연결(ov.link)도 이어받음
   // 예상 시간이 없는 할 일은 작업이 되지 않는다 (시간을 지어내지 않음)
-  assert.ok(!state.tasks.some((t) => t.id === 'ev:rep'));
+  assert.ok(!state.tasks.some((t) => t.id.endsWith(':rep')));
   L.ov['ev:rep'] = { estimateMin: 90 };
   const s2 = buildState({ plan: plan15577(), events, projects: null, examDoc: null, local: L, today: WED }).state;
-  const rep = s2.tasks.find((t) => t.id === 'ev:rep');
+  const rep = s2.tasks.find((t) => t.id === 'hx:rep');
   assert.equal(rep.kind, 'performance');
   assert.equal(estimateOf(rep), 90);
 });
