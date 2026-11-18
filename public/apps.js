@@ -105,6 +105,14 @@
     return { pct: n ? sum / n * 100 : 0, badge: due, meta: n ? `${label} · ${doneN} / ${n}` : label };
   }
 
+  // 판단: 앱이 남긴 보고(모드). 배지는 지금 계획으로 마감을 못 맞추는 작업 수
+  function decide() {
+    const r = Sabathia.read('decide');
+    if (!r) return { pct: 0, badge: 0, meta: '지금 할 일' };
+    const mode = { normal: '평상시', risk: '일정 위험', exam: '시험 집중' }[r.mode] || '';
+    return { pct: r.pct || 0, badge: r.badge || 0, meta: mode || '지금 할 일' };
+  }
+
   window.SABATHIA_APPS = [
     { id: 'plan', code: 'PLN-01', name: '15577', dock: '15577', href: '/plan/', color: ['#a35a00', '#f2a33a'], status: plan },
     { id: 'vocab', code: 'VOC-02', name: '어원 단어', dock: '단어', href: '/vocab/', color: ['#5b3fc0', '#a99bff'], status: vocab },
@@ -114,5 +122,6 @@
     { id: 'projects', code: 'PRJ-06', name: '장부', href: '/projects/', color: ['#8a2b5c', '#e07aae'], status: projects },
     { id: 'focus', code: 'FOC-07', name: '집중', href: '/focus/', color: ['#00658d', '#4fd0ff'], status: focus },
     { id: 'exam', code: 'EXM-08', name: '시험대비', href: '/exam/', color: ['#a8361f', '#ff8a70'], status: exam },
+    { id: 'decide', code: 'DEC-09', name: '판단', href: '/decide/', color: ['#3b3f9e', '#9aa0ff'], status: decide },
   ];
 })();
