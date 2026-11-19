@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from './engine/config.js';
 import { remainingOf, estimateOf } from './engine/planner.js';
 import { fmtTime, fmtDur, toDateStr, addDays, daysBetween, weekdayOf, weekdayLabel, roundTo } from './engine/time.js';
 import { buildState } from './sources.js';
+import * as MU from './must.js';
 
 // ---------- Icons ----------
 const P = {
@@ -127,17 +128,17 @@ function measure() {
   W = Math.round(vw / scale); VH = Math.round(vh / scale); H = VH;
 }
 measure();
-const ids = ['now', 'today', 'dl', 'pl'];
-const NAMES = { now: 'NOW', today: 'TODAY', dl: 'DEADLINES', pl: 'PLANNER' };
+const ids = ['now', 'must', 'today', 'dl', 'pl'];
+const NAMES = { now: 'NOW', must: '안하면 병신', today: 'TODAY', dl: 'DEADLINES', pl: 'PLANNER' };
 const freeDefault = () => {
   if (FORM !== 'wide') {
     const w = Math.min(W - PAD * 2 - 42, 640), h = Math.max(320, Math.min(560, VH - TOP - 200));
     return Object.fromEntries(ids.map((id, i) => [id, { x: PAD + i * 14, y: TOP + 12 + i * 46, w, h }]));
   }
   const sx = W / 1366, sy = H / 1024, r = (x, y, w, h) => ({ x: Math.round(x * sx), y: Math.round(y * sy), w: Math.round(w * sx), h: Math.round(h * sy) });
-  return { now: r(48, 96, 560, 540), today: r(640, 88, 680, 268), dl: r(690, 384, 640, 540), pl: r(132, 580, 520, 360) };
+  return { now: r(48, 96, 560, 540), must: r(470, 250, 440, 400), today: r(640, 88, 680, 268), dl: r(690, 384, 640, 540), pl: r(132, 580, 520, 360) };
 };
-const S = { mode: 'organized', focus: null, collapsed: {}, closed: Object.fromEntries(ids.map((id) => [id, true])), order: ['pl', 'dl', 'today', 'now'], free: freeDefault(), selBlock: null, sort: 'group', open: {} };
+const S = { mode: 'organized', focus: null, collapsed: {}, closed: Object.fromEntries(ids.map((id) => [id, true])), order: ['pl', 'dl', 'today', 'must', 'now'], free: freeDefault(), selBlock: null, sort: 'group', open: {} };
 const anyClosed = () => ids.some((id) => S.closed[id]);
 
 // 창 내용 높이(머리 + 본문). 내용이 STACK보다 짧으면 그만큼만 차지한다
@@ -149,7 +150,7 @@ function natural(id) {
 }
 const restack = () => { if (FORM !== 'wide' && S.mode === 'organized' && !S.focus) applyLayout(); };
 // 폰·세로 화면: 열린 창을 한 줄로 쌓는다. 화면보다 짧으면 남는 높이를 나눠 채운다.
-const STACK = { now: 640, today: 330, dl: 560, pl: 620 };
+const STACK = { now: 640, must: 420, today: 330, dl: 560, pl: 620 };
 function stackRects() {
   const open = ids.filter((id) => !S.closed[id]);
   const avail = VH - TOP - PAD - (anyClosed() ? 64 : 0);
@@ -165,19 +166,27 @@ function stackRects() {
 function orgRects() {
   if (FORM !== 'wide') return stackRects();
   const avail = H - TOP - PAD - (anyClosed() ? 64 : 0);
-  const L = ['now', 'pl'].filter((id) => !S.closed[id]), Rr = ['today', 'dl'].filter((id) => !S.closed[id]);
+  const L = ['now', 'pl'].filter((id) => !S.closed[id]), Rr = ['must', 'today', 'dl'].filter((id) => !S.closed[id]);
   const full = W - PAD * 2;
   let lw = Math.round(clamp(full * 0.443, 480, 820)), rx = PAD + lw + GAP, rw = full - lw - GAP;
   if (!L.length) { rx = PAD; rw = full; }
   if (!Rr.length) lw = full;
-  const pref = { now: Math.round(avail * 0.7), today: Math.round(avail * 0.343) };
+  const ratio = { now: 0.7, today: 0.343 };
+  // 오른쪽 맨 위 '안하면 병신'(높이 30%), 그 아래 TODAY·DEADLINES가 남은 높이를 나눈다
   const col = (list, x, w) => {
     if (!list.length) return {};
-    if (list.length === 1) { const a = list[0]; return { [a]: { x, y: TOP, w, h: S.collapsed[a] ? HEAD : avail } }; }
+    const out = {};
+    let y = TOP, av = avail;
+    if (list[0] === 'must' && list.length > 1) {
+      const h = S.collapsed.must ? HEAD : clamp(Math.round(avail * 0.3), HEAD + 100, avail - (GAP + HEAD) * (list.length - 1) - 100);
+      out.must = { x, y, w, h }; y += h + GAP; av -= h + GAP; list = list.slice(1);
+    }
+    if (list.length === 1) { const a = list[0]; out[a] = { x, y, w, h: S.collapsed[a] ? HEAD : av }; return out; }
     const [a, b] = list, ca = S.collapsed[a], cb = S.collapsed[b];
-    const ha = ca ? HEAD : cb ? avail - GAP - HEAD : pref[a];
-    const hb = cb ? HEAD : avail - GAP - ha;
-    return { [a]: { x, y: TOP, w, h: ha }, [b]: { x, y: TOP + ha + GAP, w, h: hb } };
+    const ha = ca ? HEAD : cb ? av - GAP - HEAD : Math.round(av * ratio[a]);
+    const hb = cb ? HEAD : av - GAP - ha;
+    out[a] = { x, y, w, h: ha }; out[b] = { x, y: y + ha + GAP, w, h: hb };
+    return out;
   };
   return { ...col(L, PAD, lw), ...col(Rr, rx, rw) };
 }
@@ -481,11 +490,94 @@ function plClose() {
   plFrame(false); applyLayout();
 }
 
+// ---------- 안하면 병신 (오늘 꼭 할 일, must.js) ----------
+// 날짜는 판단과 같은 오늘(TODAY). 같은 화면이 sabathiaWS ws/에도 있다. 닫을 때 남은 게 있으면 확인 창, 나갈 때 알림(켰을 때)
+let MUST = (() => { try { return MU.normalize(JSON.parse(localStorage.getItem(MU.MUST_KEY))); } catch { return MU.normalize(null); } })();
+const mustDay = () => TODAY || toDateStr(nowMs());
+function saveMust() { try { localStorage.setItem(MU.MUST_KEY, JSON.stringify(MUST)); } catch {} }
+function mustLeft() { return MU.left(MUST, mustDay()).length; }
+function renderMust() {
+  const day = mustDay();
+  const rolled = MU.rollover(MUST, day);
+  if (JSON.stringify(rolled) !== JSON.stringify(MUST)) { MUST = rolled; saveMust(); }
+  const n = MUST.items.length, l = mustLeft();
+  document.getElementById('mustSub').textContent = n ? (l ? `${l}개 남음` : '오늘 끝') : '오늘 꼭';
+  win('must').classList.toggle('must-left', l > 0);
+  const top = `<div class="mu-top${l ? ' hot' : ''}"><span class="big num">${n ? l : '—'}</span><span class="cap"><b>${!n ? 'EMPTY' : l ? 'LEFT' : 'CLEAR'}</b>${!n ? '꼭 할 것을 아래에 적어 두세요' : l ? `${n}개 중 ${l}개 남음 · 안 하면 병신` : '오늘 할 건 다 했음'}</span></div>`;
+  const rows = MUST.items.map((x) => {
+    const on = MU.isDoneOn(MUST, x.id, day);
+    return `<li class="mu-row${on ? ' done' : ''}">
+      <button class="mu-chk" data-act="mtog" data-id="${esc(x.id)}" aria-pressed="${on}"><span class="mu-box">${on ? ic('check', 14) : ''}</span><span class="mu-t">${esc(x.t)}</span>${x.daily ? '' : '<span class="mu-once">한 번</span>'}</button>
+      <button class="wbtn mu-del" data-act="mdel" data-id="${esc(x.id)}" aria-label="${esc(x.t)} 지우기">${ic('close', 14)}</button></li>`;
+  }).join('');
+  document.getElementById('mustList').innerHTML = top + (n ? `<ul class="mu-list">${rows}</ul>` : '');
+  const notifyOk = 'Notification' in window;
+  document.getElementById('mustOpts').innerHTML = `
+    <button data-act="mwarn" aria-pressed="${MUST.warn}">닫을 때 확인 ${MUST.warn ? '켬' : '끔'}</button>
+    <button data-act="mnotify" aria-pressed="${MUST.notify && notifyOk && Notification.permission === 'granted'}">나갈 때 알림 ${MUST.notify && notifyOk && Notification.permission === 'granted' ? '켬' : '끔'}</button>`;
+}
+document.getElementById('mustAdd').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = e.target, t = f.t.value.trim();
+  if (!t) return;
+  MUST = MU.add(MUST, t, f.daily.checked);
+  saveMust(); f.t.value = '';
+  renderMust(); renderDock(); restack();
+});
+async function mustAction(act, a) {
+  const day = mustDay();
+  if (act === 'mtog') {
+    MUST = MU.toggle(MUST, a.dataset.id, day);
+    if (!mustLeft() && MUST.items.length) toast('오늘 꼭 할 건 다 했어요');
+  } else if (act === 'mdel') {
+    const x = MUST.items.find((i) => i.id === a.dataset.id);
+    if (x && !confirm(`‘${x.t}’을(를) 목록에서 지울까요?`)) return;
+    MUST = MU.remove(MUST, a.dataset.id);
+  } else if (act === 'mwarn') {
+    MUST = { ...MUST, warn: !MUST.warn };
+    toast(MUST.warn ? '남은 게 있으면 창을 닫기 전에 한 번 묻습니다 (컴퓨터 브라우저)' : '닫을 때 확인을 껐어요');
+  } else if (act === 'mnotify') {
+    if (MUST.notify && 'Notification' in window && Notification.permission === 'granted') {
+      MUST = { ...MUST, notify: false }; toast('나갈 때 알림을 껐어요');
+    } else if (!('Notification' in window) || !navigator.serviceWorker) {
+      toast('이 브라우저는 알림을 못 써요 · 아이폰·아이패드는 홈 화면에 추가한 앱에서만 돼요');
+    } else {
+      const p = await Notification.requestPermission();
+      if (p === 'granted') { MUST = { ...MUST, notify: true, lastPing: 0 }; toast('앱을 나갈 때 남은 걸 알림으로 알려 줄게요 (30분에 한 번까지)'); }
+      else toast('알림 권한이 꺼져 있어요 · 설정에서 허용해 주세요');
+    }
+  }
+  saveMust(); renderMust(); renderDock(); restack();
+}
+// 닫기 전에: 컴퓨터 브라우저(맥 사파리·크롬)는 '이 페이지를 나가시겠습니까' 확인 창이 뜬다(문구는 브라우저가 정함).
+// 아이폰·아이패드 사파리는 탭·앱을 닫을 때 막을 방법이 없어서, 화면을 떠나는 순간 알림을 보낸다(홈 화면 앱 + 알림 허용일 때).
+addEventListener('beforeunload', (e) => {
+  if (!MUST.warn || !mustLeft()) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+// 서비스 워커는 /sw.js(sabathia.js가 등록). 알림을 누르면 data.url로 돌아온다
+let swReg = null;
+navigator.serviceWorker?.ready.then((r) => { swReg = r; }).catch(() => {});
+function pingLeave() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = Date.now();
+  if (!MU.shouldPing(MUST, now)) return;
+  const tx = MU.leaveText(MUST, mustDay());
+  if (!tx) return;
+  MUST = { ...MUST, lastPing: now }; saveMust();
+  const opt = { body: tx.body, tag: 'sabathia-must', renotify: true, data: { url: location.pathname + location.search } };
+  try { if (swReg) swReg.showNotification(tx.title, opt); else new Notification(tx.title, opt); } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) pingLeave(); });
+addEventListener('pagehide', pingLeave);
+
 function renderDock() {
   document.getElementById('dock').innerHTML = Object.keys(NAMES).map((id) => {
     const off = !!S.closed[id];
     const minimized = S.collapsed[id] && !off;
-    return `<button data-act="dock" data-id="${id}" class="${minimized ? 'min' : ''}" aria-label="${NAMES[id]} ${off ? '창 다시 열기' : '창 앞으로'}">${NAMES[id]}</button>`;
+    const n = id === 'must' ? mustLeft() : 0;
+    return `<button data-act="dock" data-id="${id}" class="${minimized ? 'min' : ''}${n ? ' must-on' : ''}" aria-label="${NAMES[id]}${n ? ` ${n}개 남음` : ''} ${off ? '창 다시 열기' : '창 앞으로'}">${NAMES[id]}${n ? `<b class="num">${n}</b>` : ''}</button>`;
   }).join('');
 }
 
@@ -496,7 +588,7 @@ function render() {
   document.getElementById('plSub').textContent = `${m}/${d} (${w}) 15577`;
   document.getElementById('volTag').textContent = `Vol.${TODAY.slice(2, 4)} / No.${m}`;
   document.getElementById('volMeta').textContent = `Vol.${TODAY.slice(2, 4)} No.${m}`;
-  renderNow(); renderToday(); renderDl(); renderPl();
+  renderNow(); renderMust(); renderToday(); renderDl(); renderPl(); renderDock();
   restack();
   requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll('[data-k]').forEach((el) => { el.style.width = el.dataset.p + '%'; prevW[el.dataset.k] = +el.dataset.p; })));
   try { window.Sabathia?.report?.('decide', { mode: R.mode, badge: R.risks.exp.length || '' }); } catch {}
@@ -527,6 +619,7 @@ document.addEventListener('click', (e) => {
     case 'selblock': S.selBlock = a.dataset.id; render(); break;
     case 'pledit': if (plFramed && !a.dataset.id) plClose(); else plOpen(a.dataset.id); break;
     case 'follow': S.selBlock = null; render(); break;
+    case 'mtog': case 'mdel': case 'mwarn': case 'mnotify': mustAction(act, a); break;
   }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.focus) { S.focus = null; applyLayout(); } });
