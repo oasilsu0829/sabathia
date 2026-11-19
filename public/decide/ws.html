@@ -430,7 +430,8 @@
     @keyframes type-arrive {from {opacity:0;transform:translateY(17px) skewX(-3deg)}}
     @keyframes type-exit {to {opacity:0;filter:blur(9px);transform:translateX(12px)}}
   }
-  #dayRing {position:absolute;top:11%;right:4%;width:min(42%, calc(var(--VH,1024px) * .78));aspect-ratio:1;margin:0;color:var(--ink)}
+  #stage{--ring:min(calc(var(--W,1366px) * .42), calc(var(--VH,1024px) * .68))}
+  #dayRing {position:absolute;top:calc(60px + (var(--VH,1024px) - 140px - var(--ring)) / 2);right:5%;width:var(--ring);aspect-ratio:1;margin:0;color:var(--ink)}
 
   /* ---------- 화면 모양: f-wide(가로) · f-tall(세로 태블릿) · f-phone(폰) ---------- */
   /* 폰·세로: 창이 한 줄로 쌓이고 페이지가 스크롤되므로 독·알림은 화면에 붙인다 (무대 배율이 1일 때) */
