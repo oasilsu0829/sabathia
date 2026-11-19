@@ -120,7 +120,7 @@ function measure() {
   const vw = document.documentElement.clientWidth || innerWidth, vh = innerHeight || vw;
   if (vw >= vh * 1.05) {
     FORM = 'wide';
-    scale = Math.min(vw / 1100, vh < 640 ? vh / 640 : vh > 1100 ? vh / 1100 : 1);
+    scale = Math.min(vw / 1100, vh < 820 ? vh / 820 : vh > 1100 ? vh / 1100 : 1); // 노트북처럼 낮은 화면은 820 높이로 보고 줄인다
   } else {
     FORM = vw < 600 ? 'phone' : 'tall';
     scale = Math.min(1, vw / (FORM === 'phone' ? 360 : 600));
@@ -148,7 +148,7 @@ function natural(id) {
   for (const c of wb.children) end = Math.max(end, c.offsetTop - wb.offsetTop + c.offsetHeight);
   return end ? HEAD + end + 22 : STACK[id];
 }
-const restack = () => { if (FORM !== 'wide' && S.mode === 'organized' && !S.focus) applyLayout(); };
+const restack = () => { if (S.mode === 'organized' && !S.focus) layoutOnce(); };
 // 폰·세로 화면: 열린 창을 한 줄로 쌓는다. 화면보다 짧으면 남는 높이를 나눠 채운다.
 const STACK = { now: 640, today: 330, dl: 560, pl: 620 };
 function stackRects() {
@@ -171,7 +171,8 @@ function orgRects() {
   let lw = Math.round(clamp(full * 0.443, 480, 820)), rx = PAD + lw + GAP, rw = full - lw - GAP;
   if (!L.length) { rx = PAD; rw = full; }
   if (!Rr.length) lw = full;
-  const pref = { now: Math.round(avail * 0.7), today: Math.round(avail * 0.343) };
+  // 위 창 높이 = 내용만큼(NOW 240~72%, TODAY 160~50%), 남는 높이는 아래 창(PLANNER·DEADLINES)
+  const pref = { now: clamp(natural('now'), 240, Math.round(avail * 0.72)), today: clamp(natural('today'), 160, Math.round(avail * 0.5)) };
   const col = (list, x, w) => {
     if (!list.length) return {};
     if (list.length === 1) { const a = list[0]; return { [a]: { x, y: TOP, w, h: S.collapsed[a] ? HEAD : avail } }; }
@@ -201,7 +202,10 @@ brief.addEventListener('click', () => {
     brief.hidden = true;
   }
 });
-function applyLayout() {
+let settleT;
+// 창 폭이 바뀌면 애니메이션이 끝난 뒤(0.6초) 내용 높이를 다시 재서 맞춘다
+function applyLayout() { layoutOnce(); clearTimeout(settleT); if (S.mode === 'organized' && !S.focus) settleT = setTimeout(layoutOnce, 650); }
+function layoutOnce() {
   if (FORM === 'phone' && S.mode === 'free') S.mode = 'organized';
   stage.className = (S.mode === 'free' ? 'free' : 'organized') + ' f-' + FORM;
   stage.classList.toggle('has-closed', anyClosed());
