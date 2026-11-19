@@ -181,8 +181,7 @@ function applyLayout() {
     fb.innerHTML = ic(S.focus === id ? 'shrink' : 'expand');
     el.querySelector('.col').setAttribute('aria-expanded', String(!S.collapsed[id]));
   });
-  if (PLV === 'a' && !S.closed.pl && !plFramed) plFrame(true);
-  else if (PLV !== 'a' && plFramed && S.focus !== 'pl') plFrame(false);
+  if (plFramed && S.focus !== 'pl') plFrame(false); // 크게 보기를 풀면 요약으로
   document.getElementById('scrim').classList.toggle('on', !!S.focus);
   document.querySelectorAll('[data-act="mode"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
   renderDock();
@@ -368,7 +367,7 @@ function renderPl() {
     const nowbar = st === 'now' ? `<span class="pl-nowbar"><i data-k="pl-nb" data-p="${((n - x.start) / (x.end - x.start)) * 100}" style="width:${prevW['pl-nb'] ?? 0}%"></i></span>` : '';
     const rec = order.has(x.t.id) ? `엔진 순서 ${order.get(x.t.id) + 1}` : st === 'done' ? '완료' : '';
     const sel = S.selBlock === x.t.id;
-    return `<button class="pl-row st-${map}${sel ? ' sel' : ''}" data-act="selblock" data-id="${esc(x.t.id)}" style="--c:${SUBJ_COLOR[x.t.subject]};--h:${Math.max(64, len * 1.35)}px">
+    return `<button class="pl-row st-${map}${sel ? ' sel' : ''}" data-act="pledit" aria-label="15577에서 ${esc(x.t.title)} 편집" data-id="${esc(x.t.id)}" style="--c:${SUBJ_COLOR[x.t.subject]};--h:${Math.max(64, len * 1.35)}px">
       <span class="pl-time num">${fmtTime(x.start)}<small>${fmtTime(x.end)}</small></span><span class="pl-rail"><i></i></span>
       <span class="pl-card"><span class="pl-title">${esc(x.t.title)}${pill}</span><span class="pl-sub">${dur(len)} · ${esc(x.t.lite || '')}${remainingOf(x.t) !== estimateOf(x.t) && x.t.status !== 'done' ? ` · 남은 ${dur(remainingOf(x.t))}` : ''}${rec ? ' · ' + rec : ''}</span>${nowbar}</span>
     </button>`;
@@ -388,10 +387,10 @@ function renderPl() {
 }
 
 // ---------- PLANNER 창 안의 15577 ----------
-// 시안: ?pl=a 창이 곧 15577 · b 평소 요약, '15577 편집'을 누르면 크게 · c 블록을 누르면 그 블록 편집으로
-const PLV = ['a', 'b', 'c'].includes(q.get('pl')) ? q.get('pl') : 'b';
+// 평소엔 요약. 블록을 누르면 창을 크게 열고 /plan/?embed=1 에서 그 블록 편집 시트를 연다('15577 편집'은 그날 화면).
+// 같은 주소라 15577 기록(blockplanner.v1)이 하나이고, 저장하면 storage 이벤트로 WS가 바로 다시 계산한다
 let plFramed = false;
-document.getElementById('plEdit').hidden = PLV === 'a';
+document.getElementById('plEdit').hidden = false;
 function plFrame(show, blockId) {
   const box = document.getElementById('pl-frame');
   const id = blockId ? String(blockId).replace(/^p:/, '') : '';
@@ -411,7 +410,6 @@ function plFrame(show, blockId) {
   document.getElementById('pl-sum').hidden = show;
   document.getElementById('b-pl').classList.toggle('framed', show);
   const btn = document.getElementById('plEdit');
-  btn.hidden = PLV === 'a';
   btn.textContent = show ? '요약으로' : '15577 편집';
   btn.setAttribute('aria-pressed', String(show));
 }
@@ -466,8 +464,8 @@ document.addEventListener('click', (e) => {
     case 'dock': { const id = a.dataset.id; S.closed[id] = false; S.collapsed[id] = false; front(id); applyLayout(); break; }
     case 'sort': S.sort = a.dataset.sort; render(); break;
     case 'group': { const g = a.dataset.id; S.open[g] = !S.open[g]; a.closest('.grp').classList.toggle('open', S.open[g]); break; }
-    case 'selblock': if (PLV === 'c') { plOpen(a.dataset.id); break; } S.selBlock = a.dataset.id; render(); break;
-    case 'pledit': if (plFramed && PLV !== 'a') plClose(); else plOpen(); break;
+    case 'selblock': S.selBlock = a.dataset.id; render(); break;
+    case 'pledit': if (plFramed && !a.dataset.id) plClose(); else plOpen(a.dataset.id); break;
     case 'follow': S.selBlock = null; render(); break;
   }
 });
