@@ -1,4 +1,3 @@
-import { createTimeline } from './corona.js';
 import { mountCity } from './city.js';
 // 판단 · WS 화면. 기존 판단(/decide/)과 같은 데이터(sources.js: 15577·일정·장부·시험대비)와 같은 엔진(engine/decide.js)을 쓰고,
 // 화면만 WS 창(NOW · TODAY · DEADLINES · PLANNER)으로 그린다. 저장값은 읽기만 한다(decide.v1 보정은 기존 화면에서).
@@ -205,7 +204,6 @@ function applyLayout() {
   if (FORM === 'phone' && S.mode === 'free') S.mode = 'organized';
   stage.className = (S.mode === 'free' ? 'free' : 'organized') + ' f-' + FORM;
   stage.classList.toggle('has-closed', anyClosed());
-  document.getElementById('dayRing').hidden = ids.some((id) => !S.closed[id]);
   if (ids.some((id) => !S.closed[id])) {
     briefDismissed = true;
     brief.hidden = true;
@@ -273,7 +271,6 @@ function taskCard(t, on) {
     <span class="hw-sub"><span class="num"><b>${Math.round(p)}</b>%</span><span>남은 ${dur(rem)}</span></span>
   </a>`;
 }
-const renderTimeline = createTimeline(document.getElementById('dayRing'),nowMs);
 // 배경: Unsplash 사진 한 장(bg.webp, ran liwen). 주소 끝 #city 를 붙이면 예전 도시 24시간 사진(city.js)
 if (/city/.test(location.hash)) mountCity(document.getElementById('city'),nowMs);
 else {
@@ -284,7 +281,6 @@ else {
 }
 
 function renderNow() {
-  renderTimeline(R.now,STATE.settings,STATE.fixed,STATE.tasks.filter(t=>t.source==='plan' && t.start).map(t=>({...blockOf(t),title:t.title})));
   if (!briefDismissed) {
     document.getElementById('briefTitle').textContent = R.card.title;
     document.getElementById('briefDetail').textContent = R.card.message;
