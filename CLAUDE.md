@@ -82,7 +82,8 @@ public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 �
                     - 완료·진행률·블록 시간은 15577에서 바꾼다(여기서 15577 기록을 쓰지 않음). 홈 아이콘 보고 Sabathia.report('decide', {mode, badge=마감 위험 수})
                     - ws.html·ws.js (2026-11-18): 같은 buildState·decide 결과를 WS 창 화면(NOW·TODAY·DEADLINES·PLANNER, 정돈/자유 모드)으로 그린다. 읽기 전용, 시작·완료는 15577, 마감은 일정 앱. 기존 화면 제목 옆 'WS 화면' 링크
                     - WS 최종 UI(2026-11-19, Claude Design 인계): 첫 화면은 창 4개 닫힘 + 왼쪽 '지금 할 일'(누르면 사라짐) + 오른쪽 코로나 일정 시계(corona.js WebGL 빛 + SVG 일정 띠, corona.css). 독은 NOW·TODAY·DEADLINES·PLANNER. 같은 화면이 sabathiaWS 저장소 ws/에도 있다(둘 다 고칠 것)
-                    - 배경 city.js: 같은 도시 2시간 간격 사진 12장(city/00.webp … 22.webp, 옆으로 누운 원본을 CSS가 회전)을 지금 시각에 맞춰 두 장씩 섞는다. #city=14 로 미리보기. sw.js가 /decide/city/ 를 따로 캐시(sabathia-city-1, 처음 볼 때 받음)
+                    - 배경(2026-11-19 사용자 요청 'Unsplash에서 하나'): bg.webp = Unsplash aHQMMwWUdWE(ran liwen, 밤하늘 아래 설산과 호수, 2732px webp 47KB). 주소 끝 #city 면 예전 도시 24시간
+                    - 예전 배경 city.js(#city 일 때만): 같은 도시 2시간 간격 사진 12장(city/00.webp … 22.webp, 옆으로 누운 원본을 CSS가 회전)을 지금 시각에 맞춰 두 장씩 섞는다. #city=14 로 미리보기. sw.js가 /decide/city/ 를 따로 캐시(sabathia-city-1, 처음 볼 때 받음)
                     - PLANNER 창 = 진짜 15577(2026-11-19, 사용자가 시안 C 고름): 평소엔 요약, 블록을 누르면 창을 크게 열고 iframe /plan/?embed=1 에서 그 블록 편집 시트(부모가 postMessage {sab:'plan-edit', id}, 처음엔 &edit=). '15577 편집' 버튼은 그날 화면, '요약으로'·크게 보기 해제로 돌아감. 같은 주소라 기록이 하나이고 15577이 저장하면 storage 이벤트로 WS가 다시 계산. 15577을 베끼지 않는다(사본 늘리지 말 것). 창 안 15577은 밝은 그대로(사용자 결정)
                     - /plan/?embed=1: Sabathia 줄·전체 화면 버튼 숨김, 큰 날짜 줄임. 같은 주소에서 온 메시지만 받음
                     - 아직 동기화 없음(기기마다 decide.v1). 홈 앱 격자 9번째라 셋째 줄에 혼자 있음(배치는 사용자에게 물을 것)

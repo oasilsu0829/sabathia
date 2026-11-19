@@ -221,7 +221,14 @@ function taskCard(t, on) {
   </a>`;
 }
 const renderTimeline = createTimeline(document.getElementById('dayRing'),nowMs);
-mountCity(document.getElementById('city'),nowMs);
+// 배경: Unsplash 사진 한 장(bg.webp, ran liwen). 주소 끝 #city 를 붙이면 예전 도시 24시간 사진(city.js)
+if (/city/.test(location.hash)) mountCity(document.getElementById('city'),nowMs);
+else {
+  const bg = new Image();
+  bg.className = 'ws-bg'; bg.alt = ''; bg.draggable = false; bg.decoding = 'async';
+  bg.src = new URL('./bg.webp', import.meta.url).href;
+  document.getElementById('city').replaceWith(bg);
+}
 
 function renderNow() {
   renderTimeline(R.now,STATE.settings,STATE.fixed,STATE.tasks.filter(t=>t.source==='plan' && t.start).map(t=>({...blockOf(t),title:t.title})));
