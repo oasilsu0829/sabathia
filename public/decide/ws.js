@@ -234,6 +234,7 @@ function applyLayout() {
     fb.innerHTML = ic(S.focus === id ? 'shrink' : 'expand');
     el.querySelector('.col').setAttribute('aria-expanded', String(!S.collapsed[id]));
   });
+  if (plFramed && S.focus !== 'pl') plFrame(false); // 크게 보기를 풀면 요약으로
   document.getElementById('scrim').classList.toggle('on', !!S.focus);
   document.querySelectorAll('[data-act="mode"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
   renderDock();
@@ -273,7 +274,14 @@ function taskCard(t, on) {
   </a>`;
 }
 const renderTimeline = createTimeline(document.getElementById('dayRing'),nowMs);
-mountCity(document.getElementById('city'),nowMs);
+// 배경: Unsplash 사진 한 장(bg.webp, ran liwen). 주소 끝 #city 를 붙이면 예전 도시 24시간 사진(city.js)
+if (/city/.test(location.hash)) mountCity(document.getElementById('city'),nowMs);
+else {
+  const bg = new Image();
+  bg.className = 'ws-bg'; bg.alt = ''; bg.draggable = false; bg.decoding = 'async';
+  bg.src = new URL('./bg.webp', import.meta.url).href;
+  document.getElementById('city').replaceWith(bg);
+}
 
 function renderNow() {
   renderTimeline(R.now,STATE.settings,STATE.fixed,STATE.tasks.filter(t=>t.source==='plan' && t.start).map(t=>({...blockOf(t),title:t.title})));
@@ -419,22 +427,59 @@ function renderPl() {
     const nowbar = st === 'now' ? `<span class="pl-nowbar"><i data-k="pl-nb" data-p="${((n - x.start) / (x.end - x.start)) * 100}" style="width:${prevW['pl-nb'] ?? 0}%"></i></span>` : '';
     const rec = order.has(x.t.id) ? `엔진 순서 ${order.get(x.t.id) + 1}` : st === 'done' ? '완료' : '';
     const sel = S.selBlock === x.t.id;
-    return `<button class="pl-row st-${map}${sel ? ' sel' : ''}" data-act="selblock" data-id="${esc(x.t.id)}" style="--c:${SUBJ_COLOR[x.t.subject]};--h:${Math.max(64, len * 1.35)}px">
+    return `<button class="pl-row st-${map}${sel ? ' sel' : ''}" data-act="pledit" aria-label="15577에서 ${esc(x.t.title)} 편집" data-id="${esc(x.t.id)}" style="--c:${SUBJ_COLOR[x.t.subject]};--h:${Math.max(64, len * 1.35)}px">
       <span class="pl-time num">${fmtTime(x.start)}<small>${fmtTime(x.end)}</small></span><span class="pl-rail"><i></i></span>
       <span class="pl-card"><span class="pl-title">${esc(x.t.title)}${pill}</span><span class="pl-sub">${dur(len)} · ${esc(x.t.lite || '')}${remainingOf(x.t) !== estimateOf(x.t) && x.t.status !== 'done' ? ` · 남은 ${dur(remainingOf(x.t))}` : ''}${rec ? ' · ' + rec : ''}</span>${nowbar}</span>
     </button>`;
   });
   rows.push(`<div class="pl-row fixed small" style="--c:var(--ink)"><span class="pl-time num">${fmtTime(R.today_.end)}</span><span class="pl-rail"><i></i></span><span class="pl-card"><span class="pl-title">취침</span></span></div>`);
   const unplaced = R.timelineToday.filter((p) => !blocks.some((b) => b.t.id === p.taskId));
-  const detail = `<div class="pl-detail"><div class="pl-detail-card">
+  const detail = `<div class="pl-detail-card">
     <div class="pd-k">엔진이 오늘 넣은 순서</div>
     <div class="pd-t">${R.timelineToday.length ? `${R.timelineToday.length}개` : '없음'}</div>
     <div class="pd-m num">15577 블록 ${blocks.length}개 · 일정 ${META.counts.events}개</div>
     <div class="sec-label"><span class="kr">추천 순서</span><span>[${String(R.timelineToday.length).padStart(2, '0')}]</span></div>
     ${R.timelineToday.slice(0, 8).map((p) => `<div class="pd-task"><span class="t">${esc(p.task.title)}</span><span class="a"><span class="num">${fmtTime(p.start)}–${fmtTime(p.end)}</span><span>${dur((p.end - p.start) / MINMS)}</span></span>${p.task.deadline ? `<span class="n">마감 ${ddayTxt(daysBetween(TODAY, p.task.deadline))}</span>` : ''}</div>`).join('')}
     ${unplaced.length ? `<div class="pd-slack">블록 없이 빈 시간에 넣은 작업 ${unplaced.length}개</div>` : ''}
-  </div></div>`;
-  document.getElementById('b-pl').innerHTML = `<div class="pl-wrap"><div class="pl-list">${blocks.length || busy.length ? rows.join('') : '<p class="empty-hero">오늘 15577 블록이 없어요. <a href="/plan/" style="color:inherit">15577 열기</a></p>'}</div>${detail}</div>`;
+  </div>`;
+  document.getElementById('pl-sum').innerHTML = blocks.length || busy.length ? rows.join('') : '<p class="empty-hero">오늘 15577 블록이 없어요. <button data-act="pledit" style="color:inherit;text-decoration:underline">15577 열기</button></p>';
+  document.getElementById('pl-side').innerHTML = detail;
+}
+
+// ---------- PLANNER 창 안의 15577 ----------
+// 평소엔 요약. 블록을 누르면 창을 크게 열고 /plan/?embed=1 에서 그 블록 편집 시트를 연다('15577 편집'은 그날 화면).
+// 같은 주소라 15577 기록(blockplanner.v1)이 하나이고, 저장하면 storage 이벤트로 WS가 바로 다시 계산한다
+let plFramed = false;
+document.getElementById('plEdit').hidden = false;
+function plFrame(show, blockId) {
+  const box = document.getElementById('pl-frame');
+  const id = blockId ? String(blockId).replace(/^p:/, '') : '';
+  if (show) {
+    let f = box.querySelector('iframe');
+    if (!f) {
+      f = document.createElement('iframe');
+      f.title = '15577 플래너';
+      f.src = '/plan/?embed=1' + (id ? '&edit=' + encodeURIComponent(id) : '');
+      box.append(f);
+    } else if (id) {
+      f.contentWindow?.postMessage({ sab: 'plan-edit', id }, location.origin);
+    }
+  }
+  plFramed = show;
+  box.hidden = !show;
+  document.getElementById('pl-sum').hidden = show;
+  document.getElementById('b-pl').classList.toggle('framed', show);
+  const btn = document.getElementById('plEdit');
+  btn.textContent = show ? '요약으로' : '15577 편집';
+  btn.setAttribute('aria-pressed', String(show));
+}
+function plOpen(blockId) {
+  S.closed.pl = false; S.collapsed.pl = false; S.focus = 'pl'; front('pl');
+  plFrame(true, blockId); applyLayout();
+}
+function plClose() {
+  if (S.focus === 'pl') S.focus = null;
+  plFrame(false); applyLayout();
 }
 
 function renderDock() {
@@ -481,6 +526,7 @@ document.addEventListener('click', (e) => {
     case 'sort': S.sort = a.dataset.sort; render(); break;
     case 'group': { const g = a.dataset.id; S.open[g] = !S.open[g]; a.closest('.grp').classList.toggle('open', S.open[g]); setTimeout(restack, 520); break; }
     case 'selblock': S.selBlock = a.dataset.id; render(); break;
+    case 'pledit': if (plFramed && !a.dataset.id) plClose(); else plOpen(a.dataset.id); break;
     case 'follow': S.selBlock = null; render(); break;
   }
 });

@@ -416,6 +416,13 @@ body.sheet-open main{overflow:hidden}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 <link rel="stylesheet" href="/theme.css">
+<script>/* 판단 WS의 PLANNER 창 안에 띄울 때(?embed=1): Sabathia 줄·전체 화면 버튼을 숨긴다 */
+if(/[?&]embed=1(&|$)/.test(location.search)) document.documentElement.classList.add('embed');</script>
+<style>
+.embed .sab,.embed #fsBtn{display:none!important}
+.embed .topwrap{padding-top:6px}
+.embed .nixie{font-size:clamp(64px,18vw,96px)}
+</style>
 </head>
 <body>
 <div class="app">
@@ -2070,6 +2077,21 @@ function reportHome(){
   Sabathia.report('plan', {pct, n: items.length, doneN: items.filter(b => b.done).length, ends, blocks, fixed, dday: S.dday && S.dday.date ? S.dday : null});
 }
 document.addEventListener('visibilitychange', () => { if(document.hidden) reportHome(); });
+/* 판단 WS(같은 주소의 부모 창)가 보내는 요청: {sab:'plan-edit', id} 그 블록 편집 시트 열기, {sab:'plan-day', k} 그날로 */
+function embedOpen(id){
+  const {b, k} = findB(id); if(!b) return;
+  if(SH) closeSheet();
+  if(view !== 'plan'){ view = 'plan'; }
+  goDay(k); openSheet('edit', id);
+}
+if(document.documentElement.classList.contains('embed')){
+  addEventListener('message', e => {
+    if(e.origin !== location.origin || !e.data || typeof e.data !== 'object') return;
+    if(e.data.sab === 'plan-edit') embedOpen(String(e.data.id || ''));
+    else if(e.data.sab === 'plan-day' && /^\d{4}-\d{2}-\d{2}$/.test(e.data.k || '')) goDay(e.data.k);
+  });
+  try{ const q = new URLSearchParams(location.search).get('edit'); if(q) setTimeout(() => embedOpen(q), 0); }catch(e){}
+}
 if(window.Sabathia) Sabathia.back = () => {
   if(!focusEl.hidden){ closeFocus(); return true; }
   if(SH){ if(SH.kind === 'cats') catDone(); else closeSheet(); return true; }

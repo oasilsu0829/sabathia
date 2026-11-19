@@ -279,6 +279,18 @@
   .pl-detail{display:none}
   @container (min-width:760px){.pl-wrap{grid-template-columns:minmax(0,1fr) minmax(300px,380px)}.pl-detail{display:block}}
   .pl-list{display:flex;flex-direction:column}
+  /* PLANNER 창 안의 진짜 15577 (/plan/?embed=1, 같은 주소라 기록이 하나) */
+  .pl-main{min-width:0;min-height:0}
+  .pl-list[hidden],.pl-frame[hidden]{display:none}
+  .pl-edit{height:26px;padding:0 12px;margin-right:6px;border-radius:999px;font-size:12px;font-weight:700;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2);transition:background .2s,color .2s}
+  .pl-edit[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+  .wb.framed{padding:0;overflow:hidden}
+  .wb.framed .pl-wrap{height:100%;gap:0}
+  .wb.framed .pl-main{height:100%}
+  .pl-frame{height:100%;background:#f5f6f8}
+  .pl-frame iframe{display:block;width:100%;height:100%;border:0}
+  .wb.framed .pl-detail{min-height:0;overflow:auto;padding:16px}
+  .wb.framed .pl-detail-card{position:static}
   .pl-row{position:relative;width:100%;display:grid;grid-template-columns:50px 14px minmax(0,1fr);align-items:stretch;gap:10px;min-height:var(--h,56px)}
   .pl-time{display:flex;flex-direction:column;padding-top:11px;font-size:12.5px;font-weight:500;line-height:1.35}
   .pl-time small{font-size:10.5px;color:var(--ink3);font-weight:400}
@@ -374,6 +386,7 @@
     transform:translate(-50%,-50%) rotate(-90deg);
     opacity:.58;pointer-events:none;
   }
+  .ws-bg {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.78;pointer-events:none}
   .workspace-photo img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .workspace-photo .city-over {transition:opacity 2s linear}
   @media (prefers-reduced-motion:reduce) {
@@ -533,8 +546,8 @@
 
   <section class="win closed" inert id="w-pl" data-id="pl" aria-label="플래너">
     <div class="wh"><span class="wi">04</span><span class="wt">PLANNER</span><span class="ws" id="plSub">오늘 계획</span>
-      <div class="wc"><button class="wbtn col" data-act="collapse" aria-label="접기"><span data-ic="chevron"></span></button><button class="wbtn foc" data-act="focus" aria-label="크게 보기"><span data-ic="expand"></span></button><button class="wbtn cls" data-act="close" aria-label="PLANNER 창 닫기"><span data-ic="close"></span></button></div></div>
-    <div class="wb" id="b-pl"></div><span class="rz" aria-hidden="true"></span>
+      <div class="wc"><button class="pl-edit" id="plEdit" data-act="pledit">15577 편집</button><button class="wbtn col" data-act="collapse" aria-label="접기"><span data-ic="chevron"></span></button><button class="wbtn foc" data-act="focus" aria-label="크게 보기"><span data-ic="expand"></span></button><button class="wbtn cls" data-act="close" aria-label="PLANNER 창 닫기"><span data-ic="close"></span></button></div></div>
+    <div class="wb" id="b-pl"><div class="pl-wrap"><div class="pl-main"><div class="pl-list" id="pl-sum"></div><div class="pl-frame" id="pl-frame" hidden></div></div><div class="pl-detail" id="pl-side"></div></div></div><span class="rz" aria-hidden="true"></span>
   </section>
 
   <div class="scrim" id="scrim" data-act="unfocus"></div>
