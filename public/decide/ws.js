@@ -112,24 +112,66 @@ function judgeDeadline(d) {
 }
 
 // ---------- UI state ----------
-const W = 1366, H = 1024, TOP = 76, PAD = 20, GAP = 12, HEAD = 48;
+const TOP = 76, PAD = 20, GAP = 12, HEAD = 48;
+// 화면 모양 (2026-11-19): 예전엔 1366×1024(패드 가로) 무대를 폭에 맞춰 줄이기만 했다.
+// 이제 무대 크기를 화면 비율에 맞춘다. wide = 가로 화면(두 줄 배치), tall = 세로 태블릿, phone = 폰(한 줄로 쌓고 아래로 스크롤).
+let W = 1366, H = 1024, VH = 1024, FORM = 'wide', scale = 1;
+function measure() {
+  const vw = document.documentElement.clientWidth || innerWidth, vh = innerHeight || vw;
+  if (vw >= vh * 1.05) {
+    FORM = 'wide';
+    scale = Math.min(vw / 1100, vh < 640 ? vh / 640 : vh > 1100 ? vh / 1100 : 1);
+  } else {
+    FORM = vw < 600 ? 'phone' : 'tall';
+    scale = Math.min(1, vw / (FORM === 'phone' ? 360 : 600));
+  }
+  W = Math.round(vw / scale); VH = Math.round(vh / scale); H = VH;
+}
+measure();
 const ids = ['now', 'today', 'dl', 'pl'];
 const NAMES = { now: 'NOW', today: 'TODAY', dl: 'DEADLINES', pl: 'PLANNER' };
-const freeDefault = () => ({
-  now: { x: 48, y: 96, w: 560, h: 540 }, today: { x: 640, y: 88, w: 680, h: 268 },
-  dl: { x: 690, y: 384, w: 640, h: 540 }, pl: { x: 132, y: 580, w: 520, h: 360 },
-});
+const freeDefault = () => {
+  if (FORM !== 'wide') {
+    const w = Math.min(W - PAD * 2 - 42, 640), h = Math.max(320, Math.min(560, VH - TOP - 200));
+    return Object.fromEntries(ids.map((id, i) => [id, { x: PAD + i * 14, y: TOP + 12 + i * 46, w, h }]));
+  }
+  const sx = W / 1366, sy = H / 1024, r = (x, y, w, h) => ({ x: Math.round(x * sx), y: Math.round(y * sy), w: Math.round(w * sx), h: Math.round(h * sy) });
+  return { now: r(48, 96, 560, 540), today: r(640, 88, 680, 268), dl: r(690, 384, 640, 540), pl: r(132, 580, 520, 360) };
+};
 const S = { mode: 'organized', focus: null, collapsed: {}, closed: Object.fromEntries(ids.map((id) => [id, true])), order: ['pl', 'dl', 'today', 'now'], free: freeDefault(), selBlock: null, sort: 'group', open: {} };
 const anyClosed = () => ids.some((id) => S.closed[id]);
 
+// 창 내용 높이(머리 + 본문). 내용이 STACK보다 짧으면 그만큼만 차지한다
+function natural(id) {
+  const wb = win(id).querySelector('.wb');
+  let end = 0;
+  for (const c of wb.children) end = Math.max(end, c.offsetTop - wb.offsetTop + c.offsetHeight);
+  return end ? HEAD + end + 22 : STACK[id];
+}
+const restack = () => { if (FORM !== 'wide' && S.mode === 'organized' && !S.focus) applyLayout(); };
+// 폰·세로 화면: 열린 창을 한 줄로 쌓는다. 화면보다 짧으면 남는 높이를 나눠 채운다.
+const STACK = { now: 640, today: 330, dl: 560, pl: 620 };
+function stackRects() {
+  const open = ids.filter((id) => !S.closed[id]);
+  const avail = VH - TOP - PAD - (anyClosed() ? 64 : 0);
+  const want = open.map((id) => (S.collapsed[id] ? HEAD : Math.min(STACK[id], natural(id))));
+  const used = want.reduce((a, b) => a + b, 0) + GAP * Math.max(0, open.length - 1);
+  const grow = open.filter((id) => !S.collapsed[id]).length;
+  const extra = used < avail && grow ? (avail - used) / grow : 0;
+  const out = {};
+  let y = TOP;
+  open.forEach((id, i) => { const h = Math.round(want[i] + (S.collapsed[id] ? 0 : extra)); out[id] = { x: PAD, y, w: W - PAD * 2, h }; y += h + GAP; });
+  return out;
+}
 function orgRects() {
+  if (FORM !== 'wide') return stackRects();
   const avail = H - TOP - PAD - (anyClosed() ? 64 : 0);
   const L = ['now', 'pl'].filter((id) => !S.closed[id]), Rr = ['today', 'dl'].filter((id) => !S.closed[id]);
   const full = W - PAD * 2;
-  let lw = 588, rx = PAD + lw + GAP, rw = full - lw - GAP;
+  let lw = Math.round(clamp(full * 0.443, 480, 820)), rx = PAD + lw + GAP, rw = full - lw - GAP;
   if (!L.length) { rx = PAD; rw = full; }
   if (!Rr.length) lw = full;
-  const pref = { now: 604, today: 296 };
+  const pref = { now: Math.round(avail * 0.7), today: Math.round(avail * 0.343) };
   const col = (list, x, w) => {
     if (!list.length) return {};
     if (list.length === 1) { const a = list[0]; return { [a]: { x, y: TOP, w, h: S.collapsed[a] ? HEAD : avail } }; }
@@ -140,7 +182,11 @@ function orgRects() {
   };
   return { ...col(L, PAD, lw), ...col(Rr, rx, rw) };
 }
-const focusRect = { x: 120, y: 88, w: 1126, h: 880 };
+function focusRect() {
+  if (FORM === 'wide') return { x: Math.round(W * 0.088), y: 88, w: Math.round(W * 0.824), h: H - 144 };
+  const sy = scrollY / scale, y = Math.max(TOP, Math.round(sy + 12));
+  return { x: 10, y, w: W - 20, h: Math.round(sy + VH - 12 - y) };
+}
 const stage = document.getElementById('stage');
 const win = (id) => document.getElementById('w-' + id);
 const brief = document.getElementById('brief');
@@ -156,7 +202,8 @@ brief.addEventListener('click', () => {
   }
 });
 function applyLayout() {
-  stage.className = S.mode === 'free' ? 'free' : 'organized';
+  if (FORM === 'phone' && S.mode === 'free') S.mode = 'organized';
+  stage.className = (S.mode === 'free' ? 'free' : 'organized') + ' f-' + FORM;
   stage.classList.toggle('has-closed', anyClosed());
   document.getElementById('dayRing').hidden = ids.some((id) => !S.closed[id]);
   if (ids.some((id) => !S.closed[id])) {
@@ -164,12 +211,18 @@ function applyLayout() {
     brief.hidden = true;
   }
   const org = S.mode === 'organized' ? orgRects() : null;
+  const fr = S.focus ? focusRect() : null;
+  // 무대 높이: 가로 화면은 화면 높이 그대로, 폰·세로는 쌓인 창 길이만큼 늘어난다(페이지 스크롤)
+  let bottom = 0;
+  if (FORM !== 'wide') ids.forEach((id) => { if (S.closed[id]) return; const r = org ? org[id] : S.free[id]; bottom = Math.max(bottom, r.y + (org || !S.collapsed[id] ? r.h : HEAD)); });
+  H = Math.max(VH, bottom ? bottom + PAD + (anyClosed() ? 64 : 0) : 0);
+  sizeStage();
   ids.forEach((id) => {
     const el = win(id), closed = !!S.closed[id];
     el.classList.toggle('closed', closed);
     el.inert = closed;
     if (!closed) {
-      const r = S.focus === id ? focusRect : org ? org[id] : { ...S.free[id], h: S.collapsed[id] ? HEAD : S.free[id].h };
+      const r = S.focus === id ? fr : org ? org[id] : { ...S.free[id], h: S.collapsed[id] ? HEAD : S.free[id].h };
       Object.assign(el.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
     }
     el.style.zIndex = S.focus === id ? 100 : 10 + S.order.indexOf(id);
@@ -400,6 +453,7 @@ function render() {
   document.getElementById('volTag').textContent = `Vol.${TODAY.slice(2, 4)} / No.${m}`;
   document.getElementById('volMeta').textContent = `Vol.${TODAY.slice(2, 4)} No.${m}`;
   renderNow(); renderToday(); renderDl(); renderPl();
+  restack();
   requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll('[data-k]').forEach((el) => { el.style.width = el.dataset.p + '%'; prevW[el.dataset.k] = +el.dataset.p; })));
   try { window.Sabathia?.report?.('decide', { mode: R.mode, badge: R.risks.exp.length || '' }); } catch {}
 }
@@ -425,20 +479,19 @@ document.addEventListener('click', (e) => {
     case 'unfocus': S.focus = null; applyLayout(); break;
     case 'dock': { const id = a.dataset.id; S.closed[id] = false; S.collapsed[id] = false; front(id); applyLayout(); break; }
     case 'sort': S.sort = a.dataset.sort; render(); break;
-    case 'group': { const g = a.dataset.id; S.open[g] = !S.open[g]; a.closest('.grp').classList.toggle('open', S.open[g]); break; }
+    case 'group': { const g = a.dataset.id; S.open[g] = !S.open[g]; a.closest('.grp').classList.toggle('open', S.open[g]); setTimeout(restack, 520); break; }
     case 'selblock': S.selBlock = a.dataset.id; render(); break;
     case 'follow': S.selBlock = null; render(); break;
   }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.focus) { S.focus = null; applyLayout(); } });
 
-let scale = 1;
 stage.addEventListener('pointerdown', (e) => {
   const w = e.target.closest('.win'); if (!w) return;
   const id = w.dataset.id;
   if (S.mode === 'free' && !S.focus) { front(id); ids.forEach((x) => { win(x).style.zIndex = 10 + S.order.indexOf(x); }); }
   const head = e.target.closest('.wh'), rz = e.target.closest('.rz');
-  if ((!head && !rz) || e.target.closest('button,a') || S.focus) return;
+  if ((!head && !rz) || e.target.closest('button,a') || S.focus || FORM === 'phone') return;
   e.preventDefault();
   const sx = e.clientX, sy = e.clientY;
   let started = false, r0;
@@ -452,12 +505,20 @@ stage.addEventListener('pointerdown', (e) => {
   const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); w.classList.remove('dragging', 'resizing'); };
   window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
 });
-function fit() {
-  scale = Math.min(1, document.documentElement.clientWidth / W);
-  stage.style.transform = `scale(${scale})`;
-  document.body.style.height = H * scale + 'px';
+function sizeStage() {
+  Object.assign(stage.style, { width: W + 'px', height: H + 'px', transform: scale === 1 ? 'none' : `scale(${scale})` });
+  stage.style.setProperty('--W', W + 'px'); stage.style.setProperty('--VH', VH + 'px'); stage.style.setProperty('--SH', H + 'px');
+  document.body.style.height = Math.ceil(H * scale) + 'px';
 }
-window.addEventListener('resize', fit);
+function fit() {
+  const was = FORM;
+  measure();
+  if (was !== FORM) S.free = freeDefault();
+  else ids.forEach((id) => { const r = S.free[id]; r.w = Math.min(r.w, W - 16); r.h = Math.min(r.h, Math.max(200, H - TOP - 8)); r.x = clamp(r.x, 0, W - r.w); r.y = clamp(r.y, TOP - 10, Math.max(TOP, H - r.h)); });
+  sizeStage();
+}
+let fitT;
+window.addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(() => { fit(); applyLayout(); }, 80); });
 window.addEventListener('storage', render);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); loadEvents(); } });
 setInterval(() => { document.getElementById('clock').textContent = fmtTime(nowMs()); }, 1000);
