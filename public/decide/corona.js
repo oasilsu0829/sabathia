@@ -89,11 +89,19 @@ export function createTimeline(ring,nowMs) {
     gl.uniform1f(uniforms.pixel,560/canvas.width);
     gl.drawArrays(gl.TRIANGLES,0,3);
   }
+  // Seconds on the tide clock; frozen when motion is reduced.
+  const clock = () => reduced.matches ? 0 : performance.now()/1000;
+  let shores = [];
+  function tide() {
+    const t = clock();
+    for (const {visual,shore} of shores) visual.setAttribute('d',shore(t));
+  }
   let timer;
   function refresh() {
     clearTimeout(timer);
     if (document.hidden || ring.hidden || !canvas.clientWidth) return;
     draw();
+    tide();
     timer = setTimeout(refresh, reduced.matches ? 60000-Date.now()%60000 : 1000/30);
   }
   new ResizeObserver(() => {
@@ -140,6 +148,7 @@ export function createTimeline(ring,nowMs) {
       (b.kind==='sleep' || b.end-b.start>3*60*60*1000)).sort((a,b)=>a.start-b.start);
     const lanes = [];
     const paths = [];
+    shores = [];
     const ns = agenda.namespaceURI;
     const defs = document.createElementNS(ns,'defs');
     // Keep the reflection concentric with each lane, including short events.
@@ -176,39 +185,36 @@ export function createTimeline(ring,nowMs) {
       // Two half-arcs also represent an event spanning the entire day.
       const edge=(r,angle,clockwise)=>`A${r} ${r} 0 0 ${clockwise} ${point(r,angle)}`;
       const sector = `M${point(outer,from)} ${edge(outer,mid,1)} ${edge(outer,to,1)}`;
-      // Keep the event endpoints fixed; shape its inner edge like a rising tide.
+      // Keep the event endpoints fixed; the inner edge swells like a slow tide.
+      // Its crest drifts along the arc, breathes and carries a small travelling ripple.
       const visual = document.createElementNS(ns,'path');
-      const steps = Math.max(12,Math.ceil((to-from)*60));
-      function shore(displacement) {
+      const steps = Math.max(16,Math.ceil((to-from)*60));
+      const seed = (item.start/6e4)%997;
+      const sleep = item.kind === 'sleep';
+      const room = (outer-inner)*(sleep ? .5 : 1);
+      function shore(t) {
+        const drift = .42*Math.sin(t*.23+seed) + .12*Math.sin(t*.61+seed*1.3);
+        const breathe = (sleep ? .78 : .74) + .22*Math.sin(t*.37+seed*.7);
         const points = [];
         for (let i=steps;i>=0;i--) {
           const u = i/steps;
           const instant = Math.max(base,item.start) + u*(Math.min(end,item.end)-Math.max(base,item.start));
           const progress = (instant-item.start)/(item.end-item.start);
-          const envelope = Math.sin(Math.PI*progress)**2;
-          const shoal = .75 + .22*Math.sin(2*Math.PI*progress+.4);
-          const depth = item.kind === 'sleep' ? (outer-inner)*(.44*envelope) + displacement*.3*envelope :
-            (outer-inner)*(envelope*shoal) + displacement*envelope;
+          const hold = Math.sin(Math.PI*progress);
+          const q = progress + drift*hold/Math.PI;
+          const swell = Math.sin(Math.PI*q)**2*breathe;
+          const ripple = .13*hold*Math.sin(2*Math.PI*(2.2*progress-t*.09)+seed);
+          const depth = room*Math.min(1,Math.max(0,(swell+ripple)*hold**.35));
           points.push('L'+point(outer-depth,from+(to-from)*u));
         }
         return sector+points.join(' ')+' Z';
       }
-      const still = shore(0);
-      visual.setAttribute('d',still);
-      if (!reduced.matches) {
-        const motion = document.createElementNS(ns,'animate');
-        motion.setAttribute('attributeName','d');
-        motion.setAttribute('values',[still,shore(1.4),still].join(';'));
-        motion.setAttribute('dur',item.kind==='sleep' ? '48s' : '32s');
-        motion.setAttribute('repeatCount','indefinite');
-        motion.setAttribute('calcMode','spline');
-        motion.setAttribute('keySplines','.42 0 .58 1;.42 0 .58 1');
-        visual.append(motion);
-      }
+      visual.setAttribute('d',shore(clock()));
+      shores.push({visual,shore});
       visual.setAttribute('fill',item.kind==='sleep' ? '#24446a' : laneFinish(item.lane,inner,outer));
       visual.setAttribute('aria-hidden','true');
       visual.style.pointerEvents='none';
-      if (item.kind==='sleep') { visual.style.stroke='none'; visual.style.fillOpacity='.95'; }
+      if (sleep) { visual.style.stroke='none'; visual.style.fillOpacity='.95'; }
       visual.classList.toggle('current',item.start<=now && now<item.end);
       visual.dataset.kind=item.kind;
       paths.push(visual);
@@ -234,7 +240,7 @@ export function createTimeline(ring,nowMs) {
     track.setAttribute('fill','none');
     track.setAttribute('pointer-events','none');
     agenda.replaceChildren(defs,track,...paths);
-    if(focused) paths.find(p=>p.getAttribute('aria-label')===focused)?.focus();
+    if(focused) paths.find(p=>p.getAttribute('aria-label')===focused)?.focus({preventScroll:true,focusVisible:false});
     const choice = items.find(item=>item.key===selected);
     const current = items.find(item=>item.start<=now && now<item.end);
     show(choice || current || items.find(item=>item.start>now),

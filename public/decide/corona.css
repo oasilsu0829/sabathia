@@ -5,7 +5,9 @@
   #agenda path[data-kind="study"] {fill-opacity:.75}
   #agenda path.current {fill-opacity:1;stroke:#999;stroke-opacity:.22}
   #dayRing canvas {position:relative;z-index:1;pointer-events:none}
+  #agenda,#agenda * {outline:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
   #agenda path.hit {stroke-opacity:0}
+  #agenda path.hit:focus {outline:none}
   #agenda path.hit:focus-visible {outline:none;stroke:white;stroke-opacity:1;stroke-width:2}
   #eventLabel {position:absolute;inset:47% 21% auto;text-align:center;text-shadow:0 1px 6px #09131c;pointer-events:none}
   #eventLabel strong,#eventLabel small {display:block}
