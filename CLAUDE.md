@@ -81,7 +81,7 @@ public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 �
                     - 이 앱의 저장은 decide.v1 하나: settings(요일별 기상·취침, 시험 목록 기본 2학기 기말 12/10, 지연 분, 기준), ov(항목별 마감 연결·남은 시간·종류·예상 시간), log(남은 시간 수정: 일정 비용과 학습(개념 확인)을 따로)
                     - 완료·진행률·블록 시간은 15577에서 바꾼다(여기서 15577 기록을 쓰지 않음). 홈 아이콘 보고 Sabathia.report('decide', {mode, badge=마감 위험 수})
                     - ws.html·ws.js (2026-11-18): 같은 buildState·decide 결과를 WS 창 화면(NOW·TODAY·DEADLINES·PLANNER, 정돈/자유 모드)으로 그린다. 읽기 전용, 시작·완료는 15577, 마감은 일정 앱. 기존 화면 제목 옆 'WS 화면' 링크
-                    - WS 최종 UI(2026-11-19, Claude Design 인계): 첫 화면은 창 4개 닫힘 + 왼쪽 '지금 할 일'(누르면 사라짐) + 오른쪽 코로나 일정 시계(corona.js WebGL 빛 + SVG 일정 띠, corona.css). 독은 NOW·TODAY·DEADLINES·PLANNER. 같은 화면이 sabathiaWS 저장소 ws/에도 있다(둘 다 고칠 것)
+                    - WS 최종 UI(2026-11-19, Claude Design 인계): 첫 화면은 창 4개 닫힘 + '지금 할 일'(누르면 사라짐). 코로나 일정 시계(타임라인)는 2026-11-19 사용자 요청으로 Sabathia에서 지우고 '지금 할 일' 글자를 크게 키움(가로 제목 최대 176px). sabathiaWS ws/에는 시계가 아직 있음 독은 NOW·TODAY·DEADLINES·PLANNER. 같은 화면이 sabathiaWS 저장소 ws/에도 있다(둘 다 고칠 것)
                     - 화면 비율(2026-11-19): 무대 크기를 화면에 맞춘다(ws.js measure). f-wide 가로(두 줄, 높이 640~1100 기준으로 배율), f-tall 세로 태블릿·f-phone 폰(<600)은 창을 한 줄로 쌓고 페이지 스크롤, 창 높이는 내용만큼(STACK 상한). 폰은 자유 모드·창 끌기 없음
                     - 배경(2026-11-19 사용자 요청 'Unsplash에서 하나'): bg.webp = Unsplash aHQMMwWUdWE(ran liwen, 밤하늘 아래 설산과 호수, 2732px webp 47KB). 주소 끝 #city 면 예전 도시 24시간
                     - 예전 배경 city.js(#city 일 때만): 같은 도시 2시간 간격 사진 12장(city/00.webp … 22.webp, 옆으로 누운 원본을 CSS가 회전)을 지금 시각에 맞춰 두 장씩 섞는다. #city=14 로 미리보기. sw.js가 /decide/city/ 를 따로 캐시(sabathia-city-1, 처음 볼 때 받음)

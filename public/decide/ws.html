@@ -427,14 +427,15 @@
   @media (prefers-reduced-transparency:reduce), (prefers-contrast:more) {
     .win {background:var(--glass-base);-webkit-backdrop-filter:none;backdrop-filter:none}
   }
+  /* 첫 화면: 시계 없이 '지금 할 일'만 크게 (2026-11-19 사용자 요청: 타임라인 삭제 + 타이포 키우기) */
   #brief {
-    position:absolute;top:16%;left:5%;width:max-content;max-width:46%;
-    color:#f4f4ef;text-align:left;text-shadow:0 2px 16px #101722;
+    position:absolute;top:17%;left:5%;width:max-content;max-width:88%;
+    color:#f4f4ef;text-align:left;text-shadow:0 2px 24px #101722;
   }
   #brief span,#brief strong {display:block}
-  .brief-label {font:700 18px var(--sans);letter-spacing:.08em}
-  #briefTitle {margin:14px 0 18px;font:900 80px/1.06 var(--disp);letter-spacing:-.065em;word-break:keep-all;overflow-wrap:anywhere}
-  #briefDetail {max-width:62ch;font:550 22px/1.5 var(--sans);word-break:keep-all}
+  .brief-label {font:700 26px var(--sans);letter-spacing:.1em}
+  #briefTitle {margin:22px 0 30px;font:900 min(176px, calc(var(--W,1366px) * .118))/1.02 var(--disp);letter-spacing:-.065em;word-break:keep-all;overflow-wrap:anywhere}
+  #briefDetail {max-width:34ch;font:550 34px/1.45 var(--sans);word-break:keep-all}
   @media (prefers-reduced-motion:no-preference) {
     #brief:not([hidden]) > * {animation:type-arrive .44s cubic-bezier(.18,.78,.2,1) backwards}
     #brief #briefTitle {animation-delay:65ms}
@@ -443,7 +444,6 @@
     @keyframes type-arrive {from {opacity:0;transform:translateY(17px) skewX(-3deg)}}
     @keyframes type-exit {to {opacity:0;filter:blur(9px);transform:translateX(12px)}}
   }
-  #dayRing {position:absolute;top:11%;right:4%;width:min(42%, calc(var(--VH,1024px) * .78));aspect-ratio:1;margin:0;color:var(--ink)}
 
   /* ---------- 화면 모양: f-wide(가로) · f-tall(세로 태블릿) · f-phone(폰) ---------- */
   /* 폰·세로: 창이 한 줄로 쌓이고 페이지가 스크롤되므로 독·알림은 화면에 붙인다 (무대 배율이 1일 때) */
@@ -453,11 +453,10 @@
   #stage:not(.f-wide) .mode-seg{transform:none}
   #stage:not(.f-wide) .brand .tag{display:none}
   #stage:not(.f-wide) .bg-word{font-size:180px;bottom:-44px}
-  #stage:not(.f-wide){--ring:min(calc(var(--W,390px) * .86), calc(var(--VH,800px) * .46))}
-  #stage:not(.f-wide) #dayRing{top:72px;right:auto;left:calc(50% - var(--ring) / 2);width:var(--ring)}
-  #stage:not(.f-wide) #brief{top:calc(84px + var(--ring));left:24px;right:24px;width:auto;max-width:none}
-  #stage.f-tall #briefTitle{font-size:64px;margin:10px 0 14px}
-  #stage.f-tall #briefDetail{font-size:20px}
+  #stage:not(.f-wide) #brief{top:calc(var(--VH,800px) * .16);left:28px;right:28px;width:auto;max-width:none}
+  #stage.f-tall .brief-label{font-size:22px}
+  #stage.f-tall #briefTitle{font-size:min(120px, calc(var(--W,600px) * .17));margin:18px 0 24px}
+  #stage.f-tall #briefDetail{font-size:28px}
   #stage.f-phone .topbar{gap:8px}
   #stage.f-phone .mode-seg,#stage.f-phone #dateTxt,#stage.f-phone .ws,#stage.f-phone .bg-meta{display:none}
   #stage.f-phone .brand .disp{font-size:24px}
@@ -469,9 +468,9 @@
   #stage.f-phone .dl-tools{margin-right:2px}
   #stage.f-phone .dl-tools button{padding:0 8px;white-space:nowrap}
   #stage.f-phone #brief{left:20px;right:20px}
-  #stage.f-phone .brief-label{font-size:14px}
-  #stage.f-phone #briefTitle{font-size:40px;margin:8px 0 10px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
-  #stage.f-phone #briefDetail{font-size:16px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+  #stage.f-phone .brief-label{font-size:16px}
+  #stage.f-phone #briefTitle{font-size:min(64px, calc(var(--W,360px) * .17));margin:12px 0 16px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+  #stage.f-phone #briefDetail{font-size:20px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
   /* 좁은 창 (폰 폭) */
   @container (max-width:460px){
     .now-hero{gap:12px;margin-top:14px}
@@ -487,9 +486,7 @@
     .dl-prog{display:none}
     .pl-row{grid-template-columns:44px 12px minmax(0,1fr);gap:8px}
   }
-  #stage:has(#dayRing:not([hidden])) .clock {display:none}
 </style>
-<link rel="stylesheet" href="./corona.css">
 </head>
 <body>
 <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute"><defs>
@@ -502,10 +499,6 @@
   <div class="bg-word" aria-hidden="true">SABATHIA</div>
   <div class="bg-meta" aria-hidden="true">Sabathia WS — Personal Life OS<br /><span id="volMeta">Vol.26 No.11</span> / Self-Published<br />Study · Deadlines · Time</div>
 
-  <figure hidden id="dayRing" aria-label="코로나 시계. 왼쪽 아래 자정부터 시계 방향으로 하루를 표시합니다.">
-    <canvas aria-hidden="true"></canvas><svg id="agenda" viewBox="-280 -280 560 560" aria-label="오늘 일정"></svg>
-    <figcaption id="eventLabel"><span></span><strong></strong><small></small></figcaption><time id="ringTime"></time>
-  </figure>
   <button id="brief" hidden aria-describedby="briefHint">
     <span class="brief-label">지금 할 일</span>
     <strong id="briefTitle"></strong>
