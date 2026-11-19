@@ -462,7 +462,7 @@
   #stage.f-phone .brand .disp{font-size:24px}
   #stage.f-phone .tb-right{margin-left:auto;gap:2px}
   #stage.f-phone .tb-btn{padding:0 6px;font-size:12px}
-  #stage.f-phone .dock button{font-size:14px;padding:0 7px}
+  #stage.f-phone .dock button{font-size:12.5px;padding:0 5px;letter-spacing:-.04em}
   #stage.f-phone .wh{padding-left:12px;gap:8px}
   #stage.f-phone .link-chip,#stage.f-phone .wi{display:none}
   #stage.f-phone .dl-tools{margin-right:2px}
@@ -486,6 +486,35 @@
     .dl-prog{display:none}
     .pl-row{grid-template-columns:44px 12px minmax(0,1fr);gap:8px}
   }
+  /* ---------- 안하면 병신 (2026-11-19) ---------- */
+  .mu-top{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}
+  .mu-top .big{font-family:var(--disp);font-size:56px;line-height:.9;letter-spacing:-.04em}
+  .mu-top.hot .big{color:var(--hot)}
+  .mu-top .cap{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--ink2);font-weight:600}
+  .mu-top .cap b{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink3);font-weight:500}
+  .mu-top.hot .cap b{color:var(--hot)}
+  .mu-list{list-style:none;margin:0;padding:0}
+  .mu-row{display:flex;align-items:center;gap:6px;border-top:1px solid var(--line)}
+  .mu-row:last-child{border-bottom:1px solid var(--line)}
+  .mu-chk{flex:1;min-width:0;min-height:48px;display:flex;align-items:center;gap:12px;padding:8px 4px;text-align:left;border-radius:8px}
+  .mu-chk:hover{background:var(--hover)}
+  .mu-box{flex:none;width:22px;height:22px;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--hot);display:grid;place-items:center;color:var(--bg)}
+  .mu-row.done .mu-box{background:var(--ink);box-shadow:none}
+  .mu-t{font-size:15px;font-weight:650;line-height:1.35;overflow-wrap:anywhere}
+  .mu-row.done .mu-t{color:var(--ink3);text-decoration:line-through;text-decoration-thickness:1.5px}
+  .mu-once{flex:none;margin-left:auto;font-size:10.5px;font-weight:600;color:var(--ink3);box-shadow:inset 0 0 0 1px var(--line2);border-radius:999px;padding:2px 8px}
+  .mu-del{flex:none;opacity:.6}
+  .mu-del:hover{opacity:1}
+  .mu-add{display:flex;align-items:center;gap:8px;margin-top:14px}
+  .mu-add input[name="t"]{flex:1;min-width:0;height:44px;padding:0 12px;border-radius:10px;border:0;background:var(--surf2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2);font:inherit;font-size:16px}
+  .mu-add input[name="t"]:focus{outline:2px solid var(--ink);outline-offset:1px}
+  .mu-daily{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink2);font-weight:600;white-space:nowrap}
+  .mu-opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .mu-opts button{height:32px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:650;color:var(--ink3);box-shadow:inset 0 0 0 1px var(--line2)}
+  .mu-opts button[aria-pressed="true"]{background:var(--ink);color:var(--bg);box-shadow:none}
+  .mu-note{font-size:11.5px;color:var(--ink3);line-height:1.5;margin:10px 0 0}
+  .win.must-left .wt{color:var(--hot)}
+  .dock button.must-on b{margin-left:5px;font-size:.8em;color:var(--hot)}
 </style>
 </head>
 <body>
@@ -523,6 +552,21 @@
     <div class="wh"><span class="wi">01</span><span class="wt">NOW</span><span class="ws">지금 공부</span>
       <div class="wc"><span class="link-chip" id="nowLink"></span><button class="wbtn col" data-act="collapse" aria-label="접기"><span data-ic="chevron"></span></button><button class="wbtn foc" data-act="focus" aria-label="집중 보기"><span data-ic="expand"></span></button><button class="wbtn cls" data-act="close" aria-label="NOW 창 닫기"><span data-ic="close"></span></button></div></div>
     <div class="wb" id="b-now"></div><span class="rz" aria-hidden="true"></span>
+  </section>
+
+  <section class="win closed" inert id="w-must" data-id="must" aria-label="안하면 병신">
+    <div class="wh"><span class="wi">05</span><span class="wt">안하면 병신</span><span class="ws" id="mustSub">오늘 꼭</span>
+      <div class="wc"><button class="wbtn col" data-act="collapse" aria-label="접기"><span data-ic="chevron"></span></button><button class="wbtn foc" data-act="focus" aria-label="집중 보기"><span data-ic="expand"></span></button><button class="wbtn cls" data-act="close" aria-label="안하면 병신 창 닫기"><span data-ic="close"></span></button></div></div>
+    <div class="wb" id="b-must">
+      <div id="mustList"></div>
+      <form class="mu-add" id="mustAdd" autocomplete="off">
+        <input name="t" maxlength="80" placeholder="꼭 할 것 (예: 영단어 50개)" aria-label="꼭 할 것">
+        <label class="mu-daily"><input type="checkbox" name="daily" checked>매일</label>
+        <button class="btn-sm pri" type="submit">추가</button>
+      </form>
+      <div class="mu-opts" id="mustOpts"></div>
+      <p class="mu-note">남은 게 있으면 컴퓨터 브라우저는 창을 닫기 전에 묻고, 아이폰·아이패드는 화면을 떠날 때 알림으로 알려요(홈 화면에 추가한 앱 + 알림 허용). 사파리 탭을 닫는 것 자체는 막을 수 없어요.</p>
+    </div>
   </section>
 
   <section class="win closed" inert id="w-today" data-id="today" aria-label="오늘 시간">
