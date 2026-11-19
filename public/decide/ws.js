@@ -1,3 +1,5 @@
+import { createTimeline } from './corona.js';
+import { mountCity } from './city.js';
 // 판단 · WS 화면. 기존 판단(/decide/)과 같은 데이터(sources.js: 15577·일정·장부·시험대비)와 같은 엔진(engine/decide.js)을 쓰고,
 // 화면만 WS 창(NOW · TODAY · DEADLINES · PLANNER)으로 그린다. 저장값은 읽기만 한다(decide.v1 보정은 기존 화면에서).
 import { decide } from './engine/decide.js';
@@ -117,7 +119,7 @@ const freeDefault = () => ({
   now: { x: 48, y: 96, w: 560, h: 540 }, today: { x: 640, y: 88, w: 680, h: 268 },
   dl: { x: 690, y: 384, w: 640, h: 540 }, pl: { x: 132, y: 580, w: 520, h: 360 },
 });
-const S = { mode: 'organized', focus: null, collapsed: {}, closed: {}, order: ['pl', 'dl', 'today', 'now'], free: freeDefault(), selBlock: null, sort: 'group', open: {} };
+const S = { mode: 'organized', focus: null, collapsed: {}, closed: Object.fromEntries(ids.map((id) => [id, true])), order: ['pl', 'dl', 'today', 'now'], free: freeDefault(), selBlock: null, sort: 'group', open: {} };
 const anyClosed = () => ids.some((id) => S.closed[id]);
 
 function orgRects() {
@@ -141,9 +143,26 @@ function orgRects() {
 const focusRect = { x: 120, y: 88, w: 1126, h: 880 };
 const stage = document.getElementById('stage');
 const win = (id) => document.getElementById('w-' + id);
+const brief = document.getElementById('brief');
+let briefDismissed = false;
+brief.addEventListener('click', () => {
+  briefDismissed = true;
+  document.querySelector('#dock button')?.focus({ preventScroll: true });
+  if (matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+    brief.classList.add('leaving');
+    setTimeout(() => { brief.hidden = true; }, 320);
+  } else {
+    brief.hidden = true;
+  }
+});
 function applyLayout() {
   stage.className = S.mode === 'free' ? 'free' : 'organized';
   stage.classList.toggle('has-closed', anyClosed());
+  document.getElementById('dayRing').hidden = ids.some((id) => !S.closed[id]);
+  if (ids.some((id) => !S.closed[id])) {
+    briefDismissed = true;
+    brief.hidden = true;
+  }
   const org = S.mode === 'organized' ? orgRects() : null;
   ids.forEach((id) => {
     const el = win(id), closed = !!S.closed[id];
@@ -164,10 +183,6 @@ function applyLayout() {
   });
   document.getElementById('scrim').classList.toggle('on', !!S.focus);
   document.querySelectorAll('[data-act="mode"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
-  const active = document.querySelector(`[data-act="mode"][data-mode="${S.mode}"]`);
-  const thumb = document.getElementById('segThumb');
-  thumb.style.width = active.offsetWidth + 'px';
-  thumb.style.transform = `translateX(${active.offsetLeft - 2}px)`;
   renderDock();
 }
 const front = (id) => { S.order = S.order.filter((x) => x !== id).concat(id); };
@@ -204,7 +219,16 @@ function taskCard(t, on) {
     <span class="hw-sub"><span class="num"><b>${Math.round(p)}</b>%</span><span>남은 ${dur(rem)}</span></span>
   </a>`;
 }
+const renderTimeline = createTimeline(document.getElementById('dayRing'),nowMs);
+mountCity(document.getElementById('city'),nowMs);
+
 function renderNow() {
+  renderTimeline(R.now,STATE.settings,STATE.fixed,STATE.tasks.filter(t=>t.source==='plan' && t.start).map(t=>({...blockOf(t),title:t.title})));
+  if (!briefDismissed) {
+    document.getElementById('briefTitle').textContent = R.card.title;
+    document.getElementById('briefDetail').textContent = R.card.message;
+    brief.hidden = false;
+  }
   const box = document.getElementById('b-now'), link = document.getElementById('nowLink');
   const n = R.now, blocks = todayBlocks();
   const sel = S.selBlock && blocks.find((b) => b.t.id === S.selBlock);
@@ -361,10 +385,10 @@ function renderPl() {
 }
 
 function renderDock() {
-  const items = [['now', '01', '지금 공부', 'var(--ink)'], ['today', '02', '오늘', 'var(--ink2)'], ['dl', '03', '마감', 'var(--ink2)'], ['pl', '04', '플래너', 'var(--ink2)']];
-  document.getElementById('dock').innerHTML = items.map(([id, ab, lb, c]) => {
+  document.getElementById('dock').innerHTML = Object.keys(NAMES).map((id) => {
     const off = !!S.closed[id];
-    return `<button data-act="dock" data-id="${id}" class="${off ? 'off' : ''}${S.collapsed[id] && !off ? ' min' : ''}" style="--c:${c}"><span class="di">${ab}</span>${lb}${off ? '<span class="st">OPEN</span>' : ''}</button>`;
+    const minimized = S.collapsed[id] && !off;
+    return `<button data-act="dock" data-id="${id}" class="${minimized ? 'min' : ''}" aria-label="${NAMES[id]} ${off ? '창 다시 열기' : '창 앞으로'}">${NAMES[id]}</button>`;
   }).join('');
 }
 
