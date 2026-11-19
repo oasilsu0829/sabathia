@@ -81,6 +81,8 @@ public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 �
                     - 이 앱의 저장은 decide.v1 하나: settings(요일별 기상·취침, 시험 목록 기본 2학기 기말 12/10, 지연 분, 기준), ov(항목별 마감 연결·남은 시간·종류·예상 시간), log(남은 시간 수정: 일정 비용과 학습(개념 확인)을 따로)
                     - 완료·진행률·블록 시간은 15577에서 바꾼다(여기서 15577 기록을 쓰지 않음). 홈 아이콘 보고 Sabathia.report('decide', {mode, badge=마감 위험 수})
                     - ws.html·ws.js (2026-11-18): 같은 buildState·decide 결과를 WS 창 화면(NOW·TODAY·DEADLINES·PLANNER, 정돈/자유 모드)으로 그린다. 읽기 전용, 시작·완료는 15577, 마감은 일정 앱. 기존 화면 제목 옆 'WS 화면' 링크
+                    - WS 최종 UI(2026-11-19, Claude Design 인계): 첫 화면은 창 4개 닫힘 + 왼쪽 '지금 할 일'(누르면 사라짐) + 오른쪽 코로나 일정 시계(corona.js WebGL 빛 + SVG 일정 띠, corona.css). 독은 NOW·TODAY·DEADLINES·PLANNER. 같은 화면이 sabathiaWS 저장소 ws/에도 있다(둘 다 고칠 것)
+                    - 배경 city.js: 같은 도시 2시간 간격 사진 12장(city/00.webp … 22.webp, 옆으로 누운 원본을 CSS가 회전)을 지금 시각에 맞춰 두 장씩 섞는다. #city=14 로 미리보기. sw.js가 /decide/city/ 를 따로 캐시(sabathia-city-1, 처음 볼 때 받음)
                     - 아직 동기화 없음(기기마다 decide.v1). 홈 앱 격자 9번째라 셋째 줄에 혼자 있음(배치는 사용자에게 물을 것)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)

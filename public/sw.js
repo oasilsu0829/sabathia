@@ -4,13 +4,14 @@
 // - 설치할 때 모든 앱 화면을 미리 받아 둔다. 한 번도 안 연 앱도 오프라인에서 열린다
 // - 글꼴·jsPDF는 따로 캐시해서 VERSION을 올려도 다시 받지 않는다. /api/ 는 건드리지 않는다
 // 공통 파일(theme.css, sabathia.js, today.js, apps.js)이나 여러 화면을 함께 고쳤으면 VERSION을 올린다
-const VERSION = 'sabathia-v45';
+const VERSION = 'sabathia-v47';
 const FONTS = 'sabathia-fonts-1';
 const CDN = 'sabathia-cdn-1';
-const KEEP = [VERSION, FONTS, CDN];
+const CITY = 'sabathia-city-1'; // 판단 WS 배경 사진 12장. 처음 볼 때 받아 두고, 버전을 올려도 다시 받지 않는다
+const KEEP = [VERSION, FONTS, CDN, CITY];
 const SHELL = [
   '/', '/plan/', '/vocab/', '/schedule/', '/pdf/', '/lecture/', '/projects/', '/focus/', '/exam/', '/decide/',
-  '/decide/app.js', '/decide/ws.html', '/decide/ws.js', '/decide/sources.js', '/decide/engine/decide.js', '/decide/engine/simulate.js', '/decide/engine/capacity.js',
+  '/decide/app.js', '/decide/ws.html', '/decide/ws.js', '/decide/corona.js', '/decide/corona.css', '/decide/city.js', '/decide/sources.js', '/decide/engine/decide.js', '/decide/engine/simulate.js', '/decide/engine/capacity.js',
   '/decide/engine/planner.js', '/decide/engine/config.js', '/decide/engine/time.js',
   '/theme.css', '/sabathia.js', '/today.js', '/apps.js', '/projects/merge.js', '/exam/merge.js', '/manifest.webmanifest', '/icon-192.png',
 ];
@@ -92,6 +93,7 @@ self.addEventListener('fetch', (e) => {
   }
 
   if (url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/decide/city/')) { e.respondWith(cacheFirst(req, CITY)); return; }
 
   // 화면(HTML)은 ?theme=… 같은 꼬리를 떼고 주소 하나로 저장한다
   const nav = req.mode === 'navigate';

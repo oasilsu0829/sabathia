@@ -1,0 +1,14 @@
+  #dayRing canvas { display:block; width:100%; height:100% }
+  #dayRing time { position:absolute; bottom:4%; left:50%; transform:translateX(-50%); font:600 clamp(16px,2.2vmin,24px)/1 ui-monospace,monospace; letter-spacing:-.045em; font-variant-numeric:tabular-nums }
+  #agenda {position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  #agenda path {cursor:pointer;fill-opacity:.56;stroke:#ddd;stroke-opacity:.2;stroke-width:.55}
+  #agenda path[data-kind="study"] {fill-opacity:.75}
+  #agenda path.current {fill-opacity:1;stroke:#999;stroke-opacity:.22}
+  #dayRing canvas {position:relative;z-index:1;pointer-events:none}
+  #agenda path.hit {stroke-opacity:0}
+  #agenda path.hit:focus-visible {outline:none;stroke:white;stroke-opacity:1;stroke-width:2}
+  #eventLabel {position:absolute;inset:47% 21% auto;text-align:center;text-shadow:0 1px 6px #09131c;pointer-events:none}
+  #eventLabel strong,#eventLabel small {display:block}
+  #eventLabel strong {font-size:clamp(18px,3.3vmin,32px);letter-spacing:-.055em}
+  #eventLabel span {font-size:12px;color:#ccc}
+  #eventLabel small {margin-top:.35em;font-variant-numeric:tabular-nums}
