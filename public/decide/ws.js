@@ -181,6 +181,8 @@ function applyLayout() {
     fb.innerHTML = ic(S.focus === id ? 'shrink' : 'expand');
     el.querySelector('.col').setAttribute('aria-expanded', String(!S.collapsed[id]));
   });
+  if (PLV === 'a' && !S.closed.pl && !plFramed) plFrame(true);
+  else if (PLV !== 'a' && plFramed && S.focus !== 'pl') plFrame(false);
   document.getElementById('scrim').classList.toggle('on', !!S.focus);
   document.querySelectorAll('[data-act="mode"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
   renderDock();
@@ -373,15 +375,53 @@ function renderPl() {
   });
   rows.push(`<div class="pl-row fixed small" style="--c:var(--ink)"><span class="pl-time num">${fmtTime(R.today_.end)}</span><span class="pl-rail"><i></i></span><span class="pl-card"><span class="pl-title">취침</span></span></div>`);
   const unplaced = R.timelineToday.filter((p) => !blocks.some((b) => b.t.id === p.taskId));
-  const detail = `<div class="pl-detail"><div class="pl-detail-card">
+  const detail = `<div class="pl-detail-card">
     <div class="pd-k">엔진이 오늘 넣은 순서</div>
     <div class="pd-t">${R.timelineToday.length ? `${R.timelineToday.length}개` : '없음'}</div>
     <div class="pd-m num">15577 블록 ${blocks.length}개 · 일정 ${META.counts.events}개</div>
     <div class="sec-label"><span class="kr">추천 순서</span><span>[${String(R.timelineToday.length).padStart(2, '0')}]</span></div>
     ${R.timelineToday.slice(0, 8).map((p) => `<div class="pd-task"><span class="t">${esc(p.task.title)}</span><span class="a"><span class="num">${fmtTime(p.start)}–${fmtTime(p.end)}</span><span>${dur((p.end - p.start) / MINMS)}</span></span>${p.task.deadline ? `<span class="n">마감 ${ddayTxt(daysBetween(TODAY, p.task.deadline))}</span>` : ''}</div>`).join('')}
     ${unplaced.length ? `<div class="pd-slack">블록 없이 빈 시간에 넣은 작업 ${unplaced.length}개</div>` : ''}
-  </div></div>`;
-  document.getElementById('b-pl').innerHTML = `<div class="pl-wrap"><div class="pl-list">${blocks.length || busy.length ? rows.join('') : '<p class="empty-hero">오늘 15577 블록이 없어요. <a href="/plan/" style="color:inherit">15577 열기</a></p>'}</div>${detail}</div>`;
+  </div>`;
+  document.getElementById('pl-sum').innerHTML = blocks.length || busy.length ? rows.join('') : '<p class="empty-hero">오늘 15577 블록이 없어요. <button data-act="pledit" style="color:inherit;text-decoration:underline">15577 열기</button></p>';
+  document.getElementById('pl-side').innerHTML = detail;
+}
+
+// ---------- PLANNER 창 안의 15577 ----------
+// 시안: ?pl=a 창이 곧 15577 · b 평소 요약, '15577 편집'을 누르면 크게 · c 블록을 누르면 그 블록 편집으로
+const PLV = ['a', 'b', 'c'].includes(q.get('pl')) ? q.get('pl') : 'b';
+let plFramed = false;
+document.getElementById('plEdit').hidden = PLV === 'a';
+function plFrame(show, blockId) {
+  const box = document.getElementById('pl-frame');
+  const id = blockId ? String(blockId).replace(/^p:/, '') : '';
+  if (show) {
+    let f = box.querySelector('iframe');
+    if (!f) {
+      f = document.createElement('iframe');
+      f.title = '15577 플래너';
+      f.src = '/plan/?embed=1' + (id ? '&edit=' + encodeURIComponent(id) : '');
+      box.append(f);
+    } else if (id) {
+      f.contentWindow?.postMessage({ sab: 'plan-edit', id }, location.origin);
+    }
+  }
+  plFramed = show;
+  box.hidden = !show;
+  document.getElementById('pl-sum').hidden = show;
+  document.getElementById('b-pl').classList.toggle('framed', show);
+  const btn = document.getElementById('plEdit');
+  btn.hidden = PLV === 'a';
+  btn.textContent = show ? '요약으로' : '15577 편집';
+  btn.setAttribute('aria-pressed', String(show));
+}
+function plOpen(blockId) {
+  S.closed.pl = false; S.collapsed.pl = false; S.focus = 'pl'; front('pl');
+  plFrame(true, blockId); applyLayout();
+}
+function plClose() {
+  if (S.focus === 'pl') S.focus = null;
+  plFrame(false); applyLayout();
 }
 
 function renderDock() {
@@ -426,7 +466,8 @@ document.addEventListener('click', (e) => {
     case 'dock': { const id = a.dataset.id; S.closed[id] = false; S.collapsed[id] = false; front(id); applyLayout(); break; }
     case 'sort': S.sort = a.dataset.sort; render(); break;
     case 'group': { const g = a.dataset.id; S.open[g] = !S.open[g]; a.closest('.grp').classList.toggle('open', S.open[g]); break; }
-    case 'selblock': S.selBlock = a.dataset.id; render(); break;
+    case 'selblock': if (PLV === 'c') { plOpen(a.dataset.id); break; } S.selBlock = a.dataset.id; render(); break;
+    case 'pledit': if (plFramed && PLV !== 'a') plClose(); else plOpen(); break;
     case 'follow': S.selBlock = null; render(); break;
   }
 });
