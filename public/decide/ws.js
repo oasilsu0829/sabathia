@@ -282,7 +282,10 @@ else {
 
 function renderNow() {
   if (!briefDismissed) {
-    document.getElementById('briefTitle').textContent = R.card.title;
+    const bt = document.getElementById('briefTitle');
+    bt.textContent = R.card.title;
+    // 긴 제목은 글자를 줄인다(두 줄 안쪽으로): 10자까지 그대로, 길수록 작게
+    bt.style.setProperty('--fit', String(Math.max(0.5, Math.min(1, 10 / Math.max(10, [...bt.textContent].length * 0.82)))));
     document.getElementById('briefDetail').textContent = R.card.message;
     brief.hidden = false;
   }

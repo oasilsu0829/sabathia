@@ -434,7 +434,7 @@
   }
   #brief span,#brief strong {display:block}
   .brief-label {font:700 26px var(--sans);letter-spacing:.1em}
-  #briefTitle {margin:22px 0 30px;font:900 min(176px, calc(var(--W,1366px) * .118))/1.02 var(--disp);letter-spacing:-.065em;word-break:keep-all;overflow-wrap:anywhere}
+  #briefTitle {margin:22px 0 30px;font:900 calc(min(176px, calc(var(--W,1366px) * .118)) * var(--fit,1))/1.02 var(--disp);letter-spacing:-.065em;word-break:keep-all;overflow-wrap:anywhere}
   #briefDetail {max-width:34ch;font:550 34px/1.45 var(--sans);word-break:keep-all}
   @media (prefers-reduced-motion:no-preference) {
     #brief:not([hidden]) > * {animation:type-arrive .44s cubic-bezier(.18,.78,.2,1) backwards}
@@ -455,7 +455,7 @@
   #stage:not(.f-wide) .bg-word{font-size:180px;bottom:-44px}
   #stage:not(.f-wide) #brief{top:calc(var(--VH,800px) * .16);left:28px;right:28px;width:auto;max-width:none}
   #stage.f-tall .brief-label{font-size:22px}
-  #stage.f-tall #briefTitle{font-size:min(120px, calc(var(--W,600px) * .17));margin:18px 0 24px}
+  #stage.f-tall #briefTitle{font-size:calc(min(120px, calc(var(--W,600px) * .17)) * var(--fit,1));margin:18px 0 24px}
   #stage.f-tall #briefDetail{font-size:28px}
   #stage.f-phone .topbar{gap:8px}
   #stage.f-phone .mode-seg,#stage.f-phone #dateTxt,#stage.f-phone .ws,#stage.f-phone .bg-meta{display:none}
@@ -469,7 +469,7 @@
   #stage.f-phone .dl-tools button{padding:0 8px;white-space:nowrap}
   #stage.f-phone #brief{left:20px;right:20px}
   #stage.f-phone .brief-label{font-size:16px}
-  #stage.f-phone #briefTitle{font-size:min(64px, calc(var(--W,360px) * .17));margin:12px 0 16px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+  #stage.f-phone #briefTitle{font-size:calc(min(64px, calc(var(--W,360px) * .17)) * var(--fit,1));margin:12px 0 16px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
   #stage.f-phone #briefDetail{font-size:20px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
   /* 좁은 창 (폰 폭) */
   @container (max-width:460px){
