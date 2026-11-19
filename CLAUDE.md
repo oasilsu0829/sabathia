@@ -27,6 +27,7 @@
   - 이 설정 그대로 병합하면 정식 배포도 같은 이유로 실패할 수 있음(사이트는 이전 버전 유지)
 - 홈 시안 캔버스: https://claude.ai/artifact/Ggzhjjn3T6q6ZE5ZyXoro2 (가로 A–F, 세로 P1–P6). 사용자 선택: 가로 C(독 없음), 폰 P5, 패드 세로 P6 → 코드에 반영함(`public/index.html`, `public/today.js`)
 - 병합 후 사용자가 할 일: 폰·패드 크롬에서 Sabathia 설치, 15577·어원 단어 온라인 저장에 예전 ID로 연결, 예전에 따로 설치한 '일정' 앱은 지워도 됨
+- 앱 아이콘(2026-11-19): 아티팩트 'Sabathia 리퀴드 글라스'(https://claude.ai/artifact/PJGFjWxy853oCvUUXAfXN6) 셰이더를 사용자 캡처 값(조명 x .93 y .43 높이 .32, 세기 2, 굴절 .056, 두께 .082, 서리 .25)으로 렌더해 public/icon-192·512(둥근 남색 유리, 밖은 투명)·icon-maskable-512(남색 꽉 채움, 격자는 안전 영역 안)를 바꿈. 런처 APK 아이콘은 그대로
 - 원본 저장소(Block-planner, llm-wiki-private, fff-dashboard)는 건드리지 않음. 예전 주소는 그대로 열림
 
 ## 2026-11-10 세션 (속도·오프라인 / 알림 / 장부 동기화)
