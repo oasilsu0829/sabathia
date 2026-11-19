@@ -370,7 +370,7 @@
   }
   /* The source is sideways. Swap the fixed stage dimensions before rotating. */
   .workspace-photo {
-    position:absolute;top:50%;left:50%;width:1024px;height:1366px;
+    position:absolute;top:50%;left:50%;width:var(--SH,1024px);height:var(--W,1366px);
     transform:translate(-50%,-50%) rotate(-90deg);
     opacity:.58;pointer-events:none;
   }
@@ -430,7 +430,50 @@
     @keyframes type-arrive {from {opacity:0;transform:translateY(17px) skewX(-3deg)}}
     @keyframes type-exit {to {opacity:0;filter:blur(9px);transform:translateX(12px)}}
   }
-  #dayRing {position:absolute;top:11%;right:4%;width:42%;aspect-ratio:1;margin:0;color:var(--ink)}
+  #dayRing {position:absolute;top:11%;right:4%;width:min(42%, calc(var(--VH,1024px) * .78));aspect-ratio:1;margin:0;color:var(--ink)}
+
+  /* ---------- 화면 모양: f-wide(가로) · f-tall(세로 태블릿) · f-phone(폰) ---------- */
+  /* 폰·세로: 창이 한 줄로 쌓이고 페이지가 스크롤되므로 독·알림은 화면에 붙인다 (무대 배율이 1일 때) */
+  #stage:not(.f-wide) .dock{position:fixed;bottom:max(10px,env(safe-area-inset-bottom))}
+  #stage.free:not(.f-wide)::after,#stage.has-closed:not(.f-wide)::after{position:fixed}
+  #stage:not(.f-wide) .toast{position:fixed}
+  #stage:not(.f-wide) .mode-seg{transform:none}
+  #stage:not(.f-wide) .brand .tag{display:none}
+  #stage:not(.f-wide) .bg-word{font-size:180px;bottom:-44px}
+  #stage:not(.f-wide){--ring:min(calc(var(--W,390px) * .86), calc(var(--VH,800px) * .46))}
+  #stage:not(.f-wide) #dayRing{top:72px;right:auto;left:calc(50% - var(--ring) / 2);width:var(--ring)}
+  #stage:not(.f-wide) #brief{top:calc(84px + var(--ring));left:24px;right:24px;width:auto;max-width:none}
+  #stage.f-tall #briefTitle{font-size:64px;margin:10px 0 14px}
+  #stage.f-tall #briefDetail{font-size:20px}
+  #stage.f-phone .topbar{gap:8px}
+  #stage.f-phone .mode-seg,#stage.f-phone #dateTxt,#stage.f-phone .ws,#stage.f-phone .bg-meta{display:none}
+  #stage.f-phone .brand .disp{font-size:24px}
+  #stage.f-phone .tb-right{margin-left:auto;gap:2px}
+  #stage.f-phone .tb-btn{padding:0 6px;font-size:12px}
+  #stage.f-phone .dock button{font-size:14px;padding:0 7px}
+  #stage.f-phone .wh{padding-left:12px;gap:8px}
+  #stage.f-phone .link-chip,#stage.f-phone .wi{display:none}
+  #stage.f-phone .dl-tools{margin-right:2px}
+  #stage.f-phone .dl-tools button{padding:0 8px;white-space:nowrap}
+  #stage.f-phone #brief{left:20px;right:20px}
+  #stage.f-phone .brief-label{font-size:14px}
+  #stage.f-phone #briefTitle{font-size:40px;margin:8px 0 10px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+  #stage.f-phone #briefDetail{font-size:16px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+  /* 좁은 창 (폰 폭) */
+  @container (max-width:460px){
+    .now-hero{gap:12px;margin-top:14px}
+    .now-title{font-size:44px}
+    .now-title.sm{font-size:30px}
+    .now-left .big{font-size:56px}
+    .td-big{font-size:52px}
+    .td-key{display:none}
+    .tiles{gap:3px}
+    .tile{height:44px}
+    .tile-wrap:not(:first-child):not(:last-child) .tile-lbl{visibility:hidden}
+    .dl-row{grid-template-columns:minmax(0,1fr) 84px;gap:10px;padding-left:16px}
+    .dl-prog{display:none}
+    .pl-row{grid-template-columns:44px 12px minmax(0,1fr);gap:8px}
+  }
   #stage:has(#dayRing:not([hidden])) .clock {display:none}
 </style>
 <link rel="stylesheet" href="./corona.css">
