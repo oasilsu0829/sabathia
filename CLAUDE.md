@@ -90,7 +90,7 @@ public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 �
                     - /plan/?embed=1: Sabathia 줄·전체 화면 버튼 숨김, 큰 날짜 줄임. 같은 주소에서 온 메시지만 받음
                     - '안하면 병신' 창(2026-11-19 사용자 요청): 오늘 꼭 할 일 체크리스트. must.js(sabathiaWS ws/must.js와 같은 파일, 테스트는 그쪽 tests/ws-must.test.js). 저장 localStorage sabathia.ws.must(기기마다). 매일 항목은 날마다 다시, 한 번 항목은 끝낸 다음 날 지움. 정돈 모드 가로 = 오른쪽 맨 위(높이 30%), 세로·폰 = NOW 다음
                       닫을 때: 남은 게 있으면 beforeunload 확인 창(컴퓨터 브라우저만, 문구는 브라우저가 정함). 아이폰·아이패드 사파리는 닫기를 막을 수 없어서 화면을 떠날 때(visibilitychange·pagehide) 알림(켜야 함, 홈 화면 앱 + 권한, 30분에 한 번). 실기기 확인 안 함
-                    - 부팅 화면(2026-11-20, 사용자 시안 'Sabathia WS — Boot' 그대로): boot.js. ws.html <body> 맨 앞에서 불러 덮개를 깔고, 컨택트 맵이 피어남 → 빛 → 작아지며 'Sabathia WS' 글자 → 4.3초에 WS(#stage)로. 열 때마다 나온다. 소리 없이 탭 없이 바로 재생(2026-11-20 사용자 요청). #noboot 이면 건너뜀. sabathiaWS ws/boot.js와 같은 파일
+                    - 부팅 화면(2026-11-20, 사용자 시안 'Sabathia WS — Boot' 그대로): boot.js + boot.mp3. ws.html <body> 맨 앞에서 불러 덮개를 깔고, 컨택트 맵이 피어남 → 빛 → 작아지며 'Sabathia WS' 글자 → 4.3초에 WS(#stage)로. 열 때마다 나온다. 탭 없이 바로 재생. 소리는 자동 재생을 시도하고, 막히면(사파리는 항상 막음) 부팅 중 첫 터치 때 그 위치부터 재생(2026-11-20). #noboot 이면 건너뜀. sabathiaWS ws/boot.js와 같은 파일
                     - 아직 동기화 없음(기기마다 decide.v1). 홈 앱 격자 9번째라 셋째 줄에 혼자 있음(배치는 사용자에게 물을 것)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)

@@ -1,10 +1,16 @@
 // Sabathia WS 부팅 화면 (2026-11-20, 사용자 시안 'Sabathia WS — Boot'를 그대로 옮김)
 // WS 화면을 열 때마다 컨택트 맵이 대각선을 따라 피어나고 → 빛이 쓸고 → 작아지며 'Sabathia WS' 글자가 나온 뒤 WS로 넘어간다.
-// 소리 없음, 탭 없이 바로 자동 재생(2026-11-20 사용자 요청).
+// 애니메이션은 탭 없이 바로 시작한다. 소리(boot.mp3)는 자동 재생을 시도하고, 브라우저가 막으면
+// (사파리·첫 방문 크롬) 부팅 중 처음 화면을 누르는 순간 지금 위치부터 이어서 재생한다(2026-11-20 사용자 요청).
 // 같은 파일이 sabathia public/decide/boot.js 와 sabathiaWS ws/boot.js 에 있다(둘 다 고칠 것).
 // <body> 맨 앞에서 일반 <script>로 불러야 WS가 먼저 비치지 않는다. 주소 끝 #noboot 이면 건너뜀.
 (function(){
 if (/noboot/.test(location.hash)) return;
+const SRC = (document.currentScript && document.currentScript.src) || location.href;
+const SND = new URL('boot.mp3', SRC).href;
+const snd = new Audio(SND); snd.preload = 'auto'; snd.playsInline = true;
+// 서비스 워커 캐시·범위 요청이 없는 서버에서도 중간부터 재생(되감기)할 수 있게 blob으로 바꿔 둔다
+fetch(SND).then(r=>r.ok?r.blob():null).then(b=>{ if(b && snd.paused){ snd.src=URL.createObjectURL(b); snd.load(); } }).catch(()=>{});
 
 const css = `
 #sab-boot{--navy:#0F1E3D;--empty:#18284C;--pale:#BED6EA;
@@ -106,8 +112,26 @@ function reset(){
 }
 function A(el,k,o){const a=el.animate(k,Object.assign({fill:'forwards'},o));anims.push(a);return a}
 
+/* 소리: 자동 재생 → 막히면 첫 사용자 입력(부팅 중)에 그 시점부터 재생 */
+let t0=0;
+const GESTURES=['pointerdown','pointerup','touchend','click','keydown'];
+let unlocking=false;
+function unlock(){
+  if(!boot.isConnected){ disarm(); return; }
+  if(unlocking) return; unlocking=true;
+  snd.play().then(()=>{ disarm(); try{ snd.currentTime=Math.min((performance.now()-t0)/1000, 5.5); }catch(e){} },
+    ()=>{ unlocking=false; });
+}
+function arm(){ GESTURES.forEach(g=>addEventListener(g,unlock,{capture:true,passive:true})); }
+function disarm(){ GESTURES.forEach(g=>removeEventListener(g,unlock,{capture:true})); }
+function sound(){
+  t0=performance.now();
+  try{ snd.currentTime=0; }catch(e){}
+  const pr=snd.play(); if(pr) pr.catch(arm);
+}
+
 function play(){
-  reset(); layout();
+  reset(); layout(); sound();
   // 1) 대각선을 따라 아르페지오 박자에 맞춰 칸이 피어남 (0 ~ 1.1s)
   cells.forEach(c=>{
     const t=((c._i+c._j)/2)/n, off=Math.abs(c._i-c._j);
@@ -145,7 +169,7 @@ function play(){
     if(stage) stage.animate([{opacity:0,translate:'0 14px'},{opacity:1,translate:'0 0'}],{duration:650,delay:250,easing:E1});
     timers.push(setTimeout(()=>{
       boot.remove(); document.documentElement.classList.remove('sab-booting');
-      removeEventListener('resize',onResize);
+      removeEventListener('resize',onResize); disarm();
     },950));
   },4300));
 }
