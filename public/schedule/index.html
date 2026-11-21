@@ -110,6 +110,7 @@ button { cursor: pointer; }
 
 /* 섹션 */
 .sec { margin-top: var(--gap-section); }
+#view > .qa { margin-top: 16px; }
 .sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: var(--line-bold) solid var(--ink); padding-block: 10px 6px; }
 .sec-title { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 30px; margin: 0; text-wrap: balance; }
 .sec-count { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -292,6 +293,10 @@ button { cursor: pointer; }
 .grp-more { background: none; border: 0; padding: 10px 0 0; font-weight: 700; font-size: 13px; color: var(--muted); }
 .seg-opts.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
+/* 묶음 카드의 + 추가 (한 줄로 넣기를 그 묶음으로 연다) */
+.sec-right { display: inline-flex; align-items: baseline; gap: 10px; }
+.sec-add { background: none; border: 0; padding: 0 2px; min-height: 44px; margin-block: -12px; font-weight: 700; font-size: 13px; color: var(--accent); }
+
 /* 탭바 · 추가 버튼 */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg);
@@ -362,6 +367,7 @@ button { cursor: pointer; }
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script src="/sabathia.js"></script>
+<script src="/quickadd.js"></script>
 <script>
 (() => {
   'use strict';
@@ -580,7 +586,7 @@ button { cursor: pointer; }
         : `<p class="empty">남은 ${name}이 없습니다.</p>`;
       if (rows.length > GROUP_SHOW) body += `<button type="button" class="grp-more" data-act="grp-more" data-cat="${cat}">${open ? '접기' : `${rows.length - GROUP_SHOW}개 더 보기`}</button>`;
       return `<section class="sec grp" id="g-${cat}" aria-labelledby="h-g-${cat}">
-        <div class="sec-head"><h2 class="sec-title" id="h-g-${cat}">${name}</h2><span class="sec-count">남은 ${left}</span></div>
+        <div class="sec-head"><h2 class="sec-title" id="h-g-${cat}">${name}</h2><span class="sec-right"><span class="sec-count">남은 ${left}</span>${QA ? `<button type="button" class="sec-add" data-act="qa-cat" data-cat="${cat}" aria-label="${name} 추가">+ 추가</button>` : ''}</span></div>
         ${body}
       </section>`;
     }).join('');
@@ -654,6 +660,7 @@ button { cursor: pointer; }
         </div>
       </header>
       <div class="week">${week}</div>
+      ${qaSlot()}
       ${noticeHTML()}
       ${groupSummaryHTML(t, now)}
       ${groupsHTML(t, now)}
@@ -716,6 +723,7 @@ button { cursor: pointer; }
         <span><i class="sw ev"></i>일정</span><span><i class="sw dl"></i>다가올 마감</span>
       </div>
       ${noticeHTML()}
+      ${qaSlot()}
       <section class="sec" aria-labelledby="h-day">
         <div class="sec-head"><h2 class="sec-title" id="h-day">${sel.getMonth() + 1}월 ${sel.getDate()}일 ${WD_LONG[sel.getDay()]}</h2><span class="sec-count">${dayItems.length}</span></div>
         ${dayItems.length ? dayItems.map((r) => rowHTML(r.e, r.st, t)).join('') : '<p class="empty">이 날은 일정이 없습니다.</p>'}
@@ -726,6 +734,7 @@ button { cursor: pointer; }
   function renderAgenda() {
     const t = today(), now = nowHM();
     return `<header class="page-head"><h1 class="page-title">일정</h1><span class="page-sub">30일</span></header>
+      ${qaSlot()}
       ${noticeHTML()}
       ${groupSummaryHTML(t, now)}
       ${groupsHTML(t, now)}
@@ -1035,6 +1044,22 @@ button { cursor: pointer; }
     ];
   }
 
+  /* ---------- 한 줄로 넣기 (public/quickadd.js) ---------- */
+  // 날짜를 안 쓰면 오늘, 캘린더에서는 고른 날. 묶음 카드의 '+ 추가'는 그 묶음으로 고정해서 연다
+  const QA = window.QuickAdd ? QuickAdd.mount({
+    placeholder: '내일 4시 반 동아리 회의 · 금요일까지 학원 영어 수행',
+    defDate: () => (S.tab === 'calendar' ? S.sel : today()),
+    async post(ev) {
+      if (S.mode === 'demo') {
+        S.events.push({ id: 'ex' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), source: '', updated: '', done: false, ...ev });
+        return;
+      }
+      await api('/api/events', { method: 'POST', body: JSON.stringify({ ...ev, source: 'pwa' }) });
+    },
+    async done() { if (S.mode === 'demo') render(); else await load(); },
+  }) : null;
+  const qaSlot = () => (QA ? '<div id="qa-slot"></div>' : '');
+
   /* ---------- 렌더 ---------- */
   const VIEWS = { home: renderHome, calendar: renderCalendar, agenda: renderAgenda, prefs: renderPrefs };
   function render() {
@@ -1044,7 +1069,9 @@ button { cursor: pointer; }
       // 설정 입력 중에는 다시 그리지 않는다
       return;
     }
+    if (QA) QA.keep();
     view.innerHTML = VIEWS[S.tab]();
+    if (QA) QA.attach(document.getElementById('qa-slot'));
     view.dataset.view = S.tab;
     document.querySelectorAll('.tabbar [data-tab]').forEach((b) => {
       if (b.dataset.tab === S.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -1095,6 +1122,7 @@ button { cursor: pointer; }
     try {
       if (act === 'add') openAdd(S.tab === 'calendar' ? S.sel : today());
       else if (act === 'open') openDetail(el.dataset.id);
+      else if (act === 'qa-cat') QA.focus(el.dataset.cat);
       else if (act === 'check') {
         const e = S.events.find((x) => x.id === el.dataset.id);
         if (!e) return;

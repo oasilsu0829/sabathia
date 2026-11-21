@@ -50,6 +50,10 @@ public/apps.js      앱 목록(코드·이름·주소·고유색·홈 아이콘 
 public/today.js     홈의 "오늘 하루": 15577 보고(블록 위치·상태·수업·D-day) + /api/events + 어원 단어 보고를 한 줄로 모음
 public/sabathia.js  공통: 런처 뒤로가기/홈 버튼, 앱 상태 보고(localStorage sabathia.status.<id>), /sw.js 등록
 public/projects/merge.js  장부 합치기(화면·서버 공용)
+public/quickadd.js  한 줄로 넣기(2026-11-21, 개선안 A https://claude.ai/artifact/Ei27CA659AAi2oG5RMGxBV). "내일 4시 반 동아리 회의"를 날짜·시각·종류·묶음으로 읽어 /api/events에 넣는다. 규칙만, AI 없음(test/quickadd.mjs)
+                    일정 앱(오늘·캘린더·일정 탭 위, 캘린더는 고른 날이 기본)과 홈(세 배치 모두 머리 아래)에 붙는다. 여러 줄 = 여러 개, Enter = 추가(Shift+Enter 줄 바꿈), 칩을 누르면 종류·묶음 바꿈
+                    묶음 카드(보고서·학교 수행·학원 수행) 머리의 '+ 추가' = 그 묶음으로 고정해서 입력 칸으로. 1~7시는 오후로 봄. 시각 있는 학원은 수업(묶음 없음), 수행·숙제·테스트·발표 등이 있으면 학원 수행
+                    화면이 innerHTML로 다시 그려져도 입력이 남게 노드 하나를 keep()/attach(#qa-slot)로 옮겨 붙인다
 public/sw.js        서비스 워커 하나가 / 전체를 맡음. 캐시를 먼저 보여 주고 뒤에서 갱신(다음에 열 때 반영), 새로고침·"최신 버전 확인"은 네트워크 먼저.
                     설치 때 앱 8개 화면을 미리 캐시. 글꼴·jsPDF는 버전과 무관한 캐시. push → 알림(누르면 url로 이동)
                     공통 파일이나 여러 화면을 함께 고치면 VERSION을 올릴 것

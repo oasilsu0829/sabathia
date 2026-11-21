@@ -159,5 +159,6 @@
     };
   }
 
-  window.SabathiaToday = { load, events, fmt };
+  // reset(): 홈에서 일정을 넣은 뒤 30초 캐시를 버리고 다시 받게 한다
+  window.SabathiaToday = { load, events, fmt, reset() { evCache = null; evAt = 0; } };
 })();

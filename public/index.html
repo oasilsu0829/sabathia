@@ -95,6 +95,7 @@ a { color: inherit; text-decoration: none; }
 
 /* 섹션 */
 .sec { margin-top: var(--gap-section); }
+.app > .qa { margin-top: 20px; }
 .sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: var(--line-bold) solid var(--ink); padding-block: 10px 6px; }
 .sec-title { font-family: var(--font-title); font-weight: 800; font-size: 24px; line-height: 30px; margin: 0; }
 .sec-count { font-family: var(--font-num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -355,6 +356,7 @@ a { color: inherit; text-decoration: none; }
 
 <script src="/sabathia.js"></script>
 <script src="/today.js"></script>
+<script src="/quickadd.js"></script>
 <script src="/apps.js"></script>
 <script>
 (() => {
@@ -555,6 +557,24 @@ a { color: inherit; text-decoration: none; }
     enterT = setTimeout(() => app.classList.remove('enter'), ENTER_MS - el);
   }
 
+  /* ---------- 한 줄로 넣기 (public/quickadd.js) → 일정 앱(/api/events). 주소·토큰은 일정 앱 설정(sab.base·sab.token) ---------- */
+  const QA = window.QuickAdd ? QuickAdd.mount({
+    async post(ev) {
+      const get = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+      const base = (get('sab.base') || location.origin).replace(/\/+$/, ''), token = get('sab.token') || '';
+      let r;
+      try {
+        r = await fetch(base + '/api/events', { method: 'POST', cache: 'no-store',
+          headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
+          body: JSON.stringify({ ...ev, source: 'home' }) });
+      } catch { throw new Error('서버에 연결할 수 없습니다.'); }
+      if (r.status === 401) throw new Error('토큰이 필요합니다. 일정 앱 설정에서 넣어 주세요.');
+      if (!r.ok) { let m = ''; try { m = (await r.json()).error; } catch {} throw new Error(m || `서버 응답 ${r.status}`); }
+    },
+    async done() { if (SabathiaToday.reset) SabathiaToday.reset(); await refresh(); },
+  }) : null;
+  const qaSlot = QA ? '<div id="qa-slot"></div>' : '';
+
   /* ---------- 화면 ---------- */
   function render() {
     const n = new Date();
@@ -567,6 +587,7 @@ a { color: inherit; text-decoration: none; }
     if (mode === 'phone') {
       html = `<header>${h1}<div class="clock-xl" aria-hidden="true">${clk}</div>
           <div class="p-date"><span><span class="md">${mon} ${n.getDate()}일</span> <span class="wd">${wd}</span></span>${dday ? `<span class="dd">${esc(dday.title)} ${ddLabel(dday)}</span>` : ''}</div></header>
+        ${qaSlot}
         <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">06–24</span></div>${dialHTML()}</section>
         <section aria-label="지금과 다음">${focusHTML()}</section>
         ${appsHTML()}`;
@@ -575,6 +596,7 @@ a { color: inherit; text-decoration: none; }
           <div class="c-date"><div class="hero-num" aria-hidden="true">${dd}</div><div><div class="month">${mon}</div><div class="weekday">${wd}</div></div></div>
           <div class="right">${dday ? `<div class="label">${esc(dday.title)} · ${md(dday.date)} · <span class="num" style="color:var(--ink)">${ddLabel(dday)}</span></div>` : ''}<div class="stat" aria-hidden="true">${clk}</div></div></header>
         <p class="meta t-line">${nextLine()}</p>
+        ${qaSlot}
         <section class="sec" aria-labelledby="h-day"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div><div class="d-wrap">${dialHTML()}<div class="d-side">${focusHTML()}</div></div></section>
         <div class="sec split2">${todoHTML()}${aheadHTML()}</div>
         ${appsHTML()}`;
@@ -583,10 +605,13 @@ a { color: inherit; text-decoration: none; }
           <div class="c-date"><div class="hero-num" aria-hidden="true">${dd}</div><div><div class="month">${mon}</div><div class="weekday">${wd}</div></div></div>
           <div class="c-mid"><div class="stat" aria-hidden="true">${clk}</div><p class="meta">${nextLine()}</p></div>
           ${dday ? `<div class="c-dday"><div class="label">${esc(dday.title)} · ${md(dday.date)}${dday.note ? ' · ' + esc(dday.note) : ''}</div><div class="stat">${ddLabel(dday)}</div></div>` : '<div></div>'}</header>
+        ${qaSlot}
         <section class="sec" aria-labelledby="h-day" style="margin-top:28px"><div class="sec-head"><h2 class="sec-title" id="h-day">오늘 하루</h2><span class="sec-count">${dayCount}</span></div><div class="d-wrap">${dialHTML()}<div class="d-side">${focusHTML()}</div></div></section>
         ${appsHTML()}`;
     }
+    if (QA) QA.keep();
     $('#app').innerHTML = html;
+    if (QA) QA.attach(document.getElementById('qa-slot'));
     stage($('#app'));
     lastClock = clock;
   }
