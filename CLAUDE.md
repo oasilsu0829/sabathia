@@ -80,25 +80,32 @@ public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 �
                     - engine/: 순수 모듈(time·config·planner·capacity·simulate·decide). test/decide.mjs(명세 §11 완료 기준 + 어댑터)
                     - sources.js: 다른 앱 기록을 읽기만 한다. 15577 blockplanner.v1(블록 = 작업, 문풀은 est·정리/인강은 dur, 사용자가 누른 progress만 반영, 고정 블록은 날짜별로 펼침·자습/schoolOff 반영, log로 과목별 오차 보정 5건부터, D-day가 시험이면 시험 집중), /api/events(시각+끝 시각 일정 = 바쁜 시간, 할 일·마감 = 마감 목록. 예상 시간을 넣거나 15577 블록과 연결해야 계산에 들어감), projects.v1(진행 중 프로젝트의 다음 단계, 예상 60분 임시), exam.v1(이번 주 남은 할 일 수 = 과목 필요도. 주차 날짜는 /exam/ WEEKS와 같이 바꿀 것)
                     - 이 앱의 저장은 decide.v1 하나: settings(요일별 기상·취침, 시험 목록 기본 2학기 기말 12/10, 지연 분, 기준), ov(항목별 마감 연결·남은 시간·종류·예상 시간), log(남은 시간 수정: 일정 비용과 학습(개념 확인)을 따로)
-                    - 완료·진행률·블록 시간은 15577에서 바꾼다(여기서 15577 기록을 쓰지 않음). 홈 아이콘 보고 Sabathia.report('decide', {mode, badge=마감 위험 수})
-                    - ws.html·ws.js (2026-11-18): 같은 buildState·decide 결과를 WS 창 화면(NOW·TODAY·DEADLINES·PLANNER, 정돈/자유 모드)으로 그린다. 읽기 전용, 시작·완료는 15577, 마감은 일정 앱. 기존 화면 제목 옆 'WS 화면' 링크
-                    - WS 최종 UI(2026-11-19, Claude Design 인계): 첫 화면은 창 4개 닫힘 + '지금 할 일'(누르면 사라짐). 코로나 일정 시계(타임라인)는 2026-11-19 사용자 요청으로 Sabathia에서 지우고 '지금 할 일' 글자를 크게 키움(가로 제목 최대 176px). sabathiaWS ws/에는 시계가 아직 있음 독은 NOW·TODAY·DEADLINES·PLANNER. 같은 화면이 sabathiaWS 저장소 ws/에도 있다(둘 다 고칠 것)
-                    - 화면 비율(2026-11-19): 무대 크기를 화면에 맞춘다(ws.js measure). f-wide 가로(두 줄, 높이 640~1100 기준으로 배율), f-tall 세로 태블릿·f-phone 폰(<600)은 창을 한 줄로 쌓고 페이지 스크롤, 창 높이는 내용만큼(STACK 상한). 폰은 자유 모드·창 끌기 없음
+                    - 기존 판단 화면(/decide/)은 15577 기록을 쓰지 않는다(완료·진행률·블록 시간은 15577에서). WS(Planner 2.0)는 같은 15577 기록을 직접 고친다(아래). 홈 아이콘 보고 Sabathia.report('decide', {mode, badge=마감 위험 수})
+                    - ws.html·ws.js = Planner 2.0(2026-11-21 사용자 지시서 'Sabathia Planner 2.0'): 타임박싱 플래너로 전면 개편. NOW 창·첫 화면 '지금 할 일'·TODAY 창·15577 iframe은 없앴다
+                      sabathiaWS 저장소 ws/는 Planner 2.0 이전 모양 그대로(이번엔 이 저장소만 고침. 같이 맞출지는 사용자에게 물을 것)
+                      화면: 위 막대(정돈/자유, 흰 구분선) → 주간 타임라인(월~일, 날짜별 계획 시간·과목 색 띠·마감, 주간 Big 3) → 일간 타임박싱(시간축, 지금 = 가로선 하나) + 오른쪽 커브드 마감 사이드바(누르면 가운데로 펼쳐져 상세) → 아래 '빠르게 추가' + '계획 세우기'
+                      테마: 저채도 네이비 + 흰 글자 리퀴드 글라스(ws.html :root). theme.css는 쓰지 않음(WS는 어두운 몰입 화면). 과목 색 수학 #4D83DB 국어 #54A49A 영어 #C69A51 과학 #8673CA 사회·역사 #C87B86 기타 #8995A3 (tb/blocks.js SUBJECTS, Planner 문서 cfg.colors.map으로 바꿀 수 있게만 해 둠, 설정 화면 없음)
+                      배치: f-wide 가로(아이패드 가로가 기준) · f-tall 세로 태블릿(사이드바 = 오른쪽 레일) · f-phone(사이드바 = 마감 칩 줄, 펼치면 덮개). 무대는 화면 높이에 고정, 일간만 안에서 스크롤. 자유 모드 = 주간·일간·마감 패널 옮기기·크기(sabathia.ws.layout2), 폰은 정돈만
+                      데이터(명세 §8): TimeBlock = 15577 블록 그대로(blockplanner.v1, id 유지, 15577 온라인 저장 bp.cloudId가 있으면 같은 Firestore 문서로 올림 — tb/store.js). Task·Big3·PlanProposal·블록→작업 연결 = Planner 문서 sabathia.plan.v1(tb/tasks.js, /api/plan/sync, D1 settings k='plan', 합치기 tb/merge.js)
+                      작업 id: 일정 할 일·마감 = ev:<일정 id>, 연결 없는 15577 블록 = p:<블록 id>, 직접 입력 = t_…. 읽을 때마다 만들고 고친 칸만 저장 → 중복 생성 없음. 한 작업을 여러 블록·여러 날로 나눠도 작업은 하나(links)
+                      원칙: 블록을 옮기거나 늘려도 다른 블록은 안 밀고 '충돌'로 표시(15577 layout과 다름, 15577에서 열면 15577 방식으로 밀려 보임). 시간 초과 수정안(tb/plan.js shiftProposal)은 뒤 블록과 겹치거나 고정 일정·취침에 걸릴 때만, 적용 전엔 그대로, '유지'한 상황(sig)은 다시 안 물음. 실제 시간은 15577 타이머나 사용자가 적은 값만(추정 안 함)
+                      계획 세우기 시트: Brain Dump(빠른 입력 '제목 1시간 11/24 !!' → parseQuick) → Big 3(주간·일간, 규칙 기반 추천, '확정'해야 저장) → 시간 배분(빈 시간에 나눠 넣는 제안, 적용해야 블록 생김, 지난 미완료는 '이월'=같은 블록 옮기기) → 타임박싱 요약. 강제 아님
+                      마감 위험: D-day가 아니라 남은 양 − 마감 전 배치 vs 마감 전 실제 빈 시간 + 판단 엔진 위험(tasks.js deadlineInfo). 일정 마감에 예상 시간이 없으면 '시간 미정'
+                      되돌리기: 고칠 때마다 토스트 '되돌리기'(한 단계). 테스트 test/plan.mjs
                     - 배경(2026-11-19 사용자 요청 'Unsplash에서 하나'): bg.webp = Unsplash aHQMMwWUdWE(ran liwen, 밤하늘 아래 설산과 호수, 2732px webp 47KB). 주소 끝 #city 면 예전 도시 24시간
                     - 예전 배경 city.js(#city 일 때만): 같은 도시 2시간 간격 사진 12장(city/00.webp … 22.webp, 옆으로 누운 원본을 CSS가 회전)을 지금 시각에 맞춰 두 장씩 섞는다. #city=14 로 미리보기. sw.js가 /decide/city/ 를 따로 캐시(sabathia-city-1, 처음 볼 때 받음)
-                    - PLANNER 창 = 진짜 15577(2026-11-19, 사용자가 시안 C 고름): 평소엔 요약, 블록을 누르면 창을 크게 열고 iframe /plan/?embed=1 에서 그 블록 편집 시트(부모가 postMessage {sab:'plan-edit', id}, 처음엔 &edit=). '15577 편집' 버튼은 그날 화면, '요약으로'·크게 보기 해제로 돌아감. 같은 주소라 기록이 하나이고 15577이 저장하면 storage 이벤트로 WS가 다시 계산. 15577을 베끼지 않는다(사본 늘리지 말 것). 창 안 15577은 밝은 그대로(사용자 결정)
-                    - /plan/?embed=1: Sabathia 줄·전체 화면 버튼 숨김, 큰 날짜 줄임. 같은 주소에서 온 메시지만 받음
-                    - '안하면 병신' 창(2026-11-19 사용자 요청): 오늘 꼭 할 일 체크리스트. must.js(sabathiaWS ws/must.js와 같은 파일, 테스트는 그쪽 tests/ws-must.test.js). 저장 localStorage sabathia.ws.must(기기마다). 매일 항목은 날마다 다시, 한 번 항목은 끝낸 다음 날 지움. 정돈 모드 가로 = 오른쪽 맨 위(높이 30%), 세로·폰 = NOW 다음
+                    - '안하면 병신' 창(2026-11-19 사용자 요청): 오늘 꼭 할 일 체크리스트. must.js(sabathiaWS ws/must.js와 같은 파일, 테스트는 그쪽 tests/ws-must.test.js). 저장 localStorage sabathia.ws.must(기기마다). 매일 항목은 날마다 다시, 한 번 항목은 끝낸 다음 날 지움. Planner 2.0부터 마감 사이드바 아래(펼치면 추가·설정)
                       닫을 때: 남은 게 있으면 beforeunload 확인 창(컴퓨터 브라우저만, 문구는 브라우저가 정함). 아이폰·아이패드 사파리는 닫기를 막을 수 없어서 화면을 떠날 때(visibilitychange·pagehide) 알림(켜야 함, 홈 화면 앱 + 권한, 30분에 한 번). 실기기 확인 안 함
                     - 부팅 화면(2026-11-20, 사용자 시안 'Sabathia WS — Boot' 그대로): boot.js + boot.mp3. ws.html <body> 맨 앞에서 불러 덮개를 깔고, 컨택트 맵이 피어남 → 빛 → 작아지며 'Sabathia WS' 글자 → 4.3초에 WS(#stage)로. 열 때마다 나온다. 탭 없이 바로 재생. 소리는 자동 재생을 시도하고, 막히면(사파리는 항상 막음) 부팅 중 첫 터치 때 그 위치부터 재생(2026-11-20). #noboot 이면 건너뜀. sabathiaWS ws/boot.js와 같은 파일
                     - 따로 설치(2026-11-21): ws.html은 자기 매니페스트 decide/ws.webmanifest(id·start_url /decide/ws, scope /decide/, 이름 Sabathia WS)를 쓴다. 예전엔 Sabathia 매니페스트를 써서 폰에 설치하면 홈이 열렸음. 아이콘은 리퀴드 글라스 남색 아이콘 그대로(decide/ws-icon-*.png = public/icon-*.png 사본, 사용자: "어두운 버전 = 원래 만든 리퀴드 글라스", 2026-11-21). sw.js는 /decide/ws(리다이렉트 없는 주소)를 미리 캐시
-                    - 아직 동기화 없음(기기마다 decide.v1). 홈 앱 격자 9번째라 셋째 줄에 혼자 있음(배치는 사용자에게 물을 것)
+                    - decide.v1은 아직 동기화 없음(Planner 문서는 /api/plan/sync). 홈 앱 격자 9번째라 셋째 줄에 혼자 있음(배치는 사용자에게 물을 것)
 docs/design-language.md  디자인 언어 v1.0 + 12장(홈 아이콘 예외) + 13장(Sabathia 공통) + 14장(움직임)
 public/keys.html    폰에서 VAPID 키/토큰 생성 (브라우저 안에서만 생성)
 src/index.js        /api/* 라우터: API_TOKEN 확인(/api/vapid 제외) → 테이블 준비 → events / projects / notify. scheduled() 1분 cron은 notify.tick()
 src/util.js         json·httpError·readBody·authorized, ensureTables(모든 테이블을 첫 요청·첫 cron 때 자동 생성)
 src/notify.js       알림: /api/subscribe·unsubscribe·test, /api/notify(설정), /api/repeats(반복 알림), /api/reminders(한 번짜리, 화면 없음)
                     tick(): 시작 전 알림 · 아침 요약 · 전날 저녁 · 반복 알림. 후보 고르기는 순수 함수 candidates()(test/notify.mjs). 시각은 한국 시각(UTC+9 고정)
+src/plan.js         /api/plan/sync Planner 2.0 문서(작업·Big 3·수정안·블록 연결) 기기 간 합치기. D1 settings k='plan', 합치기 public/decide/tb/merge.js (exam.js와 같은 방식)
 src/projects.js     /api/projects/sync 장부 동기화 (merge.js로 항목 단위 합치기, 지운 것은 deleted 줄로 180일 보관) + 마감·단계 날짜를 일정에 맞춤
 src/webpush.js      RFC 8291(aes128gcm) + RFC 8292(VAPID), WebCrypto만 사용
 schema.sql          참고용 (subscriptions, reminders, events, settings, repeats, push_log, projects)

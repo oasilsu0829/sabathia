@@ -2,6 +2,7 @@ import { eventsApi } from './events.js';
 import { notifyApi, tick } from './notify.js';
 import { projectsApi } from './projects.js';
 import { examApi } from './exam.js';
+import { planApi } from './plan.js';
 import { json, authorized, ensureTables, CORS, withCors } from './util.js';
 
 const TLL = 'https://tll.oasilsu0829.workers.dev/';
@@ -39,5 +40,6 @@ async function api(req, env, path) {
   if (path === '/api/events' || path.startsWith('/api/events/')) return eventsApi(req, env, path);
   if (path === '/api/projects' || path.startsWith('/api/projects/')) return projectsApi(req, env, path);
   if (path === '/api/exam' || path.startsWith('/api/exam/')) return examApi(req, env, path);
+  if (path === '/api/plan' || path.startsWith('/api/plan/')) return planApi(req, env, path);
   return notifyApi(req, env, path);
 }
