@@ -11,7 +11,7 @@ const CITY = 'sabathia-city-1'; // 판단 WS 배경 사진 12장. 처음 볼 때
 const KEEP = [VERSION, FONTS, CDN, CITY];
 const SHELL = [
   '/', '/plan/', '/vocab/', '/schedule/', '/pdf/', '/lecture/', '/projects/', '/focus/', '/exam/', '/decide/',
-  '/decide/app.js', '/decide/ws', '/decide/ws.webmanifest', '/decide/ws.js', '/decide/boot.js', '/decide/boot.mp3', '/decide/must.js', '/decide/city.js', '/decide/bg.webp', '/decide/sources.js', '/decide/engine/decide.js', '/decide/engine/simulate.js', '/decide/engine/capacity.js',
+  '/decide/app.js', '/decide/ws', '/decide/ws.webmanifest', '/decide/ws-icon-192.png', '/decide/ws.js', '/decide/boot.js', '/decide/boot.mp3', '/decide/must.js', '/decide/city.js', '/decide/bg.webp', '/decide/sources.js', '/decide/engine/decide.js', '/decide/engine/simulate.js', '/decide/engine/capacity.js',
   '/decide/engine/planner.js', '/decide/engine/config.js', '/decide/engine/time.js',
   '/theme.css', '/sabathia.js', '/today.js', '/apps.js', '/projects/merge.js', '/exam/merge.js', '/manifest.webmanifest', '/icon-192.png',
 ];
