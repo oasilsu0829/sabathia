@@ -105,7 +105,7 @@ function render() {
     h('div.page-head',
       h('h1.page-title', '지금 할 일'),
       h('span.page-sub', R.exam.active ? `${MODE_LABEL[R.mode]} · ${R.exam.during ? '시험 기간' : 'D-' + R.exam.dDay}` : MODE_LABEL[R.mode]),
-      h('a.btn.sm.line', { href: '/decide/ws.html' }, 'WS 화면')),
+      h('a.btn.sm.line', { href: '/decide/ws' }, 'WS 화면')),
     h('p.lead', sourceLine()),
     h('div.cols', h('div', left), h('div', right)),
   );
