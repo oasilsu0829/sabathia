@@ -7,6 +7,8 @@ import { remainingOf, estimateOf } from './engine/planner.js';
 import { fmtTime, fmtDur, toDateStr, addDays, daysBetween, weekdayOf, weekdayLabel, roundTo } from './engine/time.js';
 import { buildState } from './sources.js';
 import * as MU from './must.js';
+import * as PL from './plan15577.js';
+import { mountPlanner } from './planpanel.js';
 
 // ---------- Icons ----------
 const P = {
@@ -150,7 +152,7 @@ function natural(id) {
 }
 const restack = () => { if (FORM !== 'wide' && S.mode === 'organized' && !S.focus) applyLayout(); };
 // 폰·세로 화면: 열린 창을 한 줄로 쌓는다. 화면보다 짧으면 남는 높이를 나눠 채운다.
-const STACK = { now: 640, must: 420, today: 330, dl: 560, pl: 620 };
+const STACK = { now: 640, must: 420, today: 330, dl: 560, pl: 900 };
 function stackRects() {
   const open = ids.filter((id) => !S.closed[id]);
   const avail = VH - TOP - PAD - (anyClosed() ? 64 : 0);
@@ -241,7 +243,6 @@ function applyLayout() {
     fb.innerHTML = ic(S.focus === id ? 'shrink' : 'expand');
     el.querySelector('.col').setAttribute('aria-expanded', String(!S.collapsed[id]));
   });
-  if (plFramed && S.focus !== 'pl') plFrame(false); // 크게 보기를 풀면 요약으로
   document.getElementById('scrim').classList.toggle('on', !!S.focus);
   document.querySelectorAll('[data-act="mode"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
   renderDock();
@@ -421,73 +422,56 @@ function renderDl() {
   document.querySelectorAll('[data-act="sort"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sort === S.sort)));
 }
 
-// ---------- PLANNER ----------
+// ---------- PLANNER = 15577 계획 (2026-11-21) ----------
+// 15577에서 타임라인을 뺀 '계획' 부분만 WS 디자인으로 옮겼다(planpanel.js, sabathiaWS ws/planpanel.js와 같은 파일).
+// 기록은 15577과 같은 blockplanner.v1 하나. 고치면 이 기기에 저장하고, 15577 온라인 저장 ID(bp.cloudId)가 있으면 1.5초 뒤 Firestore에도 올린다.
+// 블록 시간 배치(타임라인)·타이머·뽀모도로·고정 일정 설정은 15577(/plan/)에서.
+let PLAN = PL.loadLocal() || PL.normalize(null);
+const planId = () => { try { const v = localStorage.getItem('bp.cloudId'); return v && PL.ID_RE.test(v) ? v : null; } catch { return null; } };
+let planCloudT = null;
+function planChanged(msg) {
+  PLAN.updatedAt = Date.now();
+  PL.saveLocal(PLAN);
+  const id = planId();
+  if (id) { clearTimeout(planCloudT); planCloudT = setTimeout(() => PL.cloudPut(id, PLAN).catch(() => toast('15577 온라인 저장 실패 · 이 기기에는 저장됨')), 1500); }
+  render();
+  if (msg) toast(msg);
+}
+// 열 때·화면으로 돌아올 때: 온라인 쪽이 더 새로우면 받아 온다(15577 cloudPull과 같은 규칙)
+async function planPull() {
+  const id = planId(); if (!id) return;
+  try {
+    const r = await PL.cloudGet(id);
+    if (r && (r.updatedAt || 0) > (PLAN.updatedAt || 0)) { PLAN = r; PL.saveLocal(PLAN); render(); }
+  } catch {}
+}
+const minOfDay = (ms) => { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes(); };
+const panel = mountPlanner(document.getElementById('b-pl'), {
+  PL,
+  get: () => PLAN,
+  changed: planChanged,
+  today: () => TODAY || toDateStr(nowMs()),
+  nowMin: () => minOfDay(nowMs()),
+  toast,
+  fullUrl: '/plan/',
+  // 오늘: 엔진이 이 블록에 넣은 순서
+  extra: (b) => {
+    if (!R) return '';
+    const i = R.timelineToday.findIndex((p) => p.taskId === 'p:' + b.id || p.task?.id === 'p:' + b.id);
+    return i >= 0 ? `엔진 순서 ${i + 1}` : '';
+  },
+  side: (k) => {
+    if (!R || k !== TODAY || !R.timelineToday.length) return '';
+    return `<div class="pp-card"><div class="pp-k">엔진이 오늘 넣은 순서</div>
+      ${R.timelineToday.slice(0, 6).map((p, i) => `<div class="pp-eng"><span class="num">${String(i + 1).padStart(2, '0')}</span><b>${esc(p.task.title)}</b><span class="num">${fmtTime(p.start)}–${fmtTime(p.end)}</span></div>`).join('')}
+      <div class="pp-m" style="margin-top:10px">마감·시험을 함께 본 추천이에요. 순서는 위 목록의 ↑↓로 바꿔요.</div></div>`;
+  },
+});
 function renderPl() {
-  const n = R.now, blocks = todayBlocks();
-  const busy = (R.days[0]?.busy || []).filter((b) => b.end > (blocks[0]?.start ?? n) - 30 * MINMS && b.start < R.today_.end);
-  const order = new Map(R.timelineToday.map((p, i) => [p.taskId, i]));
-  const items = [...busy.map((b) => ({ ...b, fixed: true })), ...blocks].sort((a, b) => a.start - b.start);
-  const rows = items.map((x) => {
-    const len = (x.end - x.start) / MINMS;
-    if (x.fixed) return `<div class="pl-row fixed small" style="--c:var(--ink4)"><span class="pl-time num">${fmtTime(x.start)}</span><span class="pl-rail"><i></i></span><span class="pl-card"><span class="pl-title">${esc(x.label)} · ${dur(len)}</span></span></div>`;
-    const st = stateOf(x, x.t), map = { done: 'done', past: 'done', now: 'now', next: 'next' }[st];
-    const pill = st === 'now' ? '<span class="pill live"><i></i>Now</span>' : st === 'done' ? `<span class="pill done">${ic('check', 11)}Done</span>` : st === 'past' ? '<span class="pill">미완료</span>' : '';
-    const nowbar = st === 'now' ? `<span class="pl-nowbar"><i data-k="pl-nb" data-p="${((n - x.start) / (x.end - x.start)) * 100}" style="width:${prevW['pl-nb'] ?? 0}%"></i></span>` : '';
-    const rec = order.has(x.t.id) ? `엔진 순서 ${order.get(x.t.id) + 1}` : st === 'done' ? '완료' : '';
-    const sel = S.selBlock === x.t.id;
-    return `<button class="pl-row st-${map}${sel ? ' sel' : ''}" data-act="pledit" aria-label="15577에서 ${esc(x.t.title)} 편집" data-id="${esc(x.t.id)}" style="--c:${SUBJ_COLOR[x.t.subject]};--h:${Math.max(64, len * 1.35)}px">
-      <span class="pl-time num">${fmtTime(x.start)}<small>${fmtTime(x.end)}</small></span><span class="pl-rail"><i></i></span>
-      <span class="pl-card"><span class="pl-title">${esc(x.t.title)}${pill}</span><span class="pl-sub">${dur(len)} · ${esc(x.t.lite || '')}${remainingOf(x.t) !== estimateOf(x.t) && x.t.status !== 'done' ? ` · 남은 ${dur(remainingOf(x.t))}` : ''}${rec ? ' · ' + rec : ''}</span>${nowbar}</span>
-    </button>`;
-  });
-  rows.push(`<div class="pl-row fixed small" style="--c:var(--ink)"><span class="pl-time num">${fmtTime(R.today_.end)}</span><span class="pl-rail"><i></i></span><span class="pl-card"><span class="pl-title">취침</span></span></div>`);
-  const unplaced = R.timelineToday.filter((p) => !blocks.some((b) => b.t.id === p.taskId));
-  const detail = `<div class="pl-detail-card">
-    <div class="pd-k">엔진이 오늘 넣은 순서</div>
-    <div class="pd-t">${R.timelineToday.length ? `${R.timelineToday.length}개` : '없음'}</div>
-    <div class="pd-m num">15577 블록 ${blocks.length}개 · 일정 ${META.counts.events}개</div>
-    <div class="sec-label"><span class="kr">추천 순서</span><span>[${String(R.timelineToday.length).padStart(2, '0')}]</span></div>
-    ${R.timelineToday.slice(0, 8).map((p) => `<div class="pd-task"><span class="t">${esc(p.task.title)}</span><span class="a"><span class="num">${fmtTime(p.start)}–${fmtTime(p.end)}</span><span>${dur((p.end - p.start) / MINMS)}</span></span>${p.task.deadline ? `<span class="n">마감 ${ddayTxt(daysBetween(TODAY, p.task.deadline))}</span>` : ''}</div>`).join('')}
-    ${unplaced.length ? `<div class="pd-slack">블록 없이 빈 시간에 넣은 작업 ${unplaced.length}개</div>` : ''}
-  </div>`;
-  document.getElementById('pl-sum').innerHTML = blocks.length || busy.length ? rows.join('') : '<p class="empty-hero">오늘 15577 블록이 없어요. <button data-act="pledit" style="color:inherit;text-decoration:underline">15577 열기</button></p>';
-  document.getElementById('pl-side').innerHTML = detail;
-}
-
-// ---------- PLANNER 창 안의 15577 ----------
-// 평소엔 요약. 블록을 누르면 창을 크게 열고 /plan/?embed=1 에서 그 블록 편집 시트를 연다('15577 편집'은 그날 화면).
-// 같은 주소라 15577 기록(blockplanner.v1)이 하나이고, 저장하면 storage 이벤트로 WS가 바로 다시 계산한다
-let plFramed = false;
-document.getElementById('plEdit').hidden = false;
-function plFrame(show, blockId) {
-  const box = document.getElementById('pl-frame');
-  const id = blockId ? String(blockId).replace(/^p:/, '') : '';
-  if (show) {
-    let f = box.querySelector('iframe');
-    if (!f) {
-      f = document.createElement('iframe');
-      f.title = '15577 플래너';
-      f.src = '/plan/?embed=1' + (id ? '&edit=' + encodeURIComponent(id) : '');
-      box.append(f);
-    } else if (id) {
-      f.contentWindow?.postMessage({ sab: 'plan-edit', id }, location.origin);
-    }
-  }
-  plFramed = show;
-  box.hidden = !show;
-  document.getElementById('pl-sum').hidden = show;
-  document.getElementById('b-pl').classList.toggle('framed', show);
-  const btn = document.getElementById('plEdit');
-  btn.textContent = show ? '요약으로' : '15577 편집';
-  btn.setAttribute('aria-pressed', String(show));
-}
-function plOpen(blockId) {
-  S.closed.pl = false; S.collapsed.pl = false; S.focus = 'pl'; front('pl');
-  plFrame(true, blockId); applyLayout();
-}
-function plClose() {
-  if (S.focus === 'pl') S.focus = null;
-  plFrame(false); applyLayout();
+  // 남은 블록·진행률 → 창 머리
+  const p = PL.dayProg(PLAN, TODAY);
+  document.getElementById('plSub').textContent = p.n ? `오늘 ${p.doneN}/${p.n}` : '오늘 계획';
+  panel.render();
 }
 
 // ---------- 안하면 병신 (오늘 꼭 할 일, must.js) ----------
@@ -585,7 +569,6 @@ function render() {
   compute();
   const { m, d, w } = dateLabel(TODAY);
   document.getElementById('dateTxt').textContent = `${m}월 ${d}일 ${w}요일`;
-  document.getElementById('plSub').textContent = `${m}/${d} (${w}) 15577`;
   document.getElementById('volTag').textContent = `Vol.${TODAY.slice(2, 4)} / No.${m}`;
   document.getElementById('volMeta').textContent = `Vol.${TODAY.slice(2, 4)} No.${m}`;
   renderNow(); renderMust(); renderToday(); renderDl(); renderPl(); renderDock();
@@ -617,7 +600,6 @@ document.addEventListener('click', (e) => {
     case 'sort': S.sort = a.dataset.sort; render(); break;
     case 'group': { const g = a.dataset.id; S.open[g] = !S.open[g]; a.closest('.grp').classList.toggle('open', S.open[g]); setTimeout(restack, 520); break; }
     case 'selblock': S.selBlock = a.dataset.id; render(); break;
-    case 'pledit': if (plFramed && !a.dataset.id) plClose(); else plOpen(a.dataset.id); break;
     case 'follow': S.selBlock = null; render(); break;
     case 'mtog': case 'mdel': case 'mwarn': case 'mnotify': mustAction(act, a); break;
   }
@@ -657,9 +639,9 @@ function fit() {
 }
 let fitT;
 window.addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(() => { fit(); applyLayout(); }, 80); });
-window.addEventListener('storage', render);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); loadEvents(); } });
+window.addEventListener('storage', (e) => { if (e.key === PL.PLAN_KEY) PLAN = PL.loadLocal() || PLAN; render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { PLAN = PL.loadLocal() || PLAN; render(); loadEvents(); planPull(); } });
 setInterval(() => { document.getElementById('clock').textContent = fmtTime(nowMs()); }, 1000);
 setInterval(render, 60_000);
-fit(); applyLayout(); render(); loadEvents();
+fit(); applyLayout(); render(); loadEvents(); planPull();
 document.fonts && document.fonts.ready.then(applyLayout);

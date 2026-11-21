@@ -86,8 +86,11 @@ public/decide/      판단 (DEC-09, 2026-11-18). Sabathia Decision Engine v1.0 �
                     - 화면 비율(2026-11-19): 무대 크기를 화면에 맞춘다(ws.js measure). f-wide 가로(두 줄, 높이 640~1100 기준으로 배율), f-tall 세로 태블릿·f-phone 폰(<600)은 창을 한 줄로 쌓고 페이지 스크롤, 창 높이는 내용만큼(STACK 상한). 폰은 자유 모드·창 끌기 없음
                     - 배경(2026-11-19 사용자 요청 'Unsplash에서 하나'): bg.webp = Unsplash aHQMMwWUdWE(ran liwen, 밤하늘 아래 설산과 호수, 2732px webp 47KB). 주소 끝 #city 면 예전 도시 24시간
                     - 예전 배경 city.js(#city 일 때만): 같은 도시 2시간 간격 사진 12장(city/00.webp … 22.webp, 옆으로 누운 원본을 CSS가 회전)을 지금 시각에 맞춰 두 장씩 섞는다. #city=14 로 미리보기. sw.js가 /decide/city/ 를 따로 캐시(sabathia-city-1, 처음 볼 때 받음)
-                    - PLANNER 창 = 진짜 15577(2026-11-19, 사용자가 시안 C 고름): 평소엔 요약, 블록을 누르면 창을 크게 열고 iframe /plan/?embed=1 에서 그 블록 편집 시트(부모가 postMessage {sab:'plan-edit', id}, 처음엔 &edit=). '15577 편집' 버튼은 그날 화면, '요약으로'·크게 보기 해제로 돌아감. 같은 주소라 기록이 하나이고 15577이 저장하면 storage 이벤트로 WS가 다시 계산. 15577을 베끼지 않는다(사본 늘리지 말 것). 창 안 15577은 밝은 그대로(사용자 결정)
-                    - /plan/?embed=1: Sabathia 줄·전체 화면 버튼 숨김, 큰 날짜 줄임. 같은 주소에서 온 메시지만 받음
+                    - PLANNER 창 = 15577 '계획'(2026-11-21 사용자 요청 '15577을 디자인에 맞게 바꿔 이식, 타임라인 빼고 계획하는 것만'): 예전 iframe(/plan/?embed=1, 밝은 15577)을 없애고 WS 디자인으로 다시 그림
+                      planpanel.js(sabathiaWS ws/planpanel.js와 같은 파일) + plan15577.js(sabathiaWS ws/planner.js 사본, import 경로·PLAN_KEY만 다름 = 15577 규칙 layout·statusOf·suggest·complete …)
+                      주간 줄로 날짜 고르기 · 그날 블록 목록(시간 축 없음, 번호·과목·종류·분량·예상·시각 글자) · 추가/고치기 시트(종류·과목·제목·분량·예상(기록으로 추천)·날짜·시작·진행·끝냄·실제) · 완료 체크(문풀만 log에) · ↑↓ 순서 · 어제 못 끝낸 것 붙이기 · 빠르게 추가('수학 26문제 50분')
+                      오른쪽: 하루 요약(총·남은·과목별) + 엔진이 오늘 넣은 순서. 기록은 blockplanner.v1 하나(15577과 같음), 고치면 updatedAt·저장, bp.cloudId 있으면 1.5초 뒤 Firestore planners/{ID}에 올리고 열 때 더 새 것을 받음
+                      타임라인·타이머·뽀모도로·고정 일정 설정은 15577(/plan/), 창 맨 아래 링크. /plan/?embed=1 코드는 이제 안 쓰지만 남겨 둠
                     - '안하면 병신' 창(2026-11-19 사용자 요청): 오늘 꼭 할 일 체크리스트. must.js(sabathiaWS ws/must.js와 같은 파일, 테스트는 그쪽 tests/ws-must.test.js). 저장 localStorage sabathia.ws.must(기기마다). 매일 항목은 날마다 다시, 한 번 항목은 끝낸 다음 날 지움. 정돈 모드 가로 = 오른쪽 맨 위(높이 30%), 세로·폰 = NOW 다음
                       닫을 때: 남은 게 있으면 beforeunload 확인 창(컴퓨터 브라우저만, 문구는 브라우저가 정함). 아이폰·아이패드 사파리는 닫기를 막을 수 없어서 화면을 떠날 때(visibilitychange·pagehide) 알림(켜야 함, 홈 화면 앱 + 권한, 30분에 한 번). 실기기 확인 안 함
                     - 부팅 화면(2026-11-20, 사용자 시안 'Sabathia WS — Boot' 그대로): boot.js + boot.mp3. ws.html <body> 맨 앞에서 불러 덮개를 깔고, 컨택트 맵이 피어남 → 빛 → 작아지며 'Sabathia WS' 글자 → 4.3초에 WS(#stage)로. 열 때마다 나온다. 탭 없이 바로 재생. 소리는 자동 재생을 시도하고, 막히면(사파리는 항상 막음) 부팅 중 첫 터치 때 그 위치부터 재생(2026-11-20). #noboot 이면 건너뜀. sabathiaWS ws/boot.js와 같은 파일
