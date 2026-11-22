@@ -2538,7 +2538,8 @@ function today(){ const d = new Date(Date.now() - 4 * 3600e3); return Math.round
 
 /* ---------- 상태 ---------- */
 const LS = 'eowon.vocab.v1', LS_THEME = 'eowon.vocab.theme';
-function fresh(){ return {v:4, updatedAt:0, set:{perDay:20, spell:true, speak:false, start:0, ok:false, test:null, exam:{on:true, date:'2026-10-16', from:30, to:44}}, c:{}, log:{}, tests:[]}; }
+const FINAL = {on:true, date:'2026-12-10', from:45, to:59, mid:'2026-11-30'};
+function fresh(){ return {v:5, updatedAt:0, set:{perDay:20, spell:true, speak:false, start:0, ok:false, test:null, exam:Object.assign({}, FINAL)}, c:{}, log:{}, tests:[]}; }
 function normalize(s){
   const f = fresh(); if(!s || typeof s !== 'object') return f;
   s.set = Object.assign(f.set, s.set || {}); s.c = s.c && typeof s.c === 'object' ? s.c : {};
@@ -2548,6 +2549,8 @@ function normalize(s){
   /* v3: 시험 기본 유형을 철자 쓰기(서답형)로 */
   if(!(s.v >= 3)){ if(s.set.test) s.set.test.type = 'spell'; s.v = 3; }
   if(!(s.v >= 4)){ migrate48(s); s.v = 4; }
+  /* v5: 2학기 기말(12/10, Day 46~60, 11/30까지 1회독 → 12/9까지 2회독)로 시험 설정을 바꿈 */
+  if(!(s.v >= 5)){ s.set.exam = Object.assign({}, FINAL); s.v = 5; }
   return s;
 }
 /* v4: Day 48~60도 시험지(표제어+동반의어+파생어) 목록으로 바꿈. 단어 번호가 곧 기록 키라서
@@ -2698,19 +2701,41 @@ function examInfo(){
   const p = String(e.date).split('-').map(Number); if(p.length !== 3 || p.some(isNaN)) return null;
   const day = Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5), t = today(); if(t > day) return null;
   const a = Math.min(e.from, e.to), b = Math.max(e.from, e.to), lo = DAYS[a].ids[0], hi = DAYS[b].ids[DAYS[b].ids.length - 1];
-  return {day, left:day - t, a, b, lo, hi, n:hi - lo + 1, deadline:day - 5, m:p[1], d:p[2]};
+  const q = String(e.mid || '').split('-').map(Number);
+  let mid = q.length === 3 && !q.some(isNaN) ? Math.round(Date.UTC(q[0], q[1] - 1, q[2]) / 864e5) : null;
+  if(mid != null && !(mid < day - 1)) mid = null;
+  /* 2회독: mid까지 범위를 한 번씩(1회독), 그 뒤 시험 전날까지 한 번씩 더(2회독) */
+  const pass = mid == null ? 0 : t <= mid ? 1 : 2;
+  return {day, left:day - t, a, b, lo, hi, n:hi - lo + 1, mid, pass, deadline:pass === 1 ? mid : pass === 2 ? day - 1 : day - 5, m:p[1], d:p[2]};
 }
 const inEx = (E, id) => !!E && id >= E.lo && id <= E.hi;
 function unseenRange(E){ let n = 0; for(let i = E.lo; i <= E.hi; i++) if(!card(i)) n++; return n; }
 /* 시험 범위 단어는 시험 날까지 남은 기간의 절반을 넘지 않게, 늦어도 시험 전날엔 다시 나오게 */
 function capDue(id, t, due){
   const E = examInfo(); if(!inEx(E, id) || t >= E.day - 1) return due;
+  /* 2회독 중엔 내일 다시 볼 단어(몰랐던 것)만 남기고 나머지는 회독 순서대로 다시 나오게 시험 뒤로 보냄 */
+  if(E.pass) return due <= t + 1 ? due : E.day + 1;
   return Math.min(due, t + Math.max(1, Math.ceil((E.day - t) / 2)), E.day - 1);
 }
 function examQuota(E, t){
   const un = unseenRange(E); if(!un) return 0;
   const L = logOf(t), days = Math.max(1, E.deadline - t + 1);
   return Math.max(0, Math.ceil((un + (L.nx || 0)) / days) - (L.nx || 0));
+}
+function pending2(E){ let n = 0; for(let i = E.lo; i <= E.hi; i++){ const c = card(i); if(c && c[4] <= E.mid) n++; } return n; }
+function inP2(id){ const E = examInfo(), c = card(id); return !!E && E.pass === 2 && inEx(E, id) && !!c && c[4] <= E.mid; }
+function p2Left(t){
+  const E = examInfo(); if(!E || E.pass !== 2 || E.left <= 0) return 0;
+  const un = pending2(E); if(!un) return 0;
+  const L = logOf(t), d = L.p2 || 0, days = Math.max(1, E.day - 1 - t + 1);
+  return Math.max(0, Math.ceil((un + d) / days) - d);
+}
+/* 오늘 복습 목록에 없는 2회독 단어를 몇 개 더 끼울지 (복습으로 나온 범위 단어도 2회독으로 침) */
+function p2Extra(t){ const n = p2Left(t); if(!n) return 0; const du = dueIds(t); return Math.max(0, n - du.filter(inP2).length); }
+function p2Ids(n, skip){
+  const out = [], E = examInfo(); if(n <= 0 || !E || E.pass !== 2) return out;
+  for(let i = E.lo; i <= E.hi && out.length < n; i++){ const c = card(i); if(c && c[4] <= E.mid && !(skip && skip.has(i))) out.push(i); }
+  return out;
 }
 function dueIds(t){ const out = []; for(const k in S.c){ const c = S.c[k]; if(c[0] >= 1 && c[1] <= t) out.push(+k.slice(1)); } return out; }
 function unseen(){ let n = 0; for(let i = 0; i < W.length; i++) if(!card(i)) n++; return n; }
@@ -2827,7 +2852,7 @@ function numsHTML(m, l, u){
   return `<dl class="nums"><div class="is-done"><dt>암기 완료</dt><dd>${m}</dd></div><div><dt>익히는 중</dt><dd>${l}</dd></div><div><dt>아직 안 봄</dt><dd>${u}</dd></div></dl>`;
 }
 function vToday(){
-  const t = today(), due = dueIds(t).length, nl = Math.min(newLeft(t), newAvail()), L = logOf(t), E = examInfo();
+  const t = today(), due = dueIds(t).length + p2Ids(p2Extra(t)).length, nl = Math.min(newLeft(t), newAvail()), L = logOf(t), E = examInfo();
   const total = due + nl, done = L.n + L.r, started = done > 0, nd = nextNewDay();
   const pctToday = done + total ? done / (done + total) * 100 : 100;
   const [u, l, m] = counts();
@@ -2870,7 +2895,18 @@ function examPanel(t){
   const u = E.n - m - l;
   const dl = new Date(E.deadline * 864e5), dlTxt = `${dl.getUTCMonth() + 1}월 ${dl.getUTCDate()}일`;
   let pace;
-  if(E.left === 0) pace = '오늘이 시험이에요. 시험 탭에서 시험 범위로 뜻 고르기를 한 번 훑어보세요.';
+  const md = x => { const d = new Date(x * 864e5); return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`; };
+  if(E.pass && E.left > 0){
+    const un = unseenRange(E), L = logOf(t);
+    if(E.pass === 1){
+      const per = Math.ceil((un + (L.nx || 0)) / Math.max(1, E.mid - t + 1));
+      pace = `<b>1회독</b> · ${md(E.mid)}까지 범위 ${E.n}개를 한 번씩 봐요. 남은 ${un}개, 오늘 새 단어 ${per}개 안팎. 몰랐던 단어만 다음 날 다시 나오고, 나머지는 2회독(${md(E.mid + 1)}~${md(E.day - 1)})에 다시 나와요.`;
+    } else {
+      const p2 = pending2(E), per = Math.ceil((p2 + (L.p2 || 0)) / Math.max(1, E.day - 1 - t + 1));
+      pace = `<b>2회독</b> · ${md(E.day - 1)}까지 범위를 한 번 더 봐요. 남은 ${p2}개, 오늘 ${per}개 안팎${un ? `, 1회독에서 못 본 ${un}개는 새 단어로 같이 나와요` : ''}. 몰랐던 단어는 다음 날 다시 나와요.`;
+    }
+  }
+  else if(E.left === 0) pace = '오늘이 시험이에요. 시험 탭에서 시험 범위로 뜻 고르기를 한 번 훑어보세요.';
   else if(u === 0) pace = '범위 단어를 모두 한 번씩 봤어요. 이제 복습 간격이 시험 날에 맞춰 점점 좁아지고, 시험 전날엔 범위 단어가 한 번씩 다시 나와요.';
   else if(t <= E.deadline){ const per = Math.ceil((u + (logOf(t).nx || 0)) / Math.max(1, E.deadline - t + 1)); pace = `남은 ${u}개를 하루 ${per}개 안팎으로 ${dlTxt}까지 한 번씩 다 보고, 그 뒤 닷새는 복습만 해요. 복습 간격은 시험 날에 맞춰 알아서 좁혀요.`; }
   else pace = `남은 ${u}개를 오늘 다 봐야 시험 전에 복습할 시간이 생겨요.`;
@@ -2969,7 +3005,8 @@ function closeStage(){
 function setProg(done, total){ const p = total ? done / total * 100 : 0; $('#stBar').innerHTML = mapSVG('학습', 5, p, 6, `${Math.round(p)}퍼센트 진행`); $('#stCount').textContent = `${done} / ${total}`; }
 function reviewMode(id){ const c = card(id); return S.set.spell && c && c[0] >= 2 && Math.random() < .4 ? 'spell' : 'rec'; }
 function buildQueue(nNew){
-  const t = today(), rev = spread(shuffle(dueIds(t))), nw = newIds(nNew);
+  const t = today(), du = dueIds(t), ds = new Set(du), p2 = p2Ids(p2Extra(t), ds);
+  const rev = spread(shuffle(du.concat(p2))), nw = newIds(nNew);
   const q = []; let ri = 0, ni = 0;
   while(ri < rev.length || ni < nw.length){
     for(let k = 0; k < 2 && ri < rev.length; k++, ri++){
@@ -3035,8 +3072,12 @@ function gradeRec(g){
 }
 function finalize(id, g, st){
   const t = today(), L = lg(t); let c = card(id);
-  if(st.isNew){ setCard(id, [1, t + 1, 0, 1, t, c ? (c[5] || 0) : 0]); L.n++; if(inEx(examInfo(), id)) L.nx = (L.nx || 0) + 1; SES.nw++; }
+  if(st.isNew){
+    /* 2회독 중엔 처음 볼 때 몰랐던 단어만 내일 다시, 나머지는 다음 회독에서 */
+    const E = examInfo(), nd = E && E.pass && inEx(E, id) && !st.fail && t < E.day - 1 ? E.day + 1 : t + 1;
+    setCard(id, [1, nd, 0, 1, t, c ? (c[5] || 0) : 0]); L.n++; if(inEx(examInfo(), id)) L.nx = (L.nx || 0) + 1; SES.nw++; }
   else {
+    if(inP2(id)) L.p2 = (L.p2 || 0) + 1;
     if(!c){ c = [1, t, 0, 0, t, 0]; setCard(id, c); }
     if(st.fail){ c[0] = 1; c[1] = t + 1; c[2] = (c[2] || 0) + 1; }
     else if(g === 1){ c[1] = capDue(id, t, t + Math.max(1, Math.round(I[Math.max(1, c[0])] * .5))); }
@@ -3230,7 +3271,9 @@ function daySel(id, v){ return `<select class="in" id="${id}">${DAYS.map((d, i) 
 function examSettings(){
   const e = S.set.exam || {on:false, date:'', from:0, to:0};
   return `<div class="f tg"><span>영어 시험 대비<small>범위 단어를 먼저 새로 내주고, 복습 간격을 시험 날에 맞춰 좁혀요.</small></span><button class="tog" data-act="exTog" aria-pressed="${!!e.on}" aria-label="영어 시험 대비"></button></div>
-  ${e.on ? `<div class="f" style="margin-top:-6px"><input class="in" type="date" id="exDate" value="${esc(e.date || '')}" aria-label="시험 날짜"><div class="range">${daySel('exFrom', e.from)}<span>~</span>${daySel('exTo', e.to)}</div></div>` : ''}`;
+  ${e.on ? `<div class="f" style="margin-top:-6px"><input class="in" type="date" id="exDate" value="${esc(e.date || '')}" aria-label="시험 날짜"><div class="range">${daySel('exFrom', e.from)}<span>~</span>${daySel('exTo', e.to)}</div></div>
+  <div class="f tg"><span>2회독<small>1회독 끝나는 날까지 범위를 한 번씩, 그 뒤 시험 전날까지 한 번 더 봐요.</small></span><button class="tog" data-act="exMidTog" aria-pressed="${!!e.mid}" aria-label="2회독"></button></div>
+  ${e.mid ? `<div class="f" style="margin-top:-6px"><input class="in" type="date" id="exMid" value="${esc(e.mid)}" aria-label="1회독 끝나는 날"></div>` : ''}` : ''}`;
 }
 function methodHTML(){
   return `<div class="sh-head"><h2>외우는 방식</h2><button class="close" data-act="closeSheet">닫기</button></div>
@@ -3253,6 +3296,7 @@ const ACT = {
   closeSheet(){ if(!S.set.ok){ S.set.ok = true; save(); } closeSheet(); render(); },
   per(b){ S.set.perDay = Math.max(5, Math.min(60, S.set.perDay + +b.dataset.v)); $('#perOut').textContent = S.set.perDay; save(); },
   tog(b){ const k = b.dataset.k; S.set[k] = !S.set[k]; b.setAttribute('aria-pressed', S.set[k]); save(); },
+  exMidTog(){ const e = S.set.exam; if(!e) return; if(e.mid) e.mid = ''; else { const p = String(e.date || '').split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2])), t = today() * 864e5, m = new Date(t + Math.max(1, Math.floor((d - t) / 864e5 / 2)) * 864e5); e.mid = isNaN(m) ? '' : m.toISOString().slice(0, 10); } save(); const y = $('#sheet').scrollTop; openSheet(settingsHTML(false)); $('#sheet').scrollTop = y; renderHead(); },
   exTog(){ const e = S.set.exam || (S.set.exam = {on:false, date:'', from:S.set.start, to:S.set.start}); e.on = !e.on; save(); const y = $('#sheet').scrollTop; openSheet(settingsHTML(false)); $('#sheet').scrollTop = y; renderHead(); },
   theme(b){ const v = b.dataset.v; try{ localStorage.setItem(LS_THEME, v); }catch(e){} theme(v); document.querySelectorAll('[data-act="theme"]').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === v)); },
   begin(){ S.set.ok = true; save(); closeSheet(); render(); },
@@ -3322,7 +3366,7 @@ document.addEventListener('change', e => {
   const t = e.target;
   if(t.id === 'setStart'){ S.set.start = +t.value; save(); }
   else if(t.id === 'xferFile'){ const f = t.files && t.files[0]; if(!f) return; const r = new FileReader(); r.onload = () => { $('#xferTa').value = String(r.result || ''); toast('파일을 읽었어요. 확인 후 바꾸기를 누르세요'); }; r.readAsText(f); t.value = ''; }
-  else if(t.id === 'exDate' || t.id === 'exFrom' || t.id === 'exTo'){ const e = S.set.exam; if(t.id === 'exDate') e.date = t.value; else e[t.id === 'exFrom' ? 'from' : 'to'] = +t.value; save(); renderHead(); }
+  else if(t.id === 'exDate' || t.id === 'exFrom' || t.id === 'exTo' || t.id === 'exMid'){ const e = S.set.exam; if(t.id === 'exDate') e.date = t.value; else if(t.id === 'exMid') e.mid = t.value; else e[t.id === 'exFrom' ? 'from' : 'to'] = +t.value; save(); renderHead(); }
   else if(t.id === 'tFrom' || t.id === 'tTo'){ const c = T(); c[t.id === 'tFrom' ? 'from' : 'to'] = +t.value; save(); render(); }
 });
 document.addEventListener('keydown', e => {
@@ -3342,7 +3386,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && !SE
 /* ---------- Sabathia: 홈 아이콘에 오늘 진행을 알리고, 런처 뒤로가기는 설정·학습 화면부터 닫음 ---------- */
 function reportHome(){
   if(!window.Sabathia) return;
-  const t = today(), L = logOf(t), done = L.n + L.r, left = dueIds(t).length + Math.min(newLeft(t), newAvail()), E = examInfo();
+  const t = today(), L = logOf(t), done = L.n + L.r, left = dueIds(t).length + p2Ids(p2Extra(t)).length + Math.min(newLeft(t), newAvail()), E = examInfo();
   const exam = E ? {title: '영어 시험', date: S.set.exam.date, note: `Day ${DD(E.a)}–${DD(E.b)}`} : null;
   Sabathia.report('vocab', {done, total: done + left, pct: done + left ? done / (done + left) * 100 : 100, exam});
 }
