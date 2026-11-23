@@ -257,6 +257,13 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:32px;
 .sheet{max-width:480px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top,0px)) max(var(--pad-x),env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(var(--pad-x),env(safe-area-inset-left,0px))}
 .sh-head{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:var(--line-bold) solid var(--ink);padding-bottom:10px}
 .sh-head h2{font:800 24px/30px var(--font-title);margin:0}
+.ph{font:700 15px/20px var(--font-title);margin:20px 0 6px}
+.prow{display:grid;grid-template-columns:72px 1fr 44px;align-items:center;gap:10px;padding:5px 0}
+.prow>span:first-child{color:var(--muted);font-family:var(--font-num);font-size:14px}
+.prow>b{text-align:right;font-family:var(--font-num);font-size:14px}
+.prow.now>span:first-child{color:var(--accent, #004ac6);font-weight:700}
+.prow.past{opacity:.5}
+.warn{color:#c62828}
 .close{min-height:44px;font-weight:800;font-size:14px}
 .sheet .f{display:block;margin:20px 0}
 .sheet .f>span{display:block;font:800 12px/16px var(--font-body);letter-spacing:.06em;margin-bottom:8px}
@@ -2724,28 +2731,54 @@ function examQuota(E, t){
 }
 function pending2(E){ let n = 0; for(let i = E.lo; i <= E.hi; i++){ const c = card(i); if(c && c[4] <= E.mid) n++; } return n; }
 function inP2(id){ const E = examInfo(), c = card(id); return !!E && E.pass === 2 && inEx(E, id) && !!c && c[4] <= E.mid; }
-function p2Left(t){
-  const E = examInfo(); if(!E || E.pass !== 2 || E.left <= 0) return 0;
-  const un = pending2(E); if(!un) return 0;
-  const L = logOf(t), d = L.p2 || 0, days = Math.max(1, E.day - 1 - t + 1);
-  return Math.max(0, Math.ceil((un + d) / days) - d);
+/* ---------- 2회독 Day 계획표: 날짜마다 끝 Day 하나(앞 날짜의 끝 다음부터 시작). 기본값은 단어 수가 고르게 ---------- */
+const dayN = d => DAYS[d].ids.length;
+function splitEnds(a, b, n){
+  const ends = []; if(n <= 0) return ends;
+  let tot = 0; for(let d = a; d <= b; d++) tot += dayN(d);
+  let d = a - 1, cum = 0;
+  for(let k = 0; k < n; k++){
+    const target = tot * (k + 1) / n;
+    while(d < b && (k === n - 1 || Math.abs(cum + dayN(d + 1) - target) <= Math.abs(cum - target))){ d++; cum += dayN(d); }
+    ends.push(d);
+  }
+  return ends;
 }
-/* 오늘 복습 목록에 없는 2회독 단어를 몇 개 더 끼울지 (복습으로 나온 범위 단어도 2회독으로 침) */
-function p2Extra(t){ const n = p2Left(t); if(!n) return 0; const du = dueIds(t); return Math.max(0, n - du.filter(inP2).length); }
+function planOf(E){
+  const e = S.set.exam; let p = e.plan;
+  const ok = p && p.a === E.a && p.b === E.b && p.mid === E.mid && p.day === E.day && Array.isArray(p.p1) && Array.isArray(p.p2) && p.p1.length === E.mid - p.s + 1 && p.p2.length === E.day - 1 - E.mid;
+  if(!ok){ const s = Math.min(today(), E.mid); p = e.plan = {s, a:E.a, b:E.b, mid:E.mid, day:E.day, p1:splitEnds(E.a, E.b, E.mid - s + 1), p2:splitEnds(E.a, E.b, E.day - 1 - E.mid)}; }
+  return p;
+}
+const planBase = (E, ps) => ps === 1 ? planOf(E).s : E.mid + 1;
+/* 그 회독에서 날짜 t까지 배정된 마지막 Day (없으면 a-1) */
+function endBy(E, ps, t){
+  const p = planOf(E), arr = ps === 1 ? p.p1 : p.p2, k = Math.min(t - planBase(E, ps), arr.length - 1);
+  let m = E.a - 1; for(let i = 0; i <= k; i++) m = Math.max(m, arr[i]); return m;
+}
+const dayRangeOn = (E, ps, t) => [endBy(E, ps, t - 1) + 1, endBy(E, ps, t)];
+const hiId = (E, d) => d < E.a ? E.lo - 1 : DAYS[d].ids[DAYS[d].ids.length - 1];
+/* 오늘 목록에 없는 2회독 단어: 오늘까지 배정된 Day 중 아직 2회독 안 한 것 */
+function p2Extra(t){ const E = examInfo(); if(!E || E.pass !== 2 || E.left <= 0) return 0; return p2Ids(Infinity, new Set(dueIds(t))).length; }
 function p2Ids(n, skip){
-  const out = [], E = examInfo(); if(n <= 0 || !E || E.pass !== 2) return out;
-  for(let i = E.lo; i <= E.hi && out.length < n; i++){ const c = card(i); if(c && c[4] <= E.mid && !(skip && skip.has(i))) out.push(i); }
+  const out = [], E = examInfo(); if(n <= 0 || !E || E.pass !== 2 || E.left <= 0) return out;
+  const lim = hiId(E, endBy(E, 2, today()));
+  for(let i = E.lo; i <= lim && out.length < n; i++){ const c = card(i); if(c && c[4] <= E.mid && !(skip && skip.has(i))) out.push(i); }
   return out;
 }
+/* 새 단어를 내줄 마지막 번호: 1회독은 오늘까지 배정된 Day까지, 2회독 땐 1회독에서 못 본 것 모두 */
+function newLim(E, t){ return E.pass === 1 ? hiId(E, endBy(E, 1, t)) : E.hi; }
+function unseenTo(E, lim){ let n = 0; for(let i = E.lo; i <= lim; i++) if(!card(i)) n++; return n; }
 function dueIds(t){ const out = []; for(const k in S.c){ const c = S.c[k]; if(c[0] >= 1 && c[1] <= t) out.push(+k.slice(1)); } return out; }
 function unseen(){ let n = 0; for(let i = 0; i < W.length; i++) if(!card(i)) n++; return n; }
 /* 시험 대비 중엔 범위 단어만 새로 내주고, 범위를 다 봤으면 시험 날까지 새 단어 없이 복습만 */
-function newLeft(t){ const E = examInfo(); if(E && E.left > 0) return unseenRange(E) ? examQuota(E, t) : 0; return Math.max(0, S.set.perDay - logOf(t).n); }
-function newAvail(){ const E = examInfo(); return E && E.left > 0 && unseenRange(E) ? unseenRange(E) : unseen(); }
+function newLeft(t){ const E = examInfo(); if(E && E.left > 0 && E.pass) return unseenTo(E, newLim(E, t)); if(E && E.left > 0) return unseenRange(E) ? examQuota(E, t) : 0; return Math.max(0, S.set.perDay - logOf(t).n); }
+function newAvail(){ const E = examInfo(); if(E && E.left > 0 && E.pass) return unseenTo(E, newLim(E, today())); return E && E.left > 0 && unseenRange(E) ? unseenRange(E) : unseen(); }
 function newIds(n, skip){
   const out = []; if(n <= 0) return out;
   const ok = i => !card(i) && !(skip && skip.has(i));
   const E = examInfo();
+  if(E && E.left > 0 && E.pass){ const lim = newLim(E, today()); for(let i = E.lo; i <= lim && out.length < n; i++) if(ok(i)) out.push(i); return out; }
   if(E && E.left > 0 && unseenRange(E)){ for(let i = E.lo; i <= E.hi && out.length < n; i++) if(ok(i)) out.push(i); return out; }
   const start = DAYS[S.set.start].ids[0];
   for(let i = start; i < W.length && out.length < n; i++) if(ok(i)) out.push(i);
@@ -2897,14 +2930,16 @@ function examPanel(t){
   let pace;
   const md = x => { const d = new Date(x * 864e5); return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`; };
   if(E.pass && E.left > 0){
-    const un = unseenRange(E), L = logOf(t);
+    const [d0, d1] = dayRangeOn(E, E.pass, t), lim = E.pass === 1 ? newLim(E, t) : hiId(E, endBy(E, 2, t));
+    const todayTxt = d1 >= d0 ? `오늘은 <b>${d0 === d1 ? DN(d0) : `Day ${DD(d0)}–${DD(d1)}`}</b>` : '오늘은 계획표상 쉬는 날';
     if(E.pass === 1){
-      const per = Math.ceil((un + (L.nx || 0)) / Math.max(1, E.mid - t + 1));
-      pace = `<b>1회독</b> · ${md(E.mid)}까지 범위 ${E.n}개를 한 번씩 봐요. 남은 ${un}개, 오늘 새 단어 ${per}개 안팎. 몰랐던 단어만 다음 날 다시 나오고, 나머지는 2회독(${md(E.mid + 1)}~${md(E.day - 1)})에 다시 나와요.`;
+      const behind = unseenTo(E, d1 >= d0 ? hiId(E, d0 - 1) : lim);
+      pace = `<b>1회독</b> · ${todayTxt}. ${behind ? `밀린 ${behind}개도 같이 나와요. ` : ''}몰랐던 단어만 다음 날 다시 나와요.`;
     } else {
-      const p2 = pending2(E), per = Math.ceil((p2 + (L.p2 || 0)) / Math.max(1, E.day - 1 - t + 1));
-      pace = `<b>2회독</b> · ${md(E.day - 1)}까지 범위를 한 번 더 봐요. 남은 ${p2}개, 오늘 ${per}개 안팎${un ? `, 1회독에서 못 본 ${un}개는 새 단어로 같이 나와요` : ''}. 몰랐던 단어는 다음 날 다시 나와요.`;
+      const un = unseenRange(E), left2 = p2Ids(Infinity).length;
+      pace = `<b>2회독</b> · ${todayTxt}. 오늘까지 남은 ${left2}개${un ? `, 1회독에서 못 본 ${un}개는 새 단어로 같이 나와요` : ''}.`;
     }
+    pace += ` <button class="textbtn" data-act="plan">Day 계획표</button>`;
   }
   else if(E.left === 0) pace = '오늘이 시험이에요. 시험 탭에서 시험 범위로 뜻 고르기를 한 번 훑어보세요.';
   else if(u === 0) pace = '범위 단어를 모두 한 번씩 봤어요. 이제 복습 간격이 시험 날에 맞춰 점점 좁아지고, 시험 전날엔 범위 단어가 한 번씩 다시 나와요.';
@@ -3005,7 +3040,7 @@ function closeStage(){
 function setProg(done, total){ const p = total ? done / total * 100 : 0; $('#stBar').innerHTML = mapSVG('학습', 5, p, 6, `${Math.round(p)}퍼센트 진행`); $('#stCount').textContent = `${done} / ${total}`; }
 function reviewMode(id){ const c = card(id); return S.set.spell && c && c[0] >= 2 && Math.random() < .4 ? 'spell' : 'rec'; }
 function buildQueue(nNew){
-  const t = today(), du = dueIds(t), ds = new Set(du), p2 = p2Ids(p2Extra(t), ds);
+  const t = today(), du = dueIds(t), ds = new Set(du), p2 = p2Ids(Infinity, ds);
   const rev = spread(shuffle(du.concat(p2))), nw = newIds(nNew);
   const q = []; let ri = 0, ni = 0;
   while(ri < rev.length || ni < nw.length){
@@ -3268,12 +3303,34 @@ function importData(txt, b){
   toast(`가져왔어요. 학습한 단어 ${n}개`);
 }
 function daySel(id, v){ return `<select class="in" id="${id}">${DAYS.map((d, i) => `<option value="${i}" ${v === i ? 'selected' : ''}>${DN(i)}</option>`).join('')}</select>`; }
+function planHTML(){
+  const E = examInfo(); if(!E || !E.pass) return `<div class="sh-head"><h2>Day 계획표</h2><button class="close" data-act="closeSheet">닫기</button></div><p class="hint2">설정에서 영어 시험 대비와 2회독을 켜면 쓸 수 있어요.</p>`;
+  const p = planOf(E), t = today();
+  const sec = (ps, title) => {
+    const arr = ps === 1 ? p.p1 : p.p2, base = planBase(E, ps);
+    let rows = '', m = E.a - 1;
+    arr.forEach((end, k) => {
+      const dt = base + k, d = new Date(dt * 864e5), st = m + 1;
+      let opts = `<option value="${st - 1}" ${end <= m ? 'selected' : ''}>쉼</option>`;
+      for(let x = st; x <= E.b; x++) opts += `<option value="${x}" ${end === x ? 'selected' : ''}>${st === x ? DN(x) : `Day ${DD(st)}–${DD(x)}`}</option>`;
+      m = Math.max(m, end);
+      let n = 0; for(let x = st; x <= m; x++) n += dayN(x);
+      rows += `<div class="prow${dt === t ? ' now' : ''}${dt < t ? ' past' : ''}"><span>${d.getUTCMonth() + 1}/${d.getUTCDate()} ${WEEK[d.getUTCDay()]}</span>${st > E.b ? '<span class="hint2">남은 Day 없음</span>' : `<select class="in planEnd" data-p="${ps}" data-k="${k}" aria-label="${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 Day">${opts}</select>`}<b>${n}</b></div>`;
+    });
+    const miss = m < E.b ? `<p class="hint2 warn">Day ${DD(m + 1)}–${DD(E.b)}이 배정되지 않았어요.</p>` : '';
+    return `<h3 class="ph">${title}</h3>${rows}${miss}`;
+  };
+  return `<div class="sh-head"><h2>Day 계획표</h2><button class="close" data-act="closeSheet">닫기</button></div>
+  <p class="hint2">날짜마다 어디까지 볼지 고르세요. 앞 날짜가 끝난 Day 다음부터 시작해요. 오른쪽 숫자는 단어 수. 못 한 날의 단어는 다음 날로 넘어가요.</p>
+  ${sec(1, '1회독')}${sec(2, '2회독')}
+  <div class="row" style="margin-top:16px"><button class="ghost" data-act="planReset">단어 수로 고르게 다시 나누기</button></div>`;
+}
 function examSettings(){
   const e = S.set.exam || {on:false, date:'', from:0, to:0};
   return `<div class="f tg"><span>영어 시험 대비<small>범위 단어를 먼저 새로 내주고, 복습 간격을 시험 날에 맞춰 좁혀요.</small></span><button class="tog" data-act="exTog" aria-pressed="${!!e.on}" aria-label="영어 시험 대비"></button></div>
   ${e.on ? `<div class="f" style="margin-top:-6px"><input class="in" type="date" id="exDate" value="${esc(e.date || '')}" aria-label="시험 날짜"><div class="range">${daySel('exFrom', e.from)}<span>~</span>${daySel('exTo', e.to)}</div></div>
   <div class="f tg"><span>2회독<small>1회독 끝나는 날까지 범위를 한 번씩, 그 뒤 시험 전날까지 한 번 더 봐요.</small></span><button class="tog" data-act="exMidTog" aria-pressed="${!!e.mid}" aria-label="2회독"></button></div>
-  ${e.mid ? `<div class="f" style="margin-top:-6px"><input class="in" type="date" id="exMid" value="${esc(e.mid)}" aria-label="1회독 끝나는 날"></div>` : ''}` : ''}`;
+  ${e.mid ? `<div class="f" style="margin-top:-6px"><input class="in" type="date" id="exMid" value="${esc(e.mid)}" aria-label="1회독 끝나는 날"><div class="row" style="margin-top:8px"><button class="ghost" data-act="plan">Day 계획표</button></div></div>` : ''}` : ''}`;
 }
 function methodHTML(){
   return `<div class="sh-head"><h2>외우는 방식</h2><button class="close" data-act="closeSheet">닫기</button></div>
@@ -3296,6 +3353,8 @@ const ACT = {
   closeSheet(){ if(!S.set.ok){ S.set.ok = true; save(); } closeSheet(); render(); },
   per(b){ S.set.perDay = Math.max(5, Math.min(60, S.set.perDay + +b.dataset.v)); $('#perOut').textContent = S.set.perDay; save(); },
   tog(b){ const k = b.dataset.k; S.set[k] = !S.set[k]; b.setAttribute('aria-pressed', S.set[k]); save(); },
+  plan(){ openSheet(planHTML()); },
+  planReset(){ const e = S.set.exam; if(e) delete e.plan; const E = examInfo(); if(E && E.pass){ planOf(E); } save(); openSheet(planHTML()); render(); toast('단어 수로 고르게 나눴어요'); },
   exMidTog(){ const e = S.set.exam; if(!e) return; if(e.mid) e.mid = ''; else { const p = String(e.date || '').split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2])), t = today() * 864e5, m = new Date(t + Math.max(1, Math.floor((d - t) / 864e5 / 2)) * 864e5); e.mid = isNaN(m) ? '' : m.toISOString().slice(0, 10); } save(); const y = $('#sheet').scrollTop; openSheet(settingsHTML(false)); $('#sheet').scrollTop = y; renderHead(); },
   exTog(){ const e = S.set.exam || (S.set.exam = {on:false, date:'', from:S.set.start, to:S.set.start}); e.on = !e.on; save(); const y = $('#sheet').scrollTop; openSheet(settingsHTML(false)); $('#sheet').scrollTop = y; renderHead(); },
   theme(b){ const v = b.dataset.v; try{ localStorage.setItem(LS_THEME, v); }catch(e){} theme(v); document.querySelectorAll('[data-act="theme"]').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === v)); },
@@ -3367,6 +3426,7 @@ document.addEventListener('change', e => {
   if(t.id === 'setStart'){ S.set.start = +t.value; save(); }
   else if(t.id === 'xferFile'){ const f = t.files && t.files[0]; if(!f) return; const r = new FileReader(); r.onload = () => { $('#xferTa').value = String(r.result || ''); toast('파일을 읽었어요. 확인 후 바꾸기를 누르세요'); }; r.readAsText(f); t.value = ''; }
   else if(t.id === 'exDate' || t.id === 'exFrom' || t.id === 'exTo' || t.id === 'exMid'){ const e = S.set.exam; if(t.id === 'exDate') e.date = t.value; else if(t.id === 'exMid') e.mid = t.value; else e[t.id === 'exFrom' ? 'from' : 'to'] = +t.value; save(); renderHead(); }
+  else if(t.classList.contains('planEnd')){ const E = examInfo(); if(!E || !E.pass) return; const p = planOf(E); (t.dataset.p === '1' ? p.p1 : p.p2)[+t.dataset.k] = +t.value; save(); const y = $('#sheet').scrollTop; openSheet(planHTML()); $('#sheet').scrollTop = y; render(); }
   else if(t.id === 'tFrom' || t.id === 'tTo'){ const c = T(); c[t.id === 'tFrom' ? 'from' : 'to'] = +t.value; save(); render(); }
 });
 document.addEventListener('keydown', e => {
