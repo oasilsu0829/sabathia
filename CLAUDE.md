@@ -57,6 +57,7 @@ public/manifest.webmanifest  PWA 하나 (scope /)
 public/plan/        15577 공부 블록 플래너 (Block-planner 사본). 온라인 저장은 Firestore planners/{ID}
 public/vocab/       어원 단어 (Block-planner/vocab 사본을 v1.0으로 다시 그림). Firestore planners/v-{ID}
                     - 2회독(2026-11-22, v5): 시험 설정 exam.mid(1회독 끝나는 날). mid까지 범위 새 단어를 고르게, 그 뒤 시험 전날까지 범위를 한 번 더(c[4] <= mid인 카드를 번호순으로 하루 몫만큼 복습에 끼움, log p2). 2회독 중 범위 단어는 몰랐던 것만 내일 다시, 나머지는 due = 시험 다음 날로 미룸(capDue·finalize). v5 이주로 시험 설정을 2학기 기말(12/10, Day 46~60, mid 11/30)로 덮어씀
+                    - Day 계획표(2026-11-23, 사용자 요청 '임의로 말고 Day 단위로'): exam.plan = {s(시작일), a, b, mid, day, p1[날짜별 끝 Day], p2[...]}. 날짜마다 끝 Day 하나, 시작은 앞 날짜 끝 다음(쉼 = 앞과 같거나 작은 값). 기본값은 splitEnds()가 단어 수로 고르게. 시험 날짜·범위·mid가 바뀌면 다시 만듦. 1회독 새 단어 = 오늘까지 배정된 Day의 안 본 단어(밀린 것 포함), 2회독 = 오늘까지 배정된 Day 중 c[4] <= mid. 오늘 화면 '영어 시험' 칸과 설정의 'Day 계획표' 버튼으로 편집
                     Day 46~60은 학교 시험지(표제어+동반의어+파생어) 목록. 셋째 칸이 어원 대신 묶음 이름. 기록 키가 단어 번호라 목록을 바꾸면 normalize()에 이주 함수를 단다(v2 migrate46, v4 migrate48). Day 54 25번은 사진에 가려 빠짐
 public/pdf/         사진 PDF 묶음기 (llm-wiki-private/tools 사본, v1.0)
 public/focus/       집중 타이머 Aero Focus (FOC-07). 파일 하나. theme.css를 쓰지 않는 몰입 화면(사용자 결정: CRT 열대 해변)
