@@ -49,6 +49,7 @@ public/index.html   Sabathia 홈: 화면별 배치 3개(폰 <640 · 세로 화�
 public/apps.js      앱 목록(코드·이름·주소·고유색·홈 아이콘 진행률 계산). 새 앱은 여기에
 public/today.js     홈의 "오늘 하루": 15577 보고(블록 위치·상태·수업·D-day) + /api/events + 어원 단어 보고를 한 줄로 모음
 public/sabathia.js  공통: 런처 뒤로가기/홈 버튼, 앱 상태 보고(localStorage sabathia.status.<id>), /sw.js 등록
+                    업데이트 확인(2026-11-23): /api/version(토큰 없음, wrangler.toml [version_metadata] CF_VERSION의 배포 id·시각)을 열 때·돌아올 때(5분 간격)·30분마다 확인. 이 기기가 받은 id(localStorage sabathia.ver)와 다르면 위쪽 띠 '새 버전 · 시각 [새로고침][나중에]'. 새로고침 = SW update + 지금 화면·공통 파일 cache:'reload'로 다시 받고 reload. 처음 보는 기기는 지금 id로 침. Sabathia.checkUpdate(true)는 수동 확인(결과를 띠로)
 public/projects/merge.js  장부 합치기(화면·서버 공용)
 public/sw.js        서비스 워커 하나가 / 전체를 맡음. 캐시를 먼저 보여 주고 뒤에서 갱신(다음에 열 때 반영), 새로고침·"최신 버전 확인"은 네트워크 먼저.
                     설치 때 앱 8개 화면을 미리 캐시. 글꼴·jsPDF는 버전과 무관한 캐시. push → 알림(누르면 url로 이동)

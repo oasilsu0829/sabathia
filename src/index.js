@@ -29,6 +29,12 @@ async function api(req, env, path) {
   // 푸시 공개 키는 누구나 읽어도 된다(구독할 때 브라우저가 쓴다)
   if (path === '/api/vapid') return json({ key: env.VAPID_PUBLIC || '' });
 
+  // 지금 배포된 버전. 화면이 업데이트가 나왔는지 확인할 때 쓴다(토큰 없이, 캐시 안 함)
+  if (path === '/api/version') {
+    const v = env.CF_VERSION || {};
+    return json({ id: v.id || 'dev', tag: v.tag || '', at: v.timestamp || '' });
+  }
+
   // 그 밖의 /api/* 는 Worker에 API_TOKEN 비밀값이 있으면 Bearer 토큰이 필요하다
   if (!authorized(req, env)) return json({ error: '토큰이 맞지 않습니다' }, 401);
   try {
